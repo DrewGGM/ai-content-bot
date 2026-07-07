@@ -1,0 +1,41 @@
+{
+  "instagram": {
+    "enabled": true,
+    "formats": {
+      "reel":     { "type": "video", "aspect": "9:16", "maxSeconds": 90, "subtitles": true },
+      "post":     { "type": "image", "aspect": "4:5" },
+      "carousel": { "type": "image", "aspect": "4:5", "maxSlides": 10 },
+      "story":    { "type": "image", "aspect": "9:16" }
+    },
+    "api": "meta-graph"
+  },
+  "tiktok": {
+    "enabled": true,
+    "formats": {
+      "video": { "type": "video", "aspect": "9:16", "maxSeconds": 180, "subtitles": true }
+    },
+    "api": "tiktok-content-posting"
+  },
+  "facebook": {
+    "enabled": true,
+    "formats": {
+      "post":  { "type": "image", "aspect": "1:1" },
+      "video": { "type": "video", "aspect": "16:9" }
+    },
+    "api": "meta-graph"
+  },
+  "linkedin": {
+    "enabled": true,
+    "formats": {
+      "post":  { "type": "image", "aspect": "1:1", "tone": "profesional" }
+    },
+    "api": "linkedin"
+  },
+  "x": {
+    "enabled": true,
+    "formats": {
+      "post": { "type": "image", "aspect": "16:9", "maxChars": 280 }
+    },
+    "api": "x"
+  }
+}

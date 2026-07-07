@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "agentkits-marketing-automation": {
+      "source": "aradotso/marketing-skills",
+      "sourceType": "github",
+      "skillPath": "skills/agentkits-marketing-automation/SKILL.md",
+      "computedHash": "e4baabd1da9400cd11dca38cd86bd52810f11fa166d9fa197484f88b2d72a742"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "93f53fd1c0352d3d7ec17b8f73d7351bf76f4821e55d123c9d2abc2c53ba48e4"
+    },
+    "generate-image": {
+      "source": "laurigates/claude-plugins",
+      "sourceType": "github",
+      "skillPath": "tools-plugin/skills/generate-image/SKILL.md",
+      "computedHash": "b66c96d25719a6c730b9efb6854dba2d19ed846961b6ec700f3c653e01cc1155"
+    },
+    "high-end-visual-design": {
+      "source": "leonxlnx/taste-skill",
+      "sourceType": "github",
+      "skillPath": "skills/soft-skill/SKILL.md",
+      "computedHash": "f730e4132775f13eea19e3dc39afc6bb453cfc0498872b127ad8f0d47cfd802d"
+    },
+    "social-media": {
+      "source": "aitytech/agentkits-marketing",
+      "sourceType": "github",
+      "skillPath": "skills/social-media/SKILL.md",
+      "computedHash": "fd97bf78d9013dd991310651312cae2976dad33cb11f0221bfd4069c892dd7a7"
+    },
+    "social-media-generator": {
+      "source": "ailabs-393/ai-labs-claude-skills",
+      "sourceType": "github",
+      "skillPath": "packages/skills/social-media-generator/SKILL.md",
+      "computedHash": "daacab301c075fa06cef09db77a101ebb79baf99e30f37ecc5d95c6e0f68bb7c"
+    }
+  }
+}

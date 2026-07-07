@@ -1,0 +1,34 @@
+# Secrets
+.env
+*.key
+
+# Dependencias / build
+node_modules/
+dist/
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Logs del scheduler
+logs/
+
+# Output pesado / temporal
+assets/raw/*
+assets/output/*
+!assets/raw/.gitkeep
+!assets/output/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Estado runtime de la cola (no versionar)
+src/queue/queue.json
+
+# Config runtime del panel (programación) — no se commitea
+data/
+
+# Remotion: logo copiado en runtime + salidas
+remotion/public/logo.svg
+remotion/out/

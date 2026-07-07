@@ -1,0 +1,46 @@
+{
+  "name": "content-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bot de creacion de contenido multicanal con aprobacion humana (IG, TikTok, FB, LinkedIn/X)",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "voices": "tsx src/index.ts voices",
+    "capabilities": "tsx src/index.ts capabilities",
+    "caps": "tsx src/index.ts capabilities",
+    "init-db": "tsx src/index.ts init-db",
+    "plan": "tsx src/index.ts plan",
+    "set": "tsx src/index.ts set",
+    "generate": "tsx src/index.ts generate",
+    "reel": "tsx src/index.ts reel",
+    "motion": "tsx src/index.ts motion",
+    "ugc": "tsx src/index.ts ugc",
+    "carousel": "tsx src/index.ts carousel",
+    "post": "tsx src/index.ts post",
+    "design": "tsx src/index.ts design",
+    "deck": "tsx src/index.ts deck",
+    "panel": "tsx src/web/server.ts",
+    "schedule": "tsx src/scheduler/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1079.0",
+    "@aws-sdk/s3-request-presigner": "^3.1079.0",
+    "@fal-ai/client": "^1.2.1",
+    "@remotion/bundler": "^4.0.286",
+    "@remotion/renderer": "^4.0.286",
+    "dotenv": "^16.4.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.286",
+    "sharp": "^0.35.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "@types/react": "^19.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

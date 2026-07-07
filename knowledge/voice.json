@@ -1,0 +1,24 @@
+{
+  "_comment": "Voces ElevenLabs + pronunciación. 'say' = cómo debe SONAR un término (se aplica al texto antes del TTS). 'show' = corrige el subtítulo para que muestre la marca real. Lista voces con: npm run voices, y pega un voice_id en default.voiceId.",
+  "default": {
+    "voiceId": "",
+    "name": "",
+    "language": "es",
+    "style": "narrador cercano",
+    "model": "eleven_multilingual_v2",
+    "stability": 0.5,
+    "similarityBoost": 0.75
+  },
+  "ads": {
+    "voiceId": "",
+    "name": "",
+    "language": "es",
+    "style": "energica, locucion publicitaria",
+    "model": "eleven_multilingual_v2"
+  },
+  "pronunciation": {
+    "_ejemplo": "Si tu marca se lee distinto a como se escribe, mapea aquí. 'say': escritura→fonética para el TTS. 'show': fonética→marca real para el subtítulo.",
+    "say": {},
+    "show": {}
+  }
+}

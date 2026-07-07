@@ -1,0 +1,2 @@
+# Los scripts shell SIEMPRE en LF: se ejecutan en Linux (VPS) y CRLF rompe bash.
+*.sh text eol=lf

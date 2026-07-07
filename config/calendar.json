@@ -1,0 +1,10 @@
+{
+  "_comment": "Tema por día de la semana (0=domingo ... 6=sábado). El scheduler usa el PLANNER (que elige formato según historial); este calendario es de referencia para editar tus temas. 0=dom..6=sáb.",
+  "0": "Cierre de semana: motiva a tu audiencia con tu propuesta de valor",
+  "1": "Educativo: explica un concepto clave de tu sector de forma simple",
+  "2": "Diferenciador: por qué elegirte a ti y no a la competencia",
+  "3": "Producto: muestra cómo funciona o un beneficio concreto",
+  "4": "Detrás de cámaras: equipo, proceso o cultura de la marca",
+  "5": "Entretenido / trend: conecta tu producto con algo cercano y ligero",
+  "6": "Caso / testimonio: un cliente y su resultado"
+}
