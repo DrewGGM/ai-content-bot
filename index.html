@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Content Bot · Demo</title>
+<meta name="description" content="Demo estática del AI Content Bot: piezas reales generadas por IA para una marca de ejemplo (Lyroo), con panel de aprobación simulado.">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700;800&display=swap');
+:root{--violet:#5B2DC4;--violet2:#7B4DDB;--mint:#00D4AA;--bg:#05060c;--card:#0f1120;--card2:#141733;--line:#20233f;--txt:#f4f5fb;--mut:#9a9cc0}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{margin:0;font-family:'Fira Sans',Inter,system-ui,Arial,sans-serif;color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+  background:radial-gradient(1200px 600px at 80% -10%,color-mix(in srgb,var(--violet) 22%,transparent),transparent 60%),
+  radial-gradient(1000px 500px at -10% 10%,color-mix(in srgb,var(--mint) 12%,transparent),transparent 55%),var(--bg)}
+a{color:inherit}
+.ic{width:18px;height:18px;flex:none}
+header{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);background:color-mix(in srgb,var(--bg) 82%,transparent);border-bottom:1px solid var(--line)}
+.hbar{max-width:1560px;margin:0 auto;padding:14px 26px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px}
+.brand .badge{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,var(--violet),var(--mint));color:#fff}
+.brand small{font-weight:500;color:var(--mut);font-size:12px}
+.spacer{flex:1}
+.hbtn,.gen-btn,.gh{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;text-decoration:none;transition:filter .2s,border-color .2s}
+.hbtn{border:1px solid var(--line);background:transparent;color:var(--txt)}
+.hbtn:hover{border-color:var(--violet2)}
+.gen-btn{border:0;color:#fff;background:linear-gradient(135deg,var(--violet),var(--violet2))}
+.gen-btn:hover{filter:brightness(1.12)}
+.gh{border:1px solid var(--line);color:var(--mut)} .gh:hover{color:#fff;border-color:var(--mint)}
+.banner{max-width:1560px;margin:14px auto 0;padding:0 26px}
+.banner-in{border:1px solid color-mix(in srgb,var(--mint) 45%,var(--line));background:color-mix(in srgb,var(--mint) 8%,transparent);border-radius:14px;padding:13px 18px;font-size:13.5px;line-height:1.55;color:#d9f7ef}
+.banner-in b{color:#fff}
+.banner-in a{color:var(--mint);font-weight:700}
+.tabs{max-width:1560px;margin:0 auto;padding:14px 26px 12px;display:flex;gap:8px;flex-wrap:wrap}
+.tab{display:inline-flex;align-items:center;gap:8px;padding:8px 15px;border-radius:99px;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--mut);font-size:13px;font-weight:600;font-family:inherit;transition:.2s}
+.tab:hover{color:var(--txt)}
+.tab[aria-selected="true"]{color:#fff;background:linear-gradient(135deg,var(--violet),var(--violet2));border-color:transparent}
+.tab .n{font-family:'Fira Code',monospace;font-size:11px;padding:1px 8px;border-radius:99px;background:#ffffff1a;min-width:22px;text-align:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px;padding:8px 26px 40px;max-width:1560px;margin:0 auto}
+.card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 10px 34px #0007;transition:transform .2s,border-color .2s}
+.card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--violet2) 55%,var(--line))}
+.card.hide{display:none}
+.media{position:relative;background:#000;line-height:0}
+.media .badge{position:absolute;top:11px;left:11px;padding:4px 11px;border-radius:99px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#fff;box-shadow:0 4px 14px #0007;line-height:1.4;z-index:2}
+video,.single{width:100%;display:block}
+video{aspect-ratio:9/16;object-fit:cover;background:#000}
+.carousel{position:relative}
+.track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none}
+.track::-webkit-scrollbar{display:none}
+.track img{width:100%;flex:0 0 100%;scroll-snap-align:center}
+.nav{position:absolute;top:50%;transform:translateY(-50%);z-index:2;width:40px;height:40px;border-radius:50%;border:0;background:#000b;color:#fff;font-size:22px;cursor:pointer}
+.nav:hover{background:var(--violet)} .prev{left:8px} .next{right:8px}
+.count{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:#000b;padding:3px 12px;border-radius:99px;font-size:11px;font-family:'Fira Code',monospace}
+.body{padding:16px;display:flex;flex-direction:column;gap:11px}
+.meta{display:flex;align-items:center;gap:6px;color:var(--mut);font-size:12px;text-transform:capitalize}
+.meta i{opacity:.5;font-style:normal}
+.cap{font-size:13px;line-height:1.6;color:#dcdcec;margin:0;max-height:130px;overflow:auto}
+.tags{display:flex;flex-wrap:wrap;gap:5px}.tag{font-size:11px;color:var(--mint);font-family:'Fira Code',monospace}
+.actions{display:flex;gap:9px}
+.actions button{flex:1;padding:11px;border:0;border-radius:11px;font-weight:700;cursor:pointer;color:#fff;font-size:14px;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:filter .2s}
+.ok{background:#00a578}.no{background:#c0392b}
+.pub{background:linear-gradient(135deg,var(--mint),#00a578);color:#04150f!important}
+.ghost{background:#1a1d33;border:1px solid var(--line)!important;color:var(--txt)}
+.actions button:hover{filter:brightness(1.12)}
+.actions button:disabled{opacity:.38;cursor:default}
+footer{max-width:1560px;margin:0 auto;padding:26px;color:var(--mut);font-size:13px;border-top:1px solid var(--line);line-height:1.7}
+footer a{color:var(--mint);font-weight:600}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--card2);border:1px solid var(--violet2);border-radius:13px;padding:13px 20px;font-size:13.5px;box-shadow:0 16px 44px #000c;opacity:0;pointer-events:none;transition:.25s;max-width:90vw;z-index:60}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.modal{position:fixed;inset:0;background:#000b;display:none;align-items:flex-start;justify-content:center;z-index:50;padding:8vh 16px;backdrop-filter:blur(4px)}
+.modal.show{display:flex}
+.modal-box{width:100%;max-width:480px;background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 30px 80px #000c}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-weight:800}
+.mh-close{background:transparent;border:0;color:var(--mut);cursor:pointer;font-size:18px}
+.modal label{display:block;font-size:12px;color:var(--mut);margin:12px 0 6px;font-weight:600}
+.modal textarea,.modal select{width:100%;padding:11px;border-radius:11px;border:1px solid var(--line);background:#0b0d1c;color:var(--txt);font-size:14px;font-family:inherit}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.btn-ghost{padding:11px 18px;border-radius:11px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;background:transparent;color:var(--mut);border:1px solid var(--line)}
+.btn-primary{padding:11px 18px;border-radius:11px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;border:0;color:#fff;background:linear-gradient(135deg,var(--violet),var(--violet2))}
+.job{position:fixed;right:16px;bottom:16px;z-index:60;display:none;align-items:center;gap:10px;padding:12px 15px;border-radius:12px;border:1px solid var(--line);background:var(--card2);box-shadow:0 12px 30px #0009;font-size:12.5px}
+.job.show{display:flex}
+.spin{width:15px;height:15px;border:2px solid var(--violet2);border-top-color:transparent;border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (max-width:640px){.hbar,.tabs,.grid,.banner{padding-left:12px;padding-right:12px}.grid{grid-template-columns:1fr;gap:16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="hbar">
+    <span class="brand"><span class="badge"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg></span>
+      AI Content Bot <small>demo · marca de ejemplo: Lyroo</small></span>
+    <span class="spacer"></span>
+    <button class="hbtn" onclick="toast('Simulación · en el bot real, la IA analiza tu historial (aprobado/rechazado/temas) y decide el próximo formato + tema')">Plan</button>
+    <button class="hbtn" onclick="toast('Simulación · en el bot real genera una pieza de cada formato disponible')">Set</button>
+    <button class="hbtn" onclick="toast('Simulación · en el bot real programa 1 pieza automática al día a la hora que elijas')">Auto</button>
+    <button class="gen-btn" onclick="openGen()">✦ Generar</button>
+    <a class="gh" href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+  <div class="tabs" role="tablist" id="tabs"></div>
+</header>
+
+<div class="banner"><div class="banner-in">
+  <b>Demo estática.</b> Todas las piezas de abajo son <b>reales</b>: las generó el bot para la marca de
+  ejemplo <b>Lyroo</b> (copy escrito por un agente de IA con el contexto de la marca, visuales por IA o
+  renderizados por código, voz sintética y QA visual automático). Los botones simulan el panel real.
+  Código e instrucciones: <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">github.com/DrewGGM/ai-content-bot</a>.
+</div></div>
+
+<main class="grid" id="grid"></main>
+
+<div id="genModal" class="modal" onclick="if(event.target===this)closeGen()">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <div class="modal-head"><span>✦ Generar contenido</span><button class="mh-close" onclick="closeGen()">✕</button></div>
+    <label>Tema o prompt</label>
+    <textarea rows="3" id="genTopic" placeholder="Ej: el principal beneficio de tu producto para el cliente"></textarea>
+    <label>Formato</label>
+    <select id="genFmt">
+      <option>Diseño — 1 póster, código sin API</option>
+      <option>Carrusel (código) — varios pósters</option>
+      <option>Video (Remotion) — animado por código</option>
+      <option>Post — imagen única (IA)</option>
+      <option>Carrusel — imágenes IA</option>
+      <option>Reel — video b-roll (IA)</option>
+      <option>UGC — avatar</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeGen()">Cancelar</button>
+      <button class="btn-primary" onclick="fakeGen()">✦ Generar</button>
+    </div>
+  </div>
+</div>
+
+<div class="job" id="job"><span class="spin"></span><span id="jobTxt">generando…</span></div>
+<div class="toast" id="toast"></div>
+
+<footer>
+  <b style="color:#fff">¿Qué es esto?</b> Un bot open-source que genera contenido de redes para cualquier marca
+  con <b>cualquier agente de IA</b> (Claude Code, Codex, Gemini CLI, Qwen, Kimi, Cursor, Copilot, OpenCode, o un
+  comando propio) <b>o cualquier API de LLM</b> (Anthropic, OpenAI, OpenRouter, DeepSeek, Groq, Ollama local…).
+  Escribe el copy con el contexto de tu empresa, genera el visual (IA o código), hace QA visual con visión,
+  y te deja aprobar/publicar desde un panel PWA.<br>
+  → <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">Repositorio y documentación</a>
+  · Hecho por <a href="https://andrewgarcia.dev" target="_blank" rel="noopener">Andrew García</a>.
+</footer>
+
+<script>
+const pieces = [
+  { id:"broll", status:"pending", format:"reel", platform:"instagram", pillar:"Diferenciadores",
+    media:{type:"video",src:"assets/broll-reel.mp4"},
+    cap:"¿Se fue el internet? En tu negocio nadie se entera. 🍲\n\nCon LyrooPOS sigues vendiendo, cobrando y facturando sin conexión — y cuando vuelve el internet, todo se sincroniza solo.",
+    tags:"#Lyroo #LyrooPOS #POS #SinInternet #PyMEColombia" },
+  { id:"deck", status:"pending", format:"carousel", platform:"instagram", pillar:"Educativo DIAN/PyME",
+    media:{type:"carousel",srcs:["assets/deck-1.webp","assets/deck-2.webp","assets/deck-3.webp","assets/deck-4.webp","assets/deck-5.webp"]},
+    cap:"¿Tu negocio todavía no está obligado a facturar electrónicamente? Tranquilo, no tienes que adelantarte a nada 🌱\n\nCon LyrooPOS puedes empezar a vender, controlar tu caja e inventario desde ya — sin DIAN, sin complicarte. Y cuando tu negocio crezca y la necesites, el sistema ya está listo para activarla: mismo software, sin migrar nada.",
+    tags:"#Lyroo #FacturaciónElectrónica #DIAN #PyMEColombia" },
+  { id:"folios", status:"pending", format:"post", platform:"instagram", pillar:"Diferenciadores",
+    media:{type:"image",src:"assets/design-folios.webp"},
+    cap:"¿Sabías que puedes facturar electrónicamente TODO lo que quieras y pagar siempre lo mismo? 🌿\n\nEn LyrooPOS la facturación DIAN va incluida y es ilimitada: cero cobros por folio, cero sorpresas en la factura del mes.",
+    tags:"#Lyroo #DIAN #SinCostoPorFolio #POS" },
+  { id:"motion", status:"pending", format:"motion", platform:"instagram", pillar:"Diferenciadores",
+    media:{type:"video",src:"assets/motion-reel.mp4"},
+    cap:"¿Se te va el internet a mitad del día? 🥴\nCon LyrooPOS no paras de vender.\n\nSigues facturando, sigues cobrando — todo sin conexión. Cuando vuelve el internet, todo se sincroniza solo.",
+    tags:"#Lyroo #LyrooPOS #FacturaciónElectrónica #NegociosOffline" },
+  { id:"precio", status:"approved", format:"post", platform:"instagram", pillar:"Precio honesto",
+    media:{type:"image",src:"assets/design-precio.webp"},
+    cap:"Nada de 'desde $X' que después se vuelve otra cosa. Lo que ves en el plan es lo que pagas cada mes — sin cobro extra por factura electrónica, sin letra pequeña escondida. 🌿",
+    tags:"#Lyroo #PrecioHonesto #SinLetraPequeña" },
+  { id:"backup", status:"pending", format:"post", platform:"facebook", pillar:"Confianza",
+    media:{type:"image",src:"assets/design-backup.webp"},
+    cap:"¿Se dañó el computador? Tus datos no se pierden. 🔒\n\nLyroo guarda backups cifrados de tu negocio y te restaura en horas, no en semanas.",
+    tags:"#Lyroo #Backups #DatosSeguros" },
+];
+const LBL={pending:["Pendiente","#7B4DDB"],approved:["Aprobado","#00B892"],rejected:["Rechazado","#e05252"],published:["Publicado","#5b6472"]};
+const FIC={reel:"🎬",motion:"✨",carousel:"🖼",post:"📷"};
+
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function mediaHtml(p){
+  if(p.media.type==="video")return `<video src="${p.media.src}" controls playsinline preload="metadata"></video>`;
+  if(p.media.type==="carousel"){
+    const imgs=p.media.srcs.map(s=>`<img src="${s}" alt="Slide" loading="lazy">`).join("");
+    return `<div class="carousel"><button class="nav prev" onclick="slide(this,-1)">&lsaquo;</button><div class="track">${imgs}</div><button class="nav next" onclick="slide(this,1)">&rsaquo;</button><span class="count">${p.media.srcs.length} slides</span></div>`;
+  }
+  return `<img class="single" src="${p.media.src}" alt="Pieza" loading="lazy">`;
+}
+function render(){
+  document.getElementById("grid").innerHTML=pieces.map(p=>{
+    const [lbl,color]=LBL[p.status];const done=p.status==="approved"||p.status==="rejected";
+    return `<article class="card" data-status="${p.status}">
+      <div class="media"><span class="badge" style="background:${color}">${lbl}</span>${mediaHtml(p)}</div>
+      <div class="body">
+        <div class="meta"><span>${FIC[p.format]||"📄"} ${p.format}</span><i>·</i><span>${p.platform}</span><i>·</i><span>${p.pillar}</span></div>
+        <p class="cap">${esc(p.cap).replace(/\n/g,"<br>")}</p>
+        <div class="tags">${p.tags.split(" ").map(t=>`<span class="tag">${t}</span>`).join(" ")}</div>
+        <div class="actions">
+          <button class="ok" ${done?"disabled":""} onclick="setStatus('${p.id}','approved')">✓ Aprobar</button>
+          <button class="no" ${done?"disabled":""} onclick="setStatus('${p.id}','rejected')">✕ Rechazar</button>
+        </div>
+        <div class="actions"><button class="pub" onclick="pub('${p.id}')">➤ Publicar</button></div>
+        <div class="actions">
+          <button class="ghost" onclick="toast('Simulación · en el bot real la IA reescribe el caption o regenera el visual con tu instrucción')">✎ Editar con IA</button>
+          <button class="ghost" onclick="toast('Simulación · en el bot real descargas el mp4/imágenes originales')">↓ Descargar</button>
+        </div>
+      </div></article>`;
+  }).join("");
+  renderTabs();
+}
+let filter="all";
+function renderTabs(){
+  const counts={all:pieces.length,pending:0,approved:0,rejected:0,published:0};
+  pieces.forEach(p=>counts[p.status]++);
+  const T=[["all","Todas"],["pending","Pendientes"],["approved","Aprobadas"],["rejected","Rechazadas"],["published","Publicadas"]];
+  document.getElementById("tabs").innerHTML=T.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${filter===k}" onclick="setFilter('${k}')">${l} <span class="n">${counts[k]}</span></button>`).join("");
+  document.querySelectorAll(".card").forEach(c=>c.classList.toggle("hide",filter!=="all"&&c.dataset.status!==filter));
+}
+function setFilter(f){filter=f;renderTabs()}
+function setStatus(id,st){const p=pieces.find(x=>x.id===id);p.status=st;render();toast(st==="approved"?"✅ Pieza aprobada (simulación — en el bot real queda lista para publicar)":"❌ Pieza rechazada (el planner aprende de esto y evita el ángulo)")}
+function pub(id){const p=pieces.find(x=>x.id===id);p.status="published";render();toast("🚀 Simulación · en el bot real esto publica a Instagram/Facebook vía Meta Graph API (media servida desde R2 con URL firmada)")}
+function slide(b,d){const t=b.parentElement.querySelector(".track");t.scrollBy({left:d*t.clientWidth,behavior:"smooth"})}
+let toastTimer;
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),4200)}
+function openGen(){document.getElementById("genModal").classList.add("show")}
+function closeGen(){document.getElementById("genModal").classList.remove("show")}
+function fakeGen(){
+  closeGen();const j=document.getElementById("job"),tx=document.getElementById("jobTxt");
+  const topic=document.getElementById("genTopic").value.trim()||"tu tema";
+  j.classList.add("show");
+  const steps=["✍️ escribiendo copy con el agente (contexto de marca)…","🎨 generando el visual…","👁 QA visual: el agente revisa la imagen…","🧩 componiendo logo + overlay…"];
+  let i=0;tx.textContent=steps[0];
+  const iv=setInterval(()=>{i++;if(i<steps.length){tx.textContent=steps[i]}else{clearInterval(iv);j.classList.remove("show");toast(`✅ Simulación completa para "${topic}" — en el bot real la pieza aparecería aquí en la cola como Pendiente`)}},1400);
+}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeGen()});
+render();
+</script>
+</body>
+</html>
