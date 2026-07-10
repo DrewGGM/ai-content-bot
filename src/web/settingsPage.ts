@@ -597,7 +597,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
         document.getElementById('auditRows').innerHTML=rows.map(function(e){
           var d=new Date(e.ts);
           var when=d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
-          return '<tr><td style="white-space:nowrap;color:var(--mut);font-family:\'Fira Code\',monospace;font-size:11.5px">'+when+'</td>'+
+          return '<tr><td style="white-space:nowrap;color:var(--mut);font-family:monospace;font-size:11.5px">'+when+'</td>'+
             '<td style="white-space:nowrap">'+ceHtml(e.user)+'</td><td style="white-space:nowrap;font-weight:600">'+ceHtml(e.action)+'</td>'+
             '<td style="color:var(--mut);word-break:break-word">'+ceHtml(e.detail||'')+'</td></tr>';
         }).join('')||'<tr><td colspan="4" style="color:var(--mut)">Sin actividad registrada todavía.</td></tr>';

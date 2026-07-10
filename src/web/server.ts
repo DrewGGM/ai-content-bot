@@ -952,7 +952,7 @@ async function page(user: User): Promise<string> {
           var s=j.status==='running'?(Math.round(j.ms/1000)+'s'):(j.status==='done'?'Listo':'Error');
           var errLine=(j.status==='error'&&j.error)?'<div class="jerr">'+ce(String(j.error).slice(0,220))+'</div>':'';
           var xTitle=j.status==='running'?'Ocultar (la generación sigue en el servidor)':'Descartar';
-          return '<div class="job '+cls+'"><span class="js">'+ic+'</span><div class="jb"><span class="jt">'+(j.user?ce(j.user)+' · ':'')+ce(j.format)+' · '+ce(j.topic)+'</span>'+errLine+'</div><b>'+s+'</b><button class="jx" title="'+xTitle+'" onclick="dismissJob(\''+j.id+'\')">'+XIC+'</button></div>';
+          return '<div class="job '+cls+'"><span class="js">'+ic+'</span><div class="jb"><span class="jt">'+(j.user?ce(j.user)+' · ':'')+ce(j.format)+' · '+ce(j.topic)+'</span>'+errLine+'</div><b>'+s+'</b><button class="jx" title="'+xTitle+'" onclick="dismissJob(\\''+j.id+'\\')">'+XIC+'</button></div>';
         }).join('');
         var doneNow=list.some(function(j){var was=jobsSeen[j.id];jobsSeen[j.id]=j.status;return was==='running'&&j.status==='done'});
         if(doneNow){setTimeout(function(){location.reload()},900);return}
