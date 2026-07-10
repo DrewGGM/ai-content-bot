@@ -254,7 +254,7 @@ function startEditJob(user: User, item: QueueItem, instruction: string): Job {
 }
 
 // Regenera el VISUAL (imagen/video) de una pieza con la instrucción, reusando su id/carpeta.
-function startRegenJob(user: User, item: QueueItem, instruction: string): Job {
+function startRegenJob(user: User, item: QueueItem, instruction: string, extra?: { aspect?: any; audio?: any }): Job {
   const slug = item.dir.split(/[\\/]/).filter(Boolean).pop() || item.topic || item.id;
   const job: Job = { id: randomBytes(6).toString("hex"), format: item.format, topic: `regenerar: ${instruction}`, status: "running", started: Date.now(), user: user.name };
   audit(user.name, "regenerar visual", `${item.id} · ${instruction.slice(0, 120)}`);
@@ -267,6 +267,8 @@ function startRegenJob(user: User, item: QueueItem, instruction: string): Job {
       platform: item.platform,
       instruction,
       reuse: { slug, createdAt: item.createdAt },
+      ...(extra?.aspect ? { aspect: extra.aspect } : {}),
+      ...(extra?.audio ? { audio: extra.audio } : {}),
     })
   )
     .then((it) => { job.status = "done"; job.itemId = it.id; })
@@ -485,7 +487,7 @@ async function page(user: User): Promise<string> {
       const done = it.status === "approved" || it.status === "rejected";
       const fmtIcon = P[it.format] ? it.format : "post";
       const label = `${it.format} · ${it.topic ?? it.id}`;
-      return `<article class="card" data-status="${esc(it.status)}" data-label="${esc(label)}">
+      return `<article class="card" data-status="${esc(it.status)}" data-label="${esc(label)}" data-format="${esc(it.format)}">
         <div class="media">${mediaHtml(it)}
           <span class="badge" style="background:${BADGE[it.status] ?? "#555"}">${esc(STATUS_LABEL[it.status] ?? it.status)}</span>
         </div>
@@ -501,7 +503,7 @@ async function page(user: User): Promise<string> {
             <button class="pub-btn" onclick="openPub(this,'${esc(it.id)}')">${icon("send")} Publicar</button>
           </div>
           <div class="actions">
-            <button class="edit-btn" onclick="openEdit('${esc(it.id)}')">${icon("edit")} Editar con IA</button>
+            <button class="edit-btn" onclick="openEdit(this,'${esc(it.id)}')">${icon("edit")} Editar con IA</button>
             ${downloadBtn(it)}
             <button class="del-btn" title="Eliminar pieza y sus assets" onclick="askDelete(this,'${esc(it.id)}')">${icon("trash")}</button>
           </div>
@@ -707,7 +709,15 @@ async function page(user: User): Promise<string> {
       </div>
       <label for="editPrompt">¿Qué quieres cambiar?</label>
       <textarea id="editPrompt" rows="3" placeholder="Ej: hazlo más corto y directo, añade una pregunta al inicio, tono más divertido, quita emojis, cambia el enfoque a..."></textarea>
-      <label class="check"><input type="checkbox" id="editRegen"> <span>También regenerar el visual (imagen/video). Más lento; reemplaza la pieza.</span></label>
+      <label class="check"><input type="checkbox" id="editRegen" onchange="onEditRegen()"> <span>También regenerar el visual (imagen/video). Más lento; reemplaza la pieza.</span></label>
+      <div class="modal-row" id="editVideoOpts" style="display:none">
+        <div><label for="editAspect">Aspecto del video</label><select id="editAspect">
+          <option value="reel">Reel 9:16</option><option value="square">Cuadrado 1:1</option><option value="feed">Feed 4:5</option>
+        </select></div>
+        <div><label for="editAudio">Audio</label><select id="editAudio">
+          <option value="voice">Con voz + subtítulos</option><option value="music">Sin voz + música</option><option value="silent">Silencioso</option>
+        </select></div>
+      </div>
       <div class="modal-err" id="editErr"></div>
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeEdit()">Cancelar</button>
@@ -830,8 +840,18 @@ async function page(user: User): Promise<string> {
         .then(function(x){btn.disabled=false;if(!x.ok){err.textContent=(x.d&&x.d.error)||'Error al generar';return}closeGen();document.getElementById('genTopic').value='';pollJobs()})
         .catch(function(){btn.disabled=false;err.textContent='Error de red'});
     }
-    var editId=null;
-    function openEdit(id){editId=id;document.getElementById('editErr').textContent='';document.getElementById('editPrompt').value='';document.getElementById('editRegen').checked=false;document.getElementById('editModal').classList.add('show');setTimeout(function(){document.getElementById('editPrompt').focus()},50)}
+    var editId=null,editFmt='';
+    function onEditRegen(){
+      var show=document.getElementById('editRegen').checked&&editFmt==='motion';
+      document.getElementById('editVideoOpts').style.display=show?'flex':'none';
+    }
+    function openEdit(btn,id){
+      editId=id;editFmt=(btn.closest('.card')||{dataset:{}}).dataset.format||'';
+      document.getElementById('editErr').textContent='';document.getElementById('editPrompt').value='';
+      document.getElementById('editRegen').checked=false;onEditRegen();
+      document.getElementById('editModal').classList.add('show');
+      setTimeout(function(){document.getElementById('editPrompt').focus()},50);
+    }
     function closeEdit(){document.getElementById('editModal').classList.remove('show')}
     function submitEdit(){
       var prompt=document.getElementById('editPrompt').value.trim();
@@ -839,7 +859,7 @@ async function page(user: User): Promise<string> {
       var err=document.getElementById('editErr'),btn=document.getElementById('editSubmit');
       if(!prompt){err.textContent='Escribe qué cambiar.';return}
       btn.disabled=true;
-      fetch('/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editId,prompt:prompt,regen:regen})})
+      fetch('/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editId,prompt:prompt,regen:regen,aspect:document.getElementById('editAspect').value,audio:document.getElementById('editAudio').value})})
         .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
         .then(function(x){btn.disabled=false;if(!x.ok){err.textContent=(x.d&&x.d.error)||'Error al editar';return}closeEdit();pollJobs()})
         .catch(function(){btn.disabled=false;err.textContent='Error de red'});
@@ -1351,12 +1371,14 @@ const server = createServer(async (req, res) => {
     req.on("data", (c) => (body += c));
     req.on("end", async () => {
       try {
-        const { id, prompt, regen } = JSON.parse(body);
+        const { id, prompt, regen, aspect, audio } = JSON.parse(body);
         const p = String(prompt ?? "").trim();
         if (!p) { res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Falta la instrucción" })); return; }
         const item = (await listQueue()).find((i) => i.id === id);
         if (!item) { res.writeHead(404, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Pieza no encontrada" })); return; }
-        const job = regen ? startRegenJob(user, item, p) : startEditJob(user, item, p);
+        const aspOk = ["reel", "square", "feed"].includes(aspect) ? aspect : undefined;
+        const audOk = ["voice", "music", "silent"].includes(audio) ? audio : undefined;
+        const job = regen ? startRegenJob(user, item, p, { aspect: aspOk, audio: audOk }) : startEditJob(user, item, p);
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ jobId: job.id }));
       } catch { res.writeHead(400).end(); }
     });
@@ -1414,11 +1436,19 @@ const server = createServer(async (req, res) => {
     const filePath = normalize(join(OUTPUT, r));
     // startsWith con separador: sin él, un directorio hermano "output-x" pasaría el filtro.
     if (!filePath.startsWith(OUTPUT + sep) || !existsSync(filePath)) { res.writeHead(404).end("not found"); return; }
-    const size = statSync(filePath).size;
+    const st = statSync(filePath);
+    const size = st.size;
     const headers: Record<string, string> = {
       "Content-Type": MIME[extname(filePath)] ?? "application/octet-stream",
       "Accept-Ranges": "bytes",
+      "Last-Modified": st.mtime.toUTCString(),
+      "Cache-Control": "no-cache", // revalidar siempre: el regen reemplaza el archivo en la misma URL
     };
+    const ims = req.headers["if-modified-since"];
+    if (!req.headers.range && ims && Date.parse(ims) >= Math.floor(st.mtime.getTime() / 1000) * 1000) {
+      res.writeHead(304, headers).end();
+      return;
+    }
     if (isDownload) headers["Content-Disposition"] = `attachment; filename="${basename(filePath)}"`;
     // Soporte de Range (206): imprescindible para hacer scrubbing del video y para iOS Safari.
     const range = req.headers.range?.match(/^bytes=(\d*)-(\d*)$/);
