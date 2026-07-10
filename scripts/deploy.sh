@@ -30,9 +30,27 @@ if command -v apt-get >/dev/null 2>&1; then
   echo "→ Asegurando librerías del sistema para Chromium (Remotion)"
   APT="apt-get"; [ "$(id -u)" != "0" ] && APT="sudo -n apt-get"
   $APT update -qq >/dev/null 2>&1 || true
-  for pkg in libnss3 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2              libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1              libasound2 libasound2t64 libpango-1.0-0 libcairo2 libglib2.0-0; do
+  for pkg in libnss3 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+             libxkbcommon0 libxkbcommon-dev libxcomposite1 libxdamage1 libxfixes3 \
+             libxrandr2 libgbm1 libgbm-dev libasound2 libasound2t64 \
+             libpango-1.0-0 libcairo2 libglib2.0-0 libstdc++6 libgcc-s1; do
     $APT install -y "$pkg" >/dev/null 2>&1 || true
   done
+fi
+
+# Verifica que el ffmpeg del compositor de Remotion EJECUTA (encoding/audio). Si no,
+# imprime en el log del deploy exactamente qué librería falta (exit 127 → ldd).
+COMP_FFMPEG=$(ls node_modules/@remotion/compositor-*/ffmpeg 2>/dev/null | head -1)
+if [ -n "$COMP_FFMPEG" ]; then
+  chmod +x "$COMP_FFMPEG" 2>/dev/null || true
+  if "$COMP_FFMPEG" -version >/dev/null 2>&1; then
+    echo "→ ffmpeg de Remotion OK"
+  else
+    echo "⚠ El ffmpeg de Remotion NO ejecuta. Librerías faltantes según ldd:"
+    ldd "$COMP_FFMPEG" 2>/dev/null | grep "not found" || echo "  (ldd no reporta faltantes: revisa permisos/arquitectura/noexec en la partición)"
+  fi
+else
+  echo "⚠ No se encontró el compositor de Remotion en node_modules (¿npm ci omitió optionalDependencies?)"
 fi
 
 # Chromium headless para Remotion (video por código). Idempotente; solo descarga la 1ª vez.
