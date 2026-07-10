@@ -66,7 +66,22 @@ const dlUrl = (p: string) => (isR2(p) ? "/r2/" + r2Key(p).split("/").map(encodeU
 // PANEL_PASSWORD (si existe) se usa como CÓDIGO DE INSTALACIÓN al crear el primer admin.
 const SETUP_CODE = env.panelPassword;
 const SESSION_TTL_MS = 7 * 86_400_000; // 7 días
+// Persistidas en data/sessions.json: los deploys reinician el proceso y sin esto TODAS las
+// sesiones morían (te sacaba del panel y las páginas abiertas se quedaban con fetches en 401).
+const SESSIONS_PATH = join(ROOT, "data", "sessions.json");
 const sessions = new Map<string, { userId: string; expires: number }>();
+try {
+  const saved = JSON.parse(readFileSync(SESSIONS_PATH, "utf8"));
+  for (const [sid, v] of Object.entries(saved) as Array<[string, { userId: string; expires: number }]>) {
+    if (v && typeof v.expires === "number" && Date.now() < v.expires) sessions.set(sid, v);
+  }
+} catch { /* primer arranque */ }
+function saveSessions(): void {
+  try {
+    mkdirSync(dirname(SESSIONS_PATH), { recursive: true });
+    writeFileSync(SESSIONS_PATH, JSON.stringify(Object.fromEntries(sessions)), { mode: 0o600 });
+  } catch { /* no bloquea el login */ }
+}
 
 function parseCookies(req: IncomingMessage): Record<string, string> {
   const out: Record<string, string> = {};
@@ -84,6 +99,7 @@ function sessionUser(req: IncomingMessage): User | null {
   if (!s) return null;
   if (Date.now() > s.expires) {
     sessions.delete(sid);
+    saveSessions();
     return null;
   }
   const user = getUserById(s.userId);
@@ -113,6 +129,7 @@ function createSession(userId: string): string {
   for (const [k, v] of sessions) if (Date.now() > v.expires) sessions.delete(k);
   const sid = randomBytes(24).toString("hex");
   sessions.set(sid, { userId, expires: Date.now() + SESSION_TTL_MS });
+  saveSessions();
   return sid;
 }
 
@@ -1023,7 +1040,7 @@ const server = createServer(async (req, res) => {
   }
   if (url.pathname === "/logout") {
     const sid = parseCookies(req).sid;
-    if (sid) sessions.delete(sid);
+    if (sid) { sessions.delete(sid); saveSessions(); }
     res.writeHead(302, { "Set-Cookie": "sid=; HttpOnly; Path=/; Max-Age=0", Location: "/" }).end();
     return;
   }

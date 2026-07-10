@@ -307,7 +307,9 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
 
   <script>
     var IS_ADMIN=${isAdmin ? "true" : "false"};
-    function j(url,body){return fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d&&d.error||('HTTP '+r.status));return d})})}
+    function j(url,body){return fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined).then(function(r){
+      if(r.status===401){location.href='/';throw new Error('Sesión expirada — vuelve a iniciar sesión')}
+      return r.json().then(function(d){if(!r.ok)throw new Error(d&&d.error||('HTTP '+r.status));return d})})}
     function msg(id,text,ok){var el=document.getElementById(id);el.textContent=text;el.className='msg '+(ok?'ok':'err');if(ok)setTimeout(function(){el.textContent=''},4000)}
 
     // ---- Modal de confirmación (con campo de texto opcional) ----
@@ -491,7 +493,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     }
     function loadCtx(){
       var p=document.getElementById('ctxFile').value;if(!p)return;
-      fetch('/api/context/file?path='+encodeURIComponent(p)).then(function(r){return r.text()}).then(function(t){document.getElementById('ctxBody').value=t});
+      fetch('/api/context/file?path='+encodeURIComponent(p)).then(function(r){if(r.status===401){location.href='/';return ''}return r.text()}).then(function(t){document.getElementById('ctxBody').value=t});
     }
     function saveCtx(){
       var p=document.getElementById('ctxFile').value;if(!p)return;
