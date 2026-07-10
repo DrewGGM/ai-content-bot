@@ -59,8 +59,11 @@ const isR2 = (p: string) => p.startsWith("r2:");           // asset privado en R
 const r2Key = (p: string) => p.slice(3);
 const rel = (p: string) => p.slice(OUTPUT.length + 1).replace(/\\/g, "/");
 // r2: se sirve por el proxy /r2/ (privado); http(s): URL directa; local: /media//download.
-const mediaUrl = (p?: string) => (!p ? "" : isR2(p) ? "/r2/" + r2Key(p).split("/").map(encodeURIComponent).join("/") : isUrl(p) ? p : "/media/" + rel(p));
-const dlUrl = (p: string) => (isR2(p) ? "/r2/" + r2Key(p).split("/").map(encodeURIComponent).join("/") + "?dl=1" : isUrl(p) ? p : "/download/" + rel(p));
+// Los assets locales van VERSIONADOS por mtime (?v=): al regenerar, el archivo cambia bajo
+// la MISMA ruta y las cachés (navegador/CDN) seguían sirviendo el video viejo.
+const fileVer = (p: string): string => { try { return String(Math.floor(statSync(p).mtimeMs)); } catch { return "0"; } };
+const mediaUrl = (p?: string) => (!p ? "" : isR2(p) ? "/r2/" + r2Key(p).split("/").map(encodeURIComponent).join("/") : isUrl(p) ? p : "/media/" + rel(p) + "?v=" + fileVer(p));
+const dlUrl = (p: string) => (isR2(p) ? "/r2/" + r2Key(p).split("/").map(encodeURIComponent).join("/") + "?dl=1" : isUrl(p) ? p : "/download/" + rel(p) + "?v=" + fileVer(p));
 
 // ---- Auth por usuario (cookie de sesión → data/users.json) ----
 // PANEL_PASSWORD (si existe) se usa como CÓDIGO DE INSTALACIÓN al crear el primer admin.
