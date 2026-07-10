@@ -23,6 +23,18 @@ git reset --hard "origin/$BRANCH"
 echo "→ Instalando dependencias (npm ci)"
 npm ci --no-audit --no-fund
 
+# Librerías del sistema que necesita el Chromium headless de Remotion. Si faltan, el
+# navegador muere con exit 127 ("Failed to launch the browser process"). Idempotente;
+# por paquete (en Ubuntu 24 libasound2 es virtual y no debe tumbar el resto); no rompe el deploy.
+if command -v apt-get >/dev/null 2>&1; then
+  echo "→ Asegurando librerías del sistema para Chromium (Remotion)"
+  APT="apt-get"; [ "$(id -u)" != "0" ] && APT="sudo -n apt-get"
+  $APT update -qq >/dev/null 2>&1 || true
+  for pkg in libnss3 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2              libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1              libasound2 libasound2t64 libpango-1.0-0 libcairo2 libglib2.0-0; do
+    $APT install -y "$pkg" >/dev/null 2>&1 || true
+  done
+fi
+
 # Chromium headless para Remotion (video por código). Idempotente; solo descarga la 1ª vez.
 echo "→ Asegurando Chromium de Remotion"
 npx remotion browser ensure || echo "⚠ no se pudo asegurar Chromium (Remotion) — el video Remotion podría fallar hasta instalarlo"
