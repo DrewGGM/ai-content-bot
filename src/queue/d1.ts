@@ -90,6 +90,8 @@ export async function d1UpdateStatus(id: string, status: Status): Promise<QueueI
 }
 
 export async function d1Delete(id: string): Promise<boolean> {
+  const rows = await query(`SELECT id FROM queue WHERE id=? LIMIT 1`, [id]);
+  if (!rows.length) return false;
   await query(`DELETE FROM queue WHERE id=?`, [id]);
   return true;
 }

@@ -37,6 +37,9 @@
     "remotion": "^4.0.286",
     "sharp": "^0.35.2"
   },
+  "optionalDependencies": {
+    "node-pty": "^1.0.0"
+  },
   "devDependencies": {
     "@types/node": "^22.7.0",
     "@types/react": "^19.0.0",

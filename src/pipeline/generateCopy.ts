@@ -8,9 +8,10 @@ import { loadBrandContext } from "../knowledge/loader.js";
 import { loadBrandConfig } from "../lib/brandConfig.js";
 import { loadSkillGuidance } from "../lib/skills.js";
 
-export const brand = loadBrandConfig();
+// Lectura perezosa: el panel puede editar config/brand.json en caliente.
+const brand = () => loadBrandConfig();
 /** "violeta #5B2DC4 a menta #00D4AA" → genérico desde config. */
-export const palette = `${brand.colors.primary} a ${brand.colors.accent}`;
+const palette = () => `${brand().colors.primary} a ${brand().colors.accent}`;
 
 function slugify(s: string): string {
   return s
@@ -37,7 +38,7 @@ async function ask(prompt: string, instruction?: string): Promise<any> {
   const edit = instruction?.trim()
     ? `\n\n===== INSTRUCCIÓN DEL USUARIO (PRIORITARIA — aplícala al pie de la letra sobre TODO, incluidos titular, imagen/escena, voz y CTA) =====\n${instruction.trim()}`
     : "";
-  const full = `${prompt}${edit}\n\n${BRAND_RULES}${cm}\n\n===== CONTEXTO DE MARCA (config/brand.json + knowledge/ + config/) =====\nMarca: ${brand.name}${brand.tagline ? " — " + brand.tagline : ""}\n${raw}`;
+  const full = `${prompt}${edit}\n\n${BRAND_RULES}${cm}\n\n===== CONTEXTO DE MARCA (config/brand.json + knowledge/ + config/) =====\nMarca: ${brand().name}${brand().tagline ? " — " + brand().tagline : ""}\n${raw}`;
   return askLLMJson(full);
 }
 
@@ -58,7 +59,7 @@ export interface ReelCopy {
 
 export async function generateReelCopy(topic: string, instruction?: string): Promise<ReelCopy> {
   const data = await ask(
-    `Eres el community manager de ${brand.name}. Crea un REEL vertical (9:16) tipo ANUNCIO sobre: "${topic}".
+    `Eres el community manager de ${brand().name}. Crea un REEL vertical (9:16) tipo ANUNCIO sobre: "${topic}".
 Usamos el flujo profesional: se genera una ESCENA fotorrealista SIN texto y se anima; el titular, subtítulos, logo y CTA se añaden como capa aparte. Por eso la escena NO debe contener texto ni logos.
 
 Devuelve ÚNICAMENTE un JSON válido (sin markdown):
@@ -76,7 +77,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     instruction
   );
   return {
-    slug: data.slug?.trim() || slugify(topic),
+    slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
     scenePrompt: data.scenePrompt,
     motionPrompt: data.motionPrompt,
     headline: data.headline ?? "",
@@ -101,7 +102,7 @@ export interface MotionCopy {
 
 export async function generateMotionReelCopy(topic: string, instruction?: string): Promise<MotionCopy> {
   const data = await ask(
-    `Eres el community manager de ${brand.name}. Crea un REEL de MOTION-GRAPHICS (texto animado sobre fondo de marca, sin escena fotográfica) sobre: "${topic}".
+    `Eres el community manager de ${brand().name}. Crea un REEL de MOTION-GRAPHICS (texto animado sobre fondo de marca, sin escena fotográfica) sobre: "${topic}".
 Devuelve ÚNICAMENTE un JSON válido (sin markdown):
 {
   "slug": "kebab-case-corto",
@@ -115,7 +116,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     instruction
   );
   return {
-    slug: data.slug?.trim() || slugify(topic),
+    slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
     headline: data.headline ?? "",
     voiceScript: data.voiceScript,
     cta: data.cta ?? "Escríbenos por WhatsApp",
@@ -140,7 +141,7 @@ export interface RemotionCopy {
 
 export async function generateRemotionCopy(topic: string, instruction?: string): Promise<RemotionCopy> {
   const data = await ask(
-    `Eres el community manager de ${brand.name}. Crea el texto para un VIDEO animado por código (texto cinético, sin escena fotográfica) sobre: "${topic}".
+    `Eres el community manager de ${brand().name}. Crea el texto para un VIDEO animado por código (texto cinético, sin escena fotográfica) sobre: "${topic}".
 El video tiene 3 escenas: (1) titular gancho, (2) 3 chips de beneficio, (3) CTA. Además una locución corta opcional.
 Devuelve ÚNICAMENTE un JSON válido (sin markdown):
 {
@@ -157,11 +158,11 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     instruction
   );
   return {
-    slug: data.slug?.trim() || slugify(topic),
+    slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
     headline: data.headline ?? topic,
     accentWord: typeof data.accentWord === "string" ? data.accentWord : undefined,
     chips: Array.isArray(data.chips) ? data.chips.slice(0, 3).map(String) : [],
-    cta: data.cta ?? brand.ctaDefault,
+    cta: data.cta ?? brand().ctaDefault,
     voiceScript: data.voiceScript ?? data.headline ?? topic,
     caption: data.caption ?? "",
     hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
@@ -182,7 +183,7 @@ export interface UgcCopy {
 
 export async function generateUgcScript(topic: string, instruction?: string): Promise<UgcCopy> {
   const data = await ask(
-    `Eres el community manager de ${brand.name}. Escribe un guion para un ANUNCIO UGC (una persona real hablando a cámara, estilo testimonio/recomendación) sobre: "${topic}".
+    `Eres el community manager de ${brand().name}. Escribe un guion para un ANUNCIO UGC (una persona real hablando a cámara, estilo testimonio/recomendación) sobre: "${topic}".
 Devuelve ÚNICAMENTE un JSON válido (sin markdown):
 {
   "slug": "kebab-case-corto",
@@ -196,7 +197,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     instruction
   );
   return {
-    slug: data.slug?.trim() || slugify(topic),
+    slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
     script: data.script,
     headline: data.headline ?? "",
     cta: data.cta ?? "Escríbenos por WhatsApp",
@@ -227,7 +228,7 @@ export interface DesignCopy {
 
 export async function generateDesignCopy(topic: string, forceVariant?: DesignVariant, instruction?: string): Promise<DesignCopy> {
   const data = await ask(
-    `Eres el community manager de ${brand.name}. Crea el texto para un POST de DISEÑO (se renderiza por código) sobre: "${topic}".
+    `Eres el community manager de ${brand().name}. Crea el texto para un POST de DISEÑO (se renderiza por código) sobre: "${topic}".
 ${forceVariant ? `Usa la variante "${forceVariant}".` : "Elige la VARIANTE de layout que mejor comunique el mensaje:"}
 - "checklist": titular + 3 beneficios cortos. (para propuesta de valor / features)
 - "stat": un dato/número grande + etiqueta + frase de apoyo. (para una cifra impactante)
@@ -255,7 +256,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown). Incluye SOLO los campos que
   );
   const variant: DesignVariant = forceVariant ?? (["checklist", "stat", "quote", "feature"].includes(data.variant) ? data.variant : "checklist");
   return {
-    slug: data.slug?.trim() || slugify(topic),
+    slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
     variant,
     eyebrow: data.eyebrow ?? "",
     headline: data.headline,
@@ -265,7 +266,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown). Incluye SOLO los campos que
     statLabel: data.statLabel,
     quote: data.quote,
     author: data.author,
-    cta: data.cta ?? brand.ctaDefault,
+    cta: data.cta ?? brand().ctaDefault,
     caption: data.caption,
     hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
     pillar: data.pillar,
@@ -295,7 +296,7 @@ export interface DeckCopy {
 
 export async function generateDeckCopy(topic: string, instruction?: string): Promise<DeckCopy> {
   const data = await ask(
-    `Eres el community manager de ${brand.name}. Crea un CARRUSEL de Instagram de 4-5 slides que se renderiza POR CÓDIGO (sin imágenes IA) sobre: "${topic}".
+    `Eres el community manager de ${brand().name}. Crea un CARRUSEL de Instagram de 4-5 slides que se renderiza POR CÓDIGO (sin imágenes IA) sobre: "${topic}".
 Cada slide es un póster de diseño con UNA variante de layout:
 - "checklist": titular + 3 bullets muy cortos.
 - "stat": un número/dato grande + etiqueta + frase de apoyo.
@@ -329,8 +330,8 @@ Devuelve ÚNICAMENTE un JSON válido (incluye SOLO los campos que use la variant
     cta: s?.cta,
   }));
   return {
-    slug: data.slug?.trim() || slugify(topic),
-    slides: slides.length ? slides : [{ variant: "feature", eyebrow: brand.name, headline: topic, cta: brand.ctaDefault }],
+    slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
+    slides: slides.length ? slides : [{ variant: "feature", eyebrow: brand().name, headline: topic, cta: brand().ctaDefault }],
     caption: data.caption ?? "",
     hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
     pillar: data.pillar,
@@ -348,14 +349,14 @@ export interface CarouselCopy {
 
 export async function generateCarouselCopy(topic: string, instruction?: string): Promise<CarouselCopy> {
   const data = await ask(
-    `Eres el community manager de ${brand.name}. Crea un CARRUSEL educativo de Instagram (4 a 6 slides) sobre: "${topic}".
+    `Eres el community manager de ${brand().name}. Crea un CARRUSEL educativo de Instagram (4 a 6 slides) sobre: "${topic}".
 Devuelve ÚNICAMENTE un JSON válido (sin markdown):
 {
   "slug": "kebab-case-corto",
   "pillar": "pilar de contenido",
   "slides": [
     { "heading": "texto corto en español para ESTE slide (gancho en el slide 1, valor en los siguientes, CTA en el último)",
-      "imagePrompt": "prompt EN INGLÉS para una imagen vertical 4:5, que muestre el heading escrito (bien escrito), paleta de marca (${palette}), premium, consistente con los demás slides, sin watermark. CRÍTICO: fondo CONTINUO sin costuras — NO una banda/barra/línea sólida arriba; deja el ~15% superior libre de texto pero con el MISMO fondo (el logo real se añade aparte); el heading va debajo" }
+      "imagePrompt": "prompt EN INGLÉS para una imagen vertical 4:5, que muestre el heading escrito (bien escrito), paleta de marca (${palette()}), premium, consistente con los demás slides, sin watermark. CRÍTICO: fondo CONTINUO sin costuras — NO una banda/barra/línea sólida arriba; deja el ~15% superior libre de texto pero con el MISMO fondo (el logo real se añade aparte); el heading va debajo" }
   ],
   "caption": "caption en español para el post del carrusel, con CTA a WhatsApp",
   "hashtags": ["un hashtag de la marca", "5-8 hashtags"]
@@ -363,7 +364,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     instruction
   );
   return {
-    slug: data.slug?.trim() || slugify(topic),
+    slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
     slides: Array.isArray(data.slides) ? data.slides : [],
     caption: data.caption,
     hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
@@ -382,19 +383,19 @@ export interface PostCopy {
 
 export async function generatePostCopy(topic: string, instruction?: string): Promise<PostCopy> {
   const data = await ask(
-    `Eres el community manager de ${brand.name}. Crea un POST de imagen única (1:1) para Instagram/Facebook sobre: "${topic}".
+    `Eres el community manager de ${brand().name}. Crea un POST de imagen única (1:1) para Instagram/Facebook sobre: "${topic}".
 Devuelve ÚNICAMENTE un JSON válido (sin markdown):
 {
   "slug": "kebab-case-corto",
   "pillar": "pilar de contenido",
-  "imagePrompt": "prompt EN INGLÉS para una imagen cuadrada 1:1 profesional con el titular en español escrito (bien escrito), paleta de marca (${palette}), premium, sin watermark. CRÍTICO: fondo CONTINUO sin costuras — NO una banda/barra/línea sólida arriba; deja el ~15% superior libre de texto pero con el MISMO fondo (el logo real se añade aparte); el titular va debajo",
+  "imagePrompt": "prompt EN INGLÉS para una imagen cuadrada 1:1 profesional con el titular en español escrito (bien escrito), paleta de marca (${palette()}), premium, sin watermark. CRÍTICO: fondo CONTINUO sin costuras — NO una banda/barra/línea sólida arriba; deja el ~15% superior libre de texto pero con el MISMO fondo (el logo real se añade aparte); el titular va debajo",
   "caption": "caption en español con gancho y CTA a WhatsApp",
   "hashtags": ["un hashtag de la marca", "5-8 hashtags"]
 }`,
     instruction
   );
   return {
-    slug: data.slug?.trim() || slugify(topic),
+    slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
     imagePrompt: data.imagePrompt,
     caption: data.caption,
     hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],

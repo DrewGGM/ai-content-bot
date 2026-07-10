@@ -119,6 +119,34 @@ tachados a medias, logos falsos incrustados, composición amontonada, distorsió
 
 ---
 
+## 5b. Usuarios del panel y multi-cuenta de agentes IA
+
+- **Login por usuario** (`src/lib/users.ts`, `data/users.json`, scrypt): el primer arranque pide
+  crear el admin (si `PANEL_PASSWORD` existe, se exige como código de instalación). Los admin
+  gestionan usuarios y el contexto de empresa; todos configuran su propio agente.
+- **Perfil de agente por usuario** (`src/lib/agentProfile.ts`, `data/agents/<id>.json`):
+  `COPY_PROVIDER/COPY_MODEL/COPY_VISION` propios + credenciales **cifradas en reposo**
+  (`src/lib/secretBox.ts`, AES-256-GCM con `PANEL_SECRET` o `data/.secret-key`). Los secretos
+  son write-only hacia la UI.
+- **Perfil activo por job** (`src/lib/activeProfile.ts`, AsyncLocalStorage): cada job del panel
+  corre con `runWithProfile(perfil del usuario)`; `llm.ts` lee la config vía `envGet()` y lanza
+  los CLIs con `childEnv()`. La pieza automática diaria usa el perfil de quien guardó la
+  programación. Sin perfil (CLI/scheduler clásico) todo cae a `process.env` como antes.
+- **Multi-cuenta de Claude Code en un servidor**: cada usuario guarda su
+  `CLAUDE_CODE_OAUTH_TOKEN` (token de 1 año de su suscripción). El **asistente del panel**
+  (`src/lib/claudeLogin.ts`) corre `claude setup-token` en un pseudo-terminal (node-pty,
+  dependencia opcional): muestra la URL OAuth, el usuario autoriza y pega el código, y el token
+  queda cifrado en su perfil. Fallback manual: correr `claude setup-token` en tu máquina y pegar
+  el token. Al usar token de usuario se limpian `ANTHROPIC_API_KEY/AUTH_TOKEN` del entorno hijo
+  (tienen prioridad sobre el token en el CLI). `isolateCli` da además `CLAUDE_CONFIG_DIR` y
+  `CODEX_HOME` propios bajo `data/agents/<id>/`.
+- **Editor de contexto** (`src/lib/contextFiles.ts`, solo admin): edita `knowledge/*` y
+  `config/*` (allowlist estricta, JSON validado) desde el panel; `brand.json` aplica en caliente
+  (la config de marca se lee fresca en cada generación). Ojo: en deploys por `git pull`, las
+  ediciones del servidor pueden chocar con cambios del repo en esos archivos.
+
+---
+
 ## 6. Proveedores externos (env)
 
 | Proveedor | Uso | Variables |

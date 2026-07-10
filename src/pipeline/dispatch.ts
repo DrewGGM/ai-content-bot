@@ -1,4 +1,7 @@
 /** Dado un formato + tema, escribe el copy con Claude y genera la pieza con el generador correcto. */
+import { existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadBrandContext } from "../knowledge/loader.js";
 import {
   generateReelCopy, generateRemotionCopy, generateUgcScript,
@@ -23,6 +26,15 @@ function defaultVoiceId(): string {
   return id;
 }
 
+/** ¿Hay voz USABLE? (key de ElevenLabs Y voiceId configurado — cualquiera de los dos puede faltar). */
+function voiceReady(): boolean {
+  try {
+    return !!process.env.ELEVENLABS_API_KEY && !!loadBrandContext().voice?.default?.voiceId;
+  } catch {
+    return false;
+  }
+}
+
 export async function createContent(opts: {
   format: Format;
   topic: string;
@@ -35,8 +47,17 @@ export async function createContent(opts: {
   const platform = opts.platform ?? "instagram";
   const createdAt = opts.reuse?.createdAt ?? new Date().toISOString();
   const inst = opts.instruction;
+  const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
   // Al regenerar, forzamos el slug del item existente para reusar id + carpeta (INSERT OR REPLACE).
-  const fixSlug = <T extends { slug: string }>(c: T): T => (opts.reuse ? { ...c, slug: opts.reuse.slug } : c);
+  // En piezas NUEVAS el slug se hace ÚNICO (sufijo -2, -3…): dos piezas con el mismo slug
+  // compartirían carpeta de assets (se pisarían los archivos y "Eliminar" borraría ambas).
+  const fixSlug = <T extends { slug: string }>(c: T): T => {
+    if (opts.reuse) return { ...c, slug: opts.reuse.slug };
+    const base = c.slug || "pieza";
+    let slug = base;
+    for (let i = 2; existsSync(join(ROOT, "assets", "output", slug)) && i < 100; i++) slug = `${base}-${i}`;
+    return { ...c, slug };
+  };
 
   switch (opts.format) {
     case "carousel": {
@@ -58,8 +79,12 @@ export async function createContent(opts: {
     case "motion": {
       // Video por CÓDIGO con Remotion (reemplaza el motion-graphics viejo).
       console.log(`  → copy del video Remotion (Claude Code)...`);
-      const hasVoice = !!process.env.ELEVENLABS_API_KEY;
-      const audio: AudioMode = opts.audio ?? (hasVoice ? "voice" : "silent");
+      // Voz solo si hay key Y voiceId (con key pero sin voiceId antes reventaba el job).
+      let audio: AudioMode = opts.audio ?? (voiceReady() ? "voice" : "silent");
+      if (audio === "voice" && !voiceReady()) {
+        console.warn("  ⚠ modo voz sin ELEVENLABS_API_KEY o sin default.voiceId (knowledge/voice.json) — el video sale silencioso");
+        audio = "silent";
+      }
       console.log(`  → generando video Remotion (aspecto: ${opts.aspect ?? "reel"}, audio: ${audio})...`);
       return generateRemotion(
         fixSlug(await generateRemotionCopy(opts.topic, inst)),

@@ -32,3 +32,6 @@ data/
 # Remotion: logo copiado en runtime + salidas
 remotion/public/logo.svg
 remotion/out/
+
+# Herramientas locales
+.playwright-mcp/

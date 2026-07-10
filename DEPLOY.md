@@ -59,9 +59,9 @@ Ollama local, GLM, agente custom con AGENT_CMD…).
 
 ## 3. Clonar y configurar
 ```bash
-git clone https://github.com/DrewGGM/ai-content-bot.git
+git clone https://github.com/DrewGGM/content-claude-bot.git
 cd content-claude-bot
-git checkout main        # o la rama de tu empresa (main = genérico)
+git checkout lyroo-demo        # o la rama de tu empresa (main = genérico)
 npm install
 
 cp .env.example .env
@@ -172,7 +172,7 @@ Para S3 de AWS: usa el endpoint/región de AWS y un bucket con acceso público o
 ## 9. CI/CD — auto-deploy en cada push (GitHub Actions)
 
 El repo trae `.github/workflows/deploy.yml` + `scripts/deploy.sh`. Al hacer **push a
-`main`**, GitHub entra por SSH al VPS, hace `git reset --hard origin/main`,
+`lyroo-demo`**, GitHub entra por SSH al VPS, hace `git reset --hard origin/lyroo-demo`,
 `npm ci` y reinicia el panel. El `.env`, `queue.json`, `assets/` y `logs/` son untracked →
 **no se tocan** en el deploy.
 
@@ -202,7 +202,7 @@ echo 'deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart content-bot-panel' 
 Con `DEPLOY_USER=root` no hace falta (root no usa sudo).
 
 ### 9.4 Probarlo
-- Push a `main`, o dispáralo a mano en **Actions → Deploy to VPS → Run workflow**.
+- Push a `lyroo-demo`, o dispáralo a mano en **Actions → Deploy to VPS (lyroo) → Run workflow**.
 - El primer deploy omite el restart si el servicio aún no existe (crea el systemd de la sección 5 primero).
 
 > El cron (`npm run schedule`) lee el working dir en cada ejecución, así que tras el `git reset`

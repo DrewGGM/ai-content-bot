@@ -31,6 +31,15 @@ export interface QueueItem {
 }
 
 // ---------- backend local (queue.json) ----------
+// Las MUTACIONES van serializadas por un lock de promesa: el panel lanza varios jobs en
+// paralelo (Set) y sin lock dos read-modify-write simultáneos se pisan y pierden piezas.
+let localLock: Promise<unknown> = Promise.resolve();
+function withLocalLock<T>(fn: () => T): Promise<T> {
+  const run = localLock.then(fn);
+  localLock = run.catch(() => undefined);
+  return run;
+}
+
 function localRead(): { items: QueueItem[] } {
   try {
     return JSON.parse(readFileSync(QUEUE_PATH, "utf8"));
@@ -38,18 +47,24 @@ function localRead(): { items: QueueItem[] } {
     return { items: [] };
   }
 }
-function localAdd(item: QueueItem): void {
-  const q = localRead();
-  q.items.unshift(item);
-  writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
+function localAdd(item: QueueItem): Promise<void> {
+  return withLocalLock(() => {
+    const q = localRead();
+    // Regenerar reusa el mismo id (equivalente al INSERT OR REPLACE de D1): sin duplicados.
+    q.items = q.items.filter((i) => i.id !== item.id);
+    q.items.unshift(item);
+    writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
+  });
 }
-function localUpdate(id: string, status: Status): QueueItem | null {
-  const q = localRead();
-  const item = q.items.find((i) => i.id === id);
-  if (!item) return null;
-  item.status = status;
-  writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
-  return item;
+function localUpdate(id: string, status: Status): Promise<QueueItem | null> {
+  return withLocalLock(() => {
+    const q = localRead();
+    const item = q.items.find((i) => i.id === id);
+    if (!item) return null;
+    item.status = status;
+    writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
+    return item;
+  });
 }
 
 // ---------- API pública (async, elige backend) ----------
@@ -59,7 +74,7 @@ export async function addToQueue(item: QueueItem): Promise<void> {
     const { d1Add } = await import("./d1.js");
     return d1Add(finalItem);
   }
-  localAdd(finalItem);
+  await localAdd(finalItem);
 }
 
 export async function listQueue(): Promise<QueueItem[]> {
@@ -84,12 +99,14 @@ export async function deleteItem(id: string): Promise<boolean> {
     const { d1Delete } = await import("./d1.js");
     return d1Delete(id);
   }
-  const q = localRead();
-  const before = q.items.length;
-  q.items = q.items.filter((i) => i.id !== id);
-  if (q.items.length === before) return false;
-  writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
-  return true;
+  return withLocalLock(() => {
+    const q = localRead();
+    const before = q.items.length;
+    q.items = q.items.filter((i) => i.id !== id);
+    if (q.items.length === before) return false;
+    writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
+    return true;
+  });
 }
 
 /** Actualiza el copy (caption + hashtags) de una pieza — usado por la edición con IA. */
@@ -98,11 +115,13 @@ export async function updateCopy(id: string, caption: string, hashtags: string[]
     const { d1UpdateCopy } = await import("./d1.js");
     return d1UpdateCopy(id, caption, hashtags);
   }
-  const q = localRead();
-  const item = q.items.find((i) => i.id === id);
-  if (!item) return null;
-  item.caption = caption;
-  item.hashtags = hashtags;
-  writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
-  return item;
+  return withLocalLock(() => {
+    const q = localRead();
+    const item = q.items.find((i) => i.id === id);
+    if (!item) return null;
+    item.caption = caption;
+    item.hashtags = hashtags;
+    writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
+    return item;
+  });
 }

@@ -49,6 +49,12 @@ npm run schedule            # scheduler diario (usa el planner)
   `src/lib/skills.ts` (`loadSkillGuidance` + `listInstalledSkills`). Toggle `USE_CM_SKILLS`.
 - **Capacidades**: `src/lib/capabilities.ts` detecta proveedores + skills → formatos disponibles.
   El planner solo elige formatos viables; el scheduler cae a `design` si algo falla. `npm run capabilities`.
+- **Panel multi-usuario + multi-agente**: login por usuario (`src/lib/users.ts`); cada usuario
+  tiene su perfil de agente con credenciales cifradas (`src/lib/agentProfile.ts` + `secretBox.ts`)
+  y sus jobs corren con ese perfil vía AsyncLocalStorage (`src/lib/activeProfile.ts` —
+  `llm.ts` lee env con `envGet()`/`childEnv()`, NUNCA process.env directo para config de copy).
+  Asistente de login de Claude Code (`claude setup-token` + node-pty): `src/lib/claudeLogin.ts`.
+  Contexto de empresa editable desde el panel (allowlist): `src/lib/contextFiles.ts`.
 - **Deploy**: Opción A (VPS + cron + Cloudflare Tunnel) documentada en `DEPLOY.md`.
 - **Persistencia**: cola/historial `QUEUE_STORE=local|d1` (`src/queue/queue.ts` async + `d1.ts`);
   assets `ASSET_STORE=local|s3` (`src/lib/assets.ts`). `npm run init-db` crea el esquema D1.

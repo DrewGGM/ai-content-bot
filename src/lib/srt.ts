@@ -2,9 +2,9 @@
 import type { Alignment } from "../providers/elevenlabs.js";
 import { loadBrandConfig, hexToAssBGR } from "./brandConfig.js";
 
-const _brand = loadBrandConfig();
-const OUTLINE = hexToAssBGR(_brand.colors.primary); // borde de subtítulos = color primario de marca
-const CTA_COLOR = hexToAssBGR(_brand.colors.accent); // texto del CTA = color de acento
+// Lectura perezosa: el panel puede editar config/brand.json en caliente.
+const OUTLINE = () => hexToAssBGR(loadBrandConfig().colors.primary); // borde de subtítulos = color primario
+const CTA_COLOR = () => hexToAssBGR(loadBrandConfig().colors.accent); // texto del CTA = color de acento
 
 interface W { text: string; start: number; end: number }
 
@@ -68,7 +68,7 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,58,&H00FFFFFF,&H000000FF,${OUTLINE},&H64000000,-1,0,0,0,100,100,0,0,1,5,2,2,90,90,320,1
+Style: Default,Arial,58,&H00FFFFFF,&H000000FF,${OUTLINE()},&H64000000,-1,0,0,0,100,100,0,0,1,5,2,2,90,90,320,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -100,9 +100,9 @@ WrapStyle: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Headline,Arial,74,&H00FFFFFF,&H000000FF,${OUTLINE},&H64000000,-1,0,0,0,100,100,0,0,1,6,3,8,80,80,300,1
-Style: Sub,Arial,66,&H00FFFFFF,&H000000FF,${OUTLINE},&H64000000,-1,0,0,0,100,100,0,0,1,5,3,5,120,120,0,1
-Style: Cta,Arial,54,${CTA_COLOR},&H000000FF,&H00201010,&H64000000,-1,0,0,0,100,100,0,0,1,5,2,2,90,90,200,1
+Style: Headline,Arial,74,&H00FFFFFF,&H000000FF,${OUTLINE()},&H64000000,-1,0,0,0,100,100,0,0,1,6,3,8,80,80,300,1
+Style: Sub,Arial,66,&H00FFFFFF,&H000000FF,${OUTLINE()},&H64000000,-1,0,0,0,100,100,0,0,1,5,3,5,120,120,0,1
+Style: Cta,Arial,54,${CTA_COLOR()},&H000000FF,&H00201010,&H64000000,-1,0,0,0,100,100,0,0,1,5,2,2,90,90,200,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

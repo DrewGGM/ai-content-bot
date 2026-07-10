@@ -6,16 +6,16 @@ import { fileURLToPath } from "node:url";
 import { loadBrandConfig } from "./brandConfig.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const cfg = loadBrandConfig();
-const LOGO_WHITE = join(ROOT, "assets", "brand", cfg.logoFile);
-const DARK = cfg.colors.dark;
-
-const logoCache = new Map<number, Buffer>();
+// Lectura perezosa (el panel puede editar config/brand.json en caliente); el caché de
+// rasterizado incluye el nombre del logo para invalidarse si la marca cambia de archivo.
+const logoCache = new Map<string, Buffer>();
 async function logoPng(widthPx: number): Promise<Buffer> {
-  if (logoCache.has(widthPx)) return logoCache.get(widthPx)!;
-  const svg = readFileSync(LOGO_WHITE);
+  const logoFile = loadBrandConfig().logoFile;
+  const cacheKey = `${logoFile}:${widthPx}`;
+  if (logoCache.has(cacheKey)) return logoCache.get(cacheKey)!;
+  const svg = readFileSync(join(ROOT, "assets", "brand", logoFile));
   const png = await sharp(svg, { density: 400 }).resize({ width: widthPx }).png().toBuffer();
-  logoCache.set(widthPx, png);
+  logoCache.set(cacheKey, png);
   return png;
 }
 
@@ -25,6 +25,7 @@ async function logoPng(widthPx: number): Promise<Buffer> {
  * Sirve igual para imágenes (sharp) y para video (ffmpeg overlay en 0,0).
  */
 export async function renderLogoPlate(W: number, plateH: number): Promise<Buffer> {
+  const DARK = loadBrandConfig().colors.dark;
   const scrimSvg = Buffer.from(
     `<svg width="${W}" height="${plateH}" xmlns="http://www.w3.org/2000/svg">
       <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">

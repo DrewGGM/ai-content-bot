@@ -23,18 +23,15 @@ const DEFAULTS: BrandConfig = {
   colors: { primary: "#5B2DC4", primaryLight: "#7B4DDB", accent: "#00D4AA", dark: "#0F0F1A" },
 };
 
-let cache: BrandConfig | null = null;
+// Sin caché: el panel permite editar config/brand.json en caliente y cada generación
+// debe ver la versión actual. Es un JSON pequeño leído unas pocas veces por pieza.
 export function loadBrandConfig(): BrandConfig {
-  if (cache) return cache;
-  let cfg: BrandConfig;
   try {
     const raw = JSON.parse(readFileSync(join(ROOT, "config", "brand.json"), "utf8"));
-    cfg = { ...DEFAULTS, ...raw, colors: { ...DEFAULTS.colors, ...(raw.colors ?? {}) } };
+    return { ...DEFAULTS, ...raw, colors: { ...DEFAULTS.colors, ...(raw.colors ?? {}) } };
   } catch {
-    cfg = DEFAULTS;
+    return DEFAULTS;
   }
-  cache = cfg;
-  return cfg;
 }
 
 /** #RRGGBB → color ASS &H00BBGGRR (alfa opaco). Para bordes/colores de subtítulos. */

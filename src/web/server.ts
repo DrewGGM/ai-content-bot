@@ -3,16 +3,19 @@
  * Muestra reels (video), carruseles (galería con flechas) y posts (imagen con zoom).
  * Permite Aprobar / Rechazar / Descargar. Iconografía SVG (Lucide), sin emojis.
  *
- * Seguridad (2 capas): (1) Cloudflare Access a nivel de red; (2) login propio con
- * PANEL_PASSWORD (cookie de sesión). Si PANEL_PASSWORD está vacío, el panel no pide login.
+ * Seguridad (2 capas): (1) Cloudflare Access a nivel de red; (2) login POR USUARIO
+ * (data/users.json, cookie de sesión). El primer arranque pide crear el usuario admin
+ * (si PANEL_PASSWORD está definido, se exige como código de instalación).
+ * Cada usuario tiene su PERFIL DE AGENTE IA (proveedor + credenciales cifradas): los jobs
+ * que lanza corren con SU cuenta (multi-cuenta de Claude Code / API keys en un servidor).
  *   npm run panel  →  http://localhost:4321
  */
 import "dotenv/config"; // carga .env ANTES de cualquier lectura de process.env
 import { createServer, type IncomingMessage } from "node:http";
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
-import { extname, normalize, join, dirname, basename } from "node:path";
+import { readFileSync, existsSync, writeFileSync, mkdirSync, createReadStream, statSync } from "node:fs";
+import { extname, normalize, join, dirname, basename, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { env } from "../lib/env.js";
 import { loadBrandConfig } from "../lib/brandConfig.js";
 import { listQueue, updateStatus, updateCopy, deleteItem, type QueueItem } from "../queue/queue.js";
@@ -22,6 +25,18 @@ import { planNextContent } from "../pipeline/planContent.js";
 import { deleteAssets } from "../lib/assets.js";
 import { availableFormats } from "../lib/capabilities.js";
 import { publishItem, publishCapabilities, NETWORKS, NETWORK_LABEL, type Network } from "../publish/index.js";
+import { askLLM } from "../providers/llm.js";
+import { P, icon, esc, baseCss } from "./ui.js";
+import { settingsPage } from "./settingsPage.js";
+import { hasUsers, listUsers, getUserById, createUser, verifyLogin, setPassword, deleteUser, type User } from "../lib/users.js";
+import { profileSummary, updateAgentProfile, setSecret, clearSecret, activeProfileFor } from "../lib/agentProfile.js";
+import { runWithProfile } from "../lib/activeProfile.js";
+import { ptySupported, startLogin, submitCode, loginStatus, cancelLogin } from "../lib/claudeLogin.js";
+import {
+  listContextFiles, readContextFile, writeContextFile, createContextFile, deleteContextFile,
+  listBrandAssets, readBrandAsset, saveBrandAsset, setBrandLogo,
+} from "../lib/contextFiles.js";
+import { listModels } from "../lib/modelCatalog.js";
 
 const brand = loadBrandConfig();
 
@@ -38,35 +53,6 @@ const STATUS_LABEL: Record<string, string> = {
   pending: "Pendiente", approved: "Aprobado", rejected: "Rechazado", published: "Publicado",
 };
 
-// ---- Iconos SVG (Lucide, stroke currentColor) ----
-const P: Record<string, string> = {
-  check: '<path d="M20 6 9 17l-5-5"/>',
-  x: '<path d="M18 6 6 18M6 6l12 12"/>',
-  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
-  reel: '<path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/>',
-  carousel: '<rect width="18" height="14" x="3" y="5" rx="2"/><path d="m3 15 4-4 5 5"/><circle cx="9" cy="9" r="1"/>',
-  post: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
-  motion: '<path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/>',
-  design: '<path d="M12 19a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>',
-  ugc: '<circle cx="12" cy="8" r="4"/><path d="M6 21v-1a6 6 0 0 1 12 0v1"/>',
-  bot: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/>',
-  lock: '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
-  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
-  layers: '<path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>',
-  spark: '<path d="M9.9 15.5A2 2 0 0 0 8.5 14.1l-6.1-1.6a.5.5 0 0 1 0-1l6.1-1.6A2 2 0 0 0 9.9 8.5l1.6-6.1a.5.5 0 0 1 1 0l1.6 6.1A2 2 0 0 0 15.5 9.9l6.1 1.6a.5.5 0 0 1 0 1l-6.1 1.6a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z"/>',
-  loader: '<path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/>',
-  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
-  trash: '<path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/>',
-  wand: '<path d="m3 21 6-6M14 4l6 6M12.5 5.5 5 13l6 6 7.5-7.5M14 4l6 6"/>',
-  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
-  send: '<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/>',
-};
-const icon = (n: string, cls = "ic") =>
-  `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] ?? ""}</svg>`;
-
-function esc(s: string): string {
-  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
-}
 const isUrl = (p: string) => /^https?:\/\//i.test(p);
 const isR2 = (p: string) => p.startsWith("r2:");           // asset privado en R2 → proxy autenticado
 const r2Key = (p: string) => p.slice(3);
@@ -75,15 +61,12 @@ const rel = (p: string) => p.slice(OUTPUT.length + 1).replace(/\\/g, "/");
 const mediaUrl = (p?: string) => (!p ? "" : isR2(p) ? "/r2/" + r2Key(p).split("/").map(encodeURIComponent).join("/") : isUrl(p) ? p : "/media/" + rel(p));
 const dlUrl = (p: string) => (isR2(p) ? "/r2/" + r2Key(p).split("/").map(encodeURIComponent).join("/") + "?dl=1" : isUrl(p) ? p : "/download/" + rel(p));
 
-// ---- Auth (cookie de sesión) ----
-const PW = env.panelPassword;
-const sessions = new Set<string>();
-function pwMatch(input: string): boolean {
-  if (!PW) return true;
-  const a = createHash("sha256").update(input).digest();
-  const b = createHash("sha256").update(PW).digest();
-  return timingSafeEqual(a, b);
-}
+// ---- Auth por usuario (cookie de sesión → data/users.json) ----
+// PANEL_PASSWORD (si existe) se usa como CÓDIGO DE INSTALACIÓN al crear el primer admin.
+const SETUP_CODE = env.panelPassword;
+const SESSION_TTL_MS = 7 * 86_400_000; // 7 días
+const sessions = new Map<string, { userId: string; expires: number }>();
+
 function parseCookies(req: IncomingMessage): Record<string, string> {
   const out: Record<string, string> = {};
   for (const part of (req.headers.cookie ?? "").split(";")) {
@@ -92,10 +75,69 @@ function parseCookies(req: IncomingMessage): Record<string, string> {
   }
   return out;
 }
-function isAuthed(req: IncomingMessage): boolean {
-  if (!PW) return true;
+
+function sessionUser(req: IncomingMessage): User | null {
   const sid = parseCookies(req).sid;
-  return !!sid && sessions.has(sid);
+  if (!sid) return null;
+  const s = sessions.get(sid);
+  if (!s) return null;
+  if (Date.now() > s.expires) {
+    sessions.delete(sid);
+    return null;
+  }
+  const user = getUserById(s.userId);
+  if (!user) {
+    sessions.delete(sid);
+    return null;
+  }
+  return user;
+}
+
+// Rate-limit del login: tras 5 fallos seguidos por IP, se bloquea 60s (frena fuerza bruta;
+// Cloudflare Access sigue siendo la 1ª capa).
+const loginFails = new Map<string, { count: number; lockedUntil: number }>();
+function loginAllowed(ip: string): boolean {
+  const f = loginFails.get(ip);
+  return !f || Date.now() >= f.lockedUntil;
+}
+function loginFailed(ip: string): void {
+  const f = loginFails.get(ip) ?? { count: 0, lockedUntil: 0 };
+  f.count += 1;
+  if (f.count >= 5) { f.lockedUntil = Date.now() + 60_000; f.count = 0; }
+  loginFails.set(ip, f);
+}
+
+function createSession(userId: string): string {
+  // Poda sesiones caducadas para que el Map no crezca sin límite.
+  for (const [k, v] of sessions) if (Date.now() > v.expires) sessions.delete(k);
+  const sid = randomBytes(24).toString("hex");
+  sessions.set(sid, { userId, expires: Date.now() + SESSION_TTL_MS });
+  return sid;
+}
+
+/** Lee y parsea el body JSON de un request (límite 1 MB salvo que se indique otro). */
+function jsonBody(req: IncomingMessage, maxBytes = 1_048_576): Promise<any> {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (c) => {
+      body += c;
+      if (body.length > maxBytes) {
+        reject(new Error("body demasiado grande"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        reject(new Error("JSON inválido"));
+      }
+    });
+  });
+}
+
+function sendJson(res: any, status: number, data: any): void {
+  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(data));
 }
 
 // ---- PWA (instalable en móvil): manifest + iconos generados + service worker ----
@@ -171,7 +213,9 @@ async function s3() {
 }
 
 // ---- Generación manual desde el panel (registro de jobs in-process) ----
-type Job = { id: string; format: string; topic: string; status: "running" | "done" | "error"; started: number; itemId?: string; error?: string };
+// Cada job corre con el PERFIL DE AGENTE del usuario que lo lanzó (runWithProfile):
+// su COPY_PROVIDER, su token de Claude Code / API keys, su CLAUDE_CONFIG_DIR aislado, etc.
+type Job = { id: string; format: string; topic: string; status: "running" | "done" | "error"; started: number; itemId?: string; error?: string; user?: string };
 const jobs: Job[] = [];
 const FORMAT_LABELS: Record<string, string> = {
   design: "Diseño — 1 póster, código sin API",
@@ -182,22 +226,24 @@ const FORMAT_LABELS: Record<string, string> = {
   motion: "Video (Remotion) — animado por código, sin fal",
   ugc: "UGC — avatar HeyGen",
 };
-function startJob(format: Format, topic: string, platform?: string, extra?: { aspect?: any; audio?: any }): Job {
-  const job: Job = { id: randomBytes(6).toString("hex"), format, topic, status: "running", started: Date.now() };
+function startJob(user: User, format: Format, topic: string, platform?: string, extra?: { aspect?: any; audio?: any }): Job {
+  const job: Job = { id: randomBytes(6).toString("hex"), format, topic, status: "running", started: Date.now(), user: user.name };
   jobs.unshift(job);
   if (jobs.length > 20) jobs.length = 20;
   // fire-and-forget: la generación sigue en segundo plano; el front hace polling de /jobs.
-  createContent({ format, topic, ...(platform ? { platform } : {}), ...(extra?.aspect ? { aspect: extra.aspect } : {}), ...(extra?.audio ? { audio: extra.audio } : {}) })
+  runWithProfile(activeProfileFor(user), () =>
+    createContent({ format, topic, ...(platform ? { platform } : {}), ...(extra?.aspect ? { aspect: extra.aspect } : {}), ...(extra?.audio ? { audio: extra.audio } : {}) })
+  )
     .then((item) => { job.status = "done"; job.itemId = item.id; })
     .catch((e) => { job.status = "error"; job.error = String(e?.message ?? e); });
   return job;
 }
 
-function startEditJob(item: QueueItem, instruction: string): Job {
-  const job: Job = { id: randomBytes(6).toString("hex"), format: item.format, topic: `editar: ${instruction}`, status: "running", started: Date.now() };
+function startEditJob(user: User, item: QueueItem, instruction: string): Job {
+  const job: Job = { id: randomBytes(6).toString("hex"), format: item.format, topic: `editar: ${instruction}`, status: "running", started: Date.now(), user: user.name };
   jobs.unshift(job);
   if (jobs.length > 20) jobs.length = 20;
-  editCopy(item, instruction)
+  runWithProfile(activeProfileFor(user), () => editCopy(item, instruction))
     .then((copy) => updateCopy(item.id, copy.caption, copy.hashtags))
     .then(() => { job.status = "done"; job.itemId = item.id; })
     .catch((e) => { job.status = "error"; job.error = String(e?.message ?? e); });
@@ -205,26 +251,29 @@ function startEditJob(item: QueueItem, instruction: string): Job {
 }
 
 // Regenera el VISUAL (imagen/video) de una pieza con la instrucción, reusando su id/carpeta.
-function startRegenJob(item: QueueItem, instruction: string): Job {
+function startRegenJob(user: User, item: QueueItem, instruction: string): Job {
   const slug = item.dir.split(/[\\/]/).filter(Boolean).pop() || item.topic || item.id;
-  const job: Job = { id: randomBytes(6).toString("hex"), format: item.format, topic: `regenerar: ${instruction}`, status: "running", started: Date.now() };
+  const job: Job = { id: randomBytes(6).toString("hex"), format: item.format, topic: `regenerar: ${instruction}`, status: "running", started: Date.now(), user: user.name };
   jobs.unshift(job);
   if (jobs.length > 20) jobs.length = 20;
-  createContent({
-    format: item.format as Format,
-    topic: item.topic || slug,
-    platform: item.platform,
-    instruction,
-    reuse: { slug, createdAt: item.createdAt },
-  })
+  runWithProfile(activeProfileFor(user), () =>
+    createContent({
+      format: item.format as Format,
+      topic: item.topic || slug,
+      platform: item.platform,
+      instruction,
+      reuse: { slug, createdAt: item.createdAt },
+    })
+  )
     .then((it) => { job.status = "done"; job.itemId = it.id; })
     .catch((e) => { job.status = "error"; job.error = String(e?.message ?? e); });
   return job;
 }
 
 // Publica una pieza a las redes seleccionadas; si al menos una funciona, la marca "published".
-function startPublishJob(item: QueueItem, networks: Network[]): Job {
-  const job: Job = { id: randomBytes(6).toString("hex"), format: item.format, topic: `publicar: ${networks.map((n) => NETWORK_LABEL[n]).join(", ")}`, status: "running", started: Date.now() };
+// (Los tokens de publicación son del servidor, no del perfil del usuario.)
+function startPublishJob(user: User, item: QueueItem, networks: Network[]): Job {
+  const job: Job = { id: randomBytes(6).toString("hex"), format: item.format, topic: `publicar: ${networks.map((n) => NETWORK_LABEL[n]).join(", ")}`, status: "running", started: Date.now(), user: user.name };
   jobs.unshift(job);
   if (jobs.length > 20) jobs.length = 20;
   publishItem(item, networks)
@@ -239,11 +288,11 @@ function startPublishJob(item: QueueItem, networks: Network[]): Job {
 }
 
 // Plan: Claude decide la pieza según el historial y la genera (cae a design si un proveedor falla).
-function startPlanJob(): Job {
-  const job: Job = { id: randomBytes(6).toString("hex"), format: "plan", topic: "IA decide la pieza…", status: "running", started: Date.now() };
+function startPlanJob(user: User): Job {
+  const job: Job = { id: randomBytes(6).toString("hex"), format: "plan", topic: "IA decide la pieza…", status: "running", started: Date.now(), user: user.name };
   jobs.unshift(job);
   if (jobs.length > 20) jobs.length = 20;
-  (async () => {
+  runWithProfile(activeProfileFor(user), async () => {
     const plan = await planNextContent();
     job.topic = `${plan.format}: ${plan.topic}`;
     try {
@@ -253,7 +302,7 @@ function startPlanJob(): Job {
       const it = await createContent({ format: "design", topic: plan.topic, platform: plan.platform });
       job.status = "done"; job.itemId = it.id;
     }
-  })().catch((e) => { job.status = "error"; job.error = String(e?.message ?? e); });
+  }).catch((e) => { job.status = "error"; job.error = String(e?.message ?? e); });
   return job;
 }
 
@@ -267,15 +316,16 @@ const SET_TOPICS: Record<string, string> = {
   deck: "Guía rápida: 3 razones para elegirte (carrusel por código)",
   ugc: "Un cliente recomienda tu producto y por qué",
 };
-function startSet(): number {
+function startSet(user: User): number {
   const avail = availableFormats();
-  for (const f of avail) startJob(f as Format, SET_TOPICS[f] ?? "Contenido de marca");
+  for (const f of avail) startJob(user, f as Format, SET_TOPICS[f] ?? "Contenido de marca");
   return avail.length;
 }
 
 // ---- Programación automática (in-process, configurable desde el panel) ----
 // Persistida en data/schedule.json (untracked → sobrevive a los deploys). Reemplaza al cron del SO.
-type Sched = { enabled: boolean; time: string; lastRun?: string }; // time = "HH:MM" hora Colombia (UTC-5)
+// userId = con el perfil de agente de QUIÉN corre la pieza diaria (quien guardó la programación).
+type Sched = { enabled: boolean; time: string; lastRun?: string; userId?: string }; // time = "HH:MM" hora Colombia (UTC-5)
 const SCHED_PATH = join(ROOT, "data", "schedule.json");
 function readSched(): Sched {
   try { return { enabled: false, time: "09:00", ...JSON.parse(readFileSync(SCHED_PATH, "utf8")) }; }
@@ -303,11 +353,16 @@ function startScheduler(): void {
     // Ventana de 5 min desde la hora programada; una sola vez al día.
     if (now.minutes < schedMin || now.minutes >= schedMin + 5 || s.lastRun === now.date) return;
     writeSched({ ...s, lastRun: now.date }); // marca ANTES de generar (evita doble disparo)
+    // La pieza automática corre con el perfil de agente de quien guardó la programación.
+    const owner = s.userId ? getUserById(s.userId) : null;
+    const profile = owner ? activeProfileFor(owner) : null;
     try {
-      const plan = await planNextContent();
-      try { await createContent({ format: plan.format, topic: plan.topic, platform: plan.platform }); }
-      catch { await createContent({ format: "design", topic: plan.topic, platform: plan.platform }); }
-      console.log(`[scheduler] pieza automática generada (${now.date})`);
+      await runWithProfile(profile, async () => {
+        const plan = await planNextContent();
+        try { await createContent({ format: plan.format, topic: plan.topic, platform: plan.platform }); }
+        catch { await createContent({ format: "design", topic: plan.topic, platform: plan.platform }); }
+      });
+      console.log(`[scheduler] pieza automática generada (${now.date}${owner ? `, agente de ${owner.name}` : ""})`);
     } catch (e: any) { console.error("[scheduler]", e?.message ?? e); }
   }, 60_000);
 }
@@ -342,28 +397,29 @@ function downloadBtn(it: QueueItem): string {
   return "";
 }
 
-// ---- CSS compartido (marca + OLED) ----
-function baseCss(): string {
-  return `@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700;800&display=swap');
-  :root{--violet:${brand.colors.primary};--violet2:${brand.colors.primaryLight};--mint:${brand.colors.accent};
-    --bg:#05060c;--bg2:#0a0b16;--card:#0f1120;--card2:#141733;--line:#20233f;--txt:#f4f5fb;--mut:#9a9cc0;
-    --z-header:20;--z-lb:50}
-  *{box-sizing:border-box}
-  html{color-scheme:dark}
-  body{margin:0;font-family:'Fira Sans',Inter,system-ui,Arial,sans-serif;background:
-    radial-gradient(1200px 600px at 80% -10%,color-mix(in srgb,var(--violet) 22%,transparent),transparent 60%),
-    radial-gradient(1000px 500px at -10% 10%,color-mix(in srgb,var(--mint) 12%,transparent),transparent 55%),
-    var(--bg);color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
-  a{color:inherit}
-  .ic{width:18px;height:18px;flex:none} .ic.sm{width:14px;height:14px}
-  :focus-visible{outline:2px solid var(--violet2);outline-offset:2px;border-radius:8px}
-  @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}`;
-}
+// ---- Página de acceso: login por usuario, o SETUP del primer admin si no hay usuarios ----
+function authPage(mode: "login" | "setup", error = ""): string {
+  const b = loadBrandConfig();
+  const isSetup = mode === "setup";
+  const fields = isSetup
+    ? `<label for="u">Tu nombre</label>
+    <div class="field"><span class="lk">${icon("bot", "ic")}</span>
+      <input id="u" name="name" autocomplete="username" autofocus placeholder="ej. Andrew"></div>
+    <label for="pw" style="margin-top:14px">Contraseña nueva</label>
+    <div class="field"><span class="lk">${icon("lock", "ic")}</span>
+      <input id="pw" name="password" type="password" autocomplete="new-password" placeholder="mínimo 6 caracteres"></div>
+    ${SETUP_CODE ? `<label for="code" style="margin-top:14px">Código de instalación (PANEL_PASSWORD del .env)</label>
+    <div class="field"><span class="lk">${icon("key", "ic")}</span>
+      <input id="code" name="code" type="password" autocomplete="off" placeholder="••••••••"></div>` : ""}`
+    : `<label for="u">Usuario</label>
+    <div class="field"><span class="lk">${icon("bot", "ic")}</span>
+      <input id="u" name="name" autocomplete="username" autofocus placeholder="Tu nombre de usuario"></div>
+    <label for="pw" style="margin-top:14px">Contraseña</label>
+    <div class="field"><span class="lk">${icon("lock", "ic")}</span>
+      <input id="pw" name="password" type="password" autocomplete="current-password" placeholder="••••••••"></div>`;
 
-// ---- Página de login ----
-function loginPage(error = false): string {
   return `<!doctype html><html lang="es"><head><meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(brand.name)} · Acceso</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(b.name)} · Acceso</title>
   <style>${baseCss()}
     .wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
     .box{width:100%;max-width:380px;background:linear-gradient(180deg,var(--card2),var(--card));
@@ -371,7 +427,7 @@ function loginPage(error = false): string {
     .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;margin-bottom:4px}
     .logo .badge{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
       background:linear-gradient(135deg,var(--violet),var(--mint));color:#fff}
-    .sub{color:var(--mut);font-size:13px;margin:2px 0 22px}
+    .sub{color:var(--mut);font-size:13px;margin:2px 0 22px;line-height:1.5}
     label{display:block;font-size:12px;color:var(--mut);margin-bottom:7px;font-weight:600}
     .field{position:relative}
     .field .lk{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--mut)}
@@ -384,19 +440,19 @@ function loginPage(error = false): string {
     button:hover{filter:brightness(1.1)} button:active{transform:translateY(1px)}
     .err{color:#ff8f8f;font-size:13px;margin-top:14px;min-height:18px;text-align:center}
   </style></head><body>
-  <div class="wrap"><form class="box" method="POST" action="/login">
-    <div class="logo"><span class="badge">${icon("bot","ic")}</span> ${esc(brand.name)}</div>
-    <div class="sub">Panel de contenido — acceso privado</div>
-    <label for="pw">Contraseña</label>
-    <div class="field"><span class="lk">${icon("lock","ic")}</span>
-      <input id="pw" name="password" type="password" autocomplete="current-password" autofocus placeholder="••••••••"></div>
-    <button type="submit">${icon("lock","ic")} Entrar</button>
-    <div class="err">${error ? "Contraseña incorrecta." : ""}</div>
+  <div class="wrap"><form class="box" method="POST" action="${isSetup ? "/setup" : "/login"}">
+    <div class="logo"><span class="badge">${icon("bot", "ic")}</span> ${esc(b.name)}</div>
+    <div class="sub">${isSetup
+      ? "Primer arranque — crea la cuenta de <b>administrador</b> del panel."
+      : "Panel de contenido — acceso privado"}</div>
+    ${fields}
+    <button type="submit">${icon("lock", "ic")} ${isSetup ? "Crear cuenta admin" : "Entrar"}</button>
+    <div class="err">${esc(error)}</div>
   </form></div></body></html>`;
 }
 
 // ---- Página principal ----
-async function page(): Promise<string> {
+async function page(user: User): Promise<string> {
   const items = await listQueue();
   const counts = {
     all: items.length,
@@ -418,7 +474,8 @@ async function page(): Promise<string> {
       const tags = it.hashtags.map((h) => `<span class="tag">${esc(h)}</span>`).join(" ");
       const done = it.status === "approved" || it.status === "rejected";
       const fmtIcon = P[it.format] ? it.format : "post";
-      return `<article class="card" data-status="${esc(it.status)}">
+      const label = `${it.format} · ${it.topic ?? it.id}`;
+      return `<article class="card" data-status="${esc(it.status)}" data-label="${esc(label)}">
         <div class="media">${mediaHtml(it)}
           <span class="badge" style="background:${BADGE[it.status] ?? "#555"}">${esc(STATUS_LABEL[it.status] ?? it.status)}</span>
         </div>
@@ -427,25 +484,24 @@ async function page(): Promise<string> {
           <p class="cap">${esc(it.caption).replace(/\n/g, "<br>")}</p>
           ${tags ? `<div class="tags">${tags}</div>` : ""}
           <div class="actions">
-            <button class="ok" ${done ? "disabled" : ""} onclick="act(this,'${it.id}','approved')">${icon("check")} Aprobar</button>
-            <button class="no" ${done ? "disabled" : ""} onclick="act(this,'${it.id}','rejected')">${icon("x")} Rechazar</button>
+            <button class="ok" ${done ? "disabled" : ""} onclick="askAct(this,'${esc(it.id)}','approved')">${icon("check")} Aprobar</button>
+            <button class="no" ${done ? "disabled" : ""} onclick="askAct(this,'${esc(it.id)}','rejected')">${icon("x")} Rechazar</button>
           </div>
           <div class="actions">
-            <button class="pub-btn" onclick="openPub('${esc(it.id)}')">${icon("send")} Publicar</button>
+            <button class="pub-btn" onclick="openPub(this,'${esc(it.id)}')">${icon("send")} Publicar</button>
           </div>
           <div class="actions">
             <button class="edit-btn" onclick="openEdit('${esc(it.id)}')">${icon("edit")} Editar con IA</button>
             ${downloadBtn(it)}
-            <button class="del-btn" title="Eliminar pieza y sus assets" onclick="doDelete('${esc(it.id)}')">${icon("trash")}</button>
+            <button class="del-btn" title="Eliminar pieza y sus assets" onclick="askDelete(this,'${esc(it.id)}')">${icon("trash")}</button>
           </div>
         </div>
       </article>`;
     })
     .join("");
 
-  const logoutBtn = PW
-    ? `<a class="logout" href="/logout" title="Cerrar sesión">${icon("logout")}<span>Salir</span></a>`
-    : "";
+  const logoutBtn = `<a class="logout" href="/logout" title="Cerrar sesión (${esc(user.name)})">${icon("logout")}<span>Salir</span></a>`;
+  const settingsBtn = `<a class="logout" href="/settings" title="Ajustes: tu agente IA, contexto y usuarios">${icon("gear")}<span>Ajustes</span></a>`;
 
   const genFormats = availableFormats();
   const fmtOptions = genFormats.map((f) => `<option value="${f}">${esc(FORMAT_LABELS[f] ?? f)}</option>`).join("");
@@ -556,9 +612,17 @@ async function page(): Promise<string> {
     .btn-ghost{background:transparent;color:var(--mut);border:1px solid var(--line)} .btn-ghost:hover{color:var(--txt)}
     .btn-primary{border:0;color:#fff;background:linear-gradient(135deg,var(--violet),var(--violet2))}
     .btn-primary:hover{filter:brightness(1.12)} .btn-primary:disabled{opacity:.5;cursor:default}
+    .btn-primary.danger{background:linear-gradient(135deg,#a93226,#d0453a)}
+    .cf-body{color:var(--mut);font-size:13.5px;line-height:1.6;margin:0 0 6px}
+    .cf-body b{color:var(--txt)}
+    .pub-warn{display:none;margin-top:12px;padding:10px 13px;border-radius:11px;font-size:12.5px;line-height:1.5;
+      background:color-mix(in srgb,#e0a52b 14%,transparent);border:1px solid #e0a52b55;color:#f0c974}
+    .pub-warn.show{display:block}
     .jobs{position:fixed;right:16px;bottom:16px;z-index:var(--z-lb);display:flex;flex-direction:column;gap:8px;max-width:340px}
     .job{display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;border:1px solid var(--line);background:var(--card2);box-shadow:0 12px 30px #0009;font-size:12.5px}
-    .job .jt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:capitalize}
+    .job .jb{flex:1;min-width:0}
+    .job .jt{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:capitalize}
+    .job .jerr{font-size:11px;color:#ff9d94;line-height:1.45;margin-top:3px;white-space:normal;word-break:break-word;max-height:52px;overflow:auto}
     .job .js{flex:none;display:inline-flex} .job b{flex:none;font-family:'Fira Code',monospace;font-size:11px}
     .job.run .js{color:var(--violet2);animation:spin 1.1s linear infinite}
     .job.done{border-color:#00a57855} .job.done .js{color:#00c893}
@@ -581,12 +645,13 @@ async function page(): Promise<string> {
   <header>
     <div class="hbar">
       <span class="brand"><span class="badge">${icon("bot","ic")}</span> ${esc(brand.name)}
-        <small>Content Bot · ${items.length} piezas</small></span>
+        <small>Content Bot · ${items.length} piezas · ${esc(user.name)}</small></span>
       <span class="spacer"></span>
       <button class="hbtn" onclick="doPlan()" title="Claude decide y genera una pieza">${icon("wand")}<span>Plan</span></button>
       <button class="hbtn" onclick="doSet()" title="Una pieza de cada formato disponible">${icon("layers")}<span>Set</span></button>
       <button class="hbtn" onclick="openSched()" title="Programación automática">${icon("clock")}<span>Auto</span></button>
       <button class="gen-btn" onclick="openGen()">${icon("spark")}<span>Generar</span></button>
+      ${settingsBtn}
       ${logoutBtn}
     </div>
     <div class="tabs" role="tablist">
@@ -662,10 +727,24 @@ async function page(): Promise<string> {
       </div>
       <label>¿En qué redes?</label>
       <div class="nets">${netChecks}</div>
+      <div class="pub-warn" id="pubWarn"></div>
       <div class="modal-err" id="pubErr"></div>
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closePub()">Cancelar</button>
         <button class="btn-primary" id="pubSubmit" onclick="submitPub()">${icon("send")} Publicar</button>
+      </div>
+    </div>
+  </div>
+  <div id="cfModal" class="modal" onclick="if(event.target===this)closeCf()">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-label="Confirmar acción">
+      <div class="modal-head">
+        <span class="mh-title" id="cfTitle"></span>
+        <button class="mh-close" onclick="closeCf()" aria-label="Cerrar">${icon("x")}</button>
+      </div>
+      <p class="cf-body" id="cfBody"></p>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeCf()">Cancelar</button>
+        <button class="btn-primary" id="cfOk">Confirmar</button>
       </div>
     </div>
   </div>
@@ -679,6 +758,32 @@ async function page(): Promise<string> {
         c.classList.toggle('hide', f!=='all' && c.dataset.status!==f);
       });
     }
+    // ---- Modal de confirmación genérico (todas las acciones piden confirmar antes de ejecutar) ----
+    var cfCb=null;
+    function askConfirm(o,cb){
+      cfCb=cb;
+      document.getElementById('cfTitle').innerHTML=o.title;
+      document.getElementById('cfBody').innerHTML=o.body||'';
+      var ok=document.getElementById('cfOk');
+      ok.innerHTML=o.ok||'Confirmar';
+      ok.className='btn-primary'+(o.danger?' danger':'');
+      document.getElementById('cfModal').classList.add('show');
+      setTimeout(function(){ok.focus()},50);
+    }
+    function closeCf(){document.getElementById('cfModal').classList.remove('show');cfCb=null}
+    document.getElementById('cfOk').addEventListener('click',function(){var cb=cfCb;closeCf();if(cb)cb()});
+    function cardLabel(el){var c=el.closest('.card');return c?ce(c.dataset.label||''):''}
+
+    function askAct(btn,id,status){
+      var ok=status==='approved';
+      askConfirm({
+        title:(ok?CHECK+' Aprobar pieza':XIC+' Rechazar pieza'),
+        body:'<b>'+cardLabel(btn)+'</b><br>'+(ok
+          ?'Quedará marcada como aprobada y lista para publicar.'
+          :'Quedará rechazada; el planner evitará repetir este ángulo.'),
+        ok:ok?'Sí, aprobar':'Sí, rechazar',danger:!ok
+      },function(){act(btn,id,status)});
+    }
     function act(btn,id,status){
       btn.disabled=true;const sib=btn.parentElement.querySelectorAll('button');sib.forEach(b=>b.disabled=true);
       fetch('/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status})})
@@ -689,12 +794,12 @@ async function page(): Promise<string> {
     function zoom(s){document.getElementById('lbimg').src=s;document.getElementById('lb').style.display='flex'}
     function dlAll(urls){urls.forEach((u,i)=>setTimeout(()=>{const a=document.createElement('a');a.href=u;a.download='';document.body.appendChild(a);a.click();a.remove()},i*400))}
 
-    var LOADER=${JSON.stringify(icon("loader"))},CHECK=${JSON.stringify(icon("check"))},XIC=${JSON.stringify(icon("x"))};
+    var LOADER=${JSON.stringify(icon("loader"))},CHECK=${JSON.stringify(icon("check"))},XIC=${JSON.stringify(icon("x"))},TRASH=${JSON.stringify(icon("trash"))};
     function ce(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
     function onGenFormat(){document.getElementById('genVideoOpts').style.display=(document.getElementById('genFormat').value==='motion')?'flex':'none'}
     function openGen(){document.getElementById('genErr').textContent='';onGenFormat();document.getElementById('genModal').classList.add('show');setTimeout(function(){document.getElementById('genTopic').focus()},50)}
     function closeGen(){document.getElementById('genModal').classList.remove('show')}
-    document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeGen();closeEdit();closeSched();closePub()}});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeGen();closeEdit();closeSched();closePub();closeCf()}});
     function submitGen(){
       var topic=document.getElementById('genTopic').value.trim();
       var format=document.getElementById('genFormat').value;
@@ -727,7 +832,16 @@ async function page(): Promise<string> {
     function closeSched(){document.getElementById('schedModal').classList.remove('show')}
     function saveSched(){var enabled=document.getElementById('schedEnabled').checked;var time=document.getElementById('schedTime').value||'09:00';var btn=document.getElementById('schedSave');btn.disabled=true;fetch('/schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enabled,time:time})}).then(function(r){btn.disabled=false;if(r.ok){closeSched()}else{document.getElementById('schedErr').textContent='No se pudo guardar'}}).catch(function(){btn.disabled=false;document.getElementById('schedErr').textContent='Error de red'})}
     var pubId=null;
-    function openPub(id){pubId=id;document.getElementById('pubErr').textContent='';document.querySelectorAll('#pubModal .netopt input:not([disabled])').forEach(function(c){c.checked=true});document.getElementById('pubModal').classList.add('show')}
+    function openPub(btn,id){
+      pubId=id;document.getElementById('pubErr').textContent='';
+      document.querySelectorAll('#pubModal .netopt input:not([disabled])').forEach(function(c){c.checked=true});
+      var card=btn.closest('.card'),st=card?card.dataset.status:'',warn=document.getElementById('pubWarn');
+      if(st==='pending'){warn.innerHTML='Esta pieza aún está <b>pendiente</b> (sin aprobar). Si publicas, saldrá tal cual está.';warn.classList.add('show')}
+      else if(st==='rejected'){warn.innerHTML='Esta pieza está <b>rechazada</b> — apruébala (o edítala) antes de publicar.';warn.classList.add('show')}
+      else{warn.classList.remove('show')}
+      document.getElementById('pubSubmit').disabled=(st==='rejected');
+      document.getElementById('pubModal').classList.add('show');
+    }
     function closePub(){document.getElementById('pubModal').classList.remove('show')}
     function submitPub(){
       var nets=[];document.querySelectorAll('#pubModal .netopt input:checked').forEach(function(c){nets.push(c.value)});
@@ -739,10 +853,28 @@ async function page(): Promise<string> {
         .then(function(x){btn.disabled=false;if(!x.ok){err.textContent=(x.d&&x.d.error)||'Error al publicar';return}closePub();pollJobs()})
         .catch(function(){btn.disabled=false;err.textContent='Error de red'});
     }
-    function doPlan(){fetch('/plan',{method:'POST'}).then(function(){pollJobs()}).catch(function(){})}
-    function doSet(){if(!confirm('¿Generar una pieza de cada formato disponible? Puede tardar.'))return;fetch('/set',{method:'POST'}).then(function(){pollJobs()}).catch(function(){})}
+    function doPlan(){
+      askConfirm({
+        title:'Plan con IA',
+        body:'La IA revisará tu historial (formatos, temas, aprobados y rechazados) y decidirá <b>qué pieza generar hoy</b>. Se usará tu agente configurado y puede tardar varios minutos.',
+        ok:'Generar plan'
+      },function(){fetch('/plan',{method:'POST'}).then(function(){pollJobs()}).catch(function(){})});
+    }
+    function doSet(){
+      askConfirm({
+        title:'Set completo',
+        body:'Se generará <b>una pieza de cada formato disponible</b> con tu agente. Es la acción más pesada (varios minutos y consumo de APIs de imagen/voz).',
+        ok:'Generar set'
+      },function(){fetch('/set',{method:'POST'}).then(function(){pollJobs()}).catch(function(){})});
+    }
+    function askDelete(btn,id){
+      askConfirm({
+        title:TRASH+' Eliminar pieza',
+        body:'<b>'+cardLabel(btn)+'</b><br>Se eliminará la pieza de la cola y <b>todos sus archivos</b> (imágenes, video, voz). No se puede deshacer.',
+        ok:'Eliminar definitivamente',danger:true
+      },function(){doDelete(id)});
+    }
     function doDelete(id){
-      if(!confirm('¿Eliminar esta pieza y todos sus assets? No se puede deshacer.'))return;
       fetch('/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})})
         .then(function(r){if(r.ok){location.reload()}else{r.json().then(function(d){alert((d&&d.error)||'No se pudo eliminar')})}})
         .catch(function(){alert('Error de red')});
@@ -755,7 +887,8 @@ async function page(): Promise<string> {
           var cls=j.status==='running'?'run':(j.status==='done'?'done':'error');
           var ic=j.status==='running'?LOADER:(j.status==='done'?CHECK:XIC);
           var s=j.status==='running'?(Math.round(j.ms/1000)+'s'):(j.status==='done'?'Listo':'Error');
-          return '<div class="job '+cls+'"><span class="js">'+ic+'</span><span class="jt">'+ce(j.format)+' · '+ce(j.topic)+'</span><b>'+s+'</b></div>';
+          var errLine=(j.status==='error'&&j.error)?'<div class="jerr">'+ce(String(j.error).slice(0,220))+'</div>':'';
+          return '<div class="job '+cls+'"><span class="js">'+ic+'</span><div class="jb"><span class="jt">'+(j.user?ce(j.user)+' · ':'')+ce(j.format)+' · '+ce(j.topic)+'</span>'+errLine+'</div><b>'+s+'</b></div>';
         }).join('');
         var doneNow=list.some(function(j){var was=jobsSeen[j.id];jobsSeen[j.id]=j.status;return was==='running'&&j.status==='done'});
         if(doneNow){setTimeout(function(){location.reload()},900);return}
@@ -787,21 +920,54 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // ---- Setup del primer admin (solo cuando NO hay usuarios) ----
+  if (req.method === "POST" && url.pathname === "/setup") {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      if (hasUsers()) { res.writeHead(302, { Location: "/" }).end(); return; }
+      const form = new URLSearchParams(body);
+      const code = form.get("code") ?? "";
+      if (SETUP_CODE && code !== SETUP_CODE) {
+        res.writeHead(401, { "Content-Type": "text/html; charset=utf-8" }).end(authPage("setup", "Código de instalación incorrecto."));
+        return;
+      }
+      try {
+        const user = createUser(form.get("name") ?? "", form.get("password") ?? "", "admin");
+        const sid = createSession(user.id);
+        res.writeHead(302, {
+          "Set-Cookie": `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`,
+          Location: "/settings",
+        }).end();
+      } catch (e: any) {
+        res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" }).end(authPage("setup", String(e?.message ?? e)));
+      }
+    });
+    return;
+  }
+
   // ---- Login / logout (públicos) ----
   if (req.method === "POST" && url.pathname === "/login") {
     let body = "";
     req.on("data", (c) => (body += c));
     req.on("end", () => {
-      const pw = new URLSearchParams(body).get("password") ?? "";
-      if (pwMatch(pw)) {
-        const sid = randomBytes(24).toString("hex");
-        sessions.add(sid);
+      const ip = String(req.headers["cf-connecting-ip"] ?? req.socket.remoteAddress ?? "?");
+      if (!loginAllowed(ip)) {
+        res.writeHead(429, { "Content-Type": "text/html; charset=utf-8" }).end(authPage("login", "Demasiados intentos. Espera 1 minuto."));
+        return;
+      }
+      const form = new URLSearchParams(body);
+      const user = verifyLogin(form.get("name") ?? "", form.get("password") ?? "");
+      if (user) {
+        loginFails.delete(ip);
+        const sid = createSession(user.id);
         res.writeHead(302, {
-          "Set-Cookie": `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=86400`,
+          "Set-Cookie": `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`,
           Location: "/",
         }).end();
       } else {
-        res.writeHead(401, { "Content-Type": "text/html; charset=utf-8" }).end(loginPage(true));
+        loginFailed(ip);
+        res.writeHead(401, { "Content-Type": "text/html; charset=utf-8" }).end(authPage("login", "Usuario o contraseña incorrectos."));
       }
     });
     return;
@@ -813,15 +979,18 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // ---- A partir de aquí, requiere sesión ----
-  if (!isAuthed(req)) {
+  // ---- A partir de aquí, requiere sesión de usuario ----
+  const user = sessionUser(req);
+  if (!user) {
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "")) {
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(loginPage());
+      const mode = hasUsers() ? "login" : "setup";
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(authPage(mode));
     } else {
       res.writeHead(401).end("no autorizado");
     }
     return;
   }
+  const isAdmin = user.role === "admin";
 
   if (req.method === "POST" && url.pathname === "/action") {
     let body = "";
@@ -833,6 +1002,199 @@ const server = createServer(async (req, res) => {
         res.writeHead(updated ? 200 : 404).end(JSON.stringify({ ok: !!updated }));
       } catch { res.writeHead(400).end(); }
     });
+    return;
+  }
+
+  // ---- Ajustes: página + APIs (perfil de agente, login de Claude, contexto, usuarios) ----
+  if (req.method === "GET" && url.pathname === "/settings") {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" })
+      .end(settingsPage({ id: user.id, name: user.name, role: user.role }, await ptySupported()));
+    return;
+  }
+  if (url.pathname === "/api/profile" && req.method === "GET") {
+    sendJson(res, 200, profileSummary(user.id));
+    return;
+  }
+  if (url.pathname === "/api/profile" && req.method === "POST") {
+    try {
+      const b = await jsonBody(req);
+      updateAgentProfile(user.id, {
+        copyProvider: b.copyProvider, copyModel: b.copyModel, copyVision: b.copyVision,
+        isolateCli: b.isolateCli, extraEnv: b.extraEnv,
+      });
+      sendJson(res, 200, profileSummary(user.id));
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/profile/secret" && req.method === "POST") {
+    try {
+      const b = await jsonBody(req);
+      setSecret(user.id, String(b.key ?? ""), String(b.value ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/profile/secret/delete" && req.method === "POST") {
+    try {
+      const b = await jsonBody(req);
+      clearSecret(user.id, String(b.key ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/profile/test" && req.method === "POST") {
+    // Prueba el agente del usuario con una pregunta mínima (timeout corto).
+    try {
+      const reply = await Promise.race([
+        runWithProfile(activeProfileFor(user), () => askLLM("Responde únicamente con la palabra OK")),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout de 90s")), 90_000)),
+      ]);
+      sendJson(res, 200, { ok: true, reply: String(reply).slice(0, 120) });
+    } catch (e: any) { sendJson(res, 200, { ok: false, error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  if (url.pathname === "/api/profile/models" && req.method === "POST") {
+    // Lista modelos del proveedor elegido: en vivo si hay API + credenciales, si no estáticos.
+    try {
+      const b = await jsonBody(req);
+      sendJson(res, 200, await listModels(user.id, String(b.provider ?? "")));
+    } catch (e: any) { sendJson(res, 200, { models: [], source: "static", error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // Wizard de login de Claude Code (setup-token vía pty).
+  if (url.pathname === "/api/claude-login/start" && req.method === "POST") {
+    const r = await startLogin(user.id, (token) => setSecret(user.id, "CLAUDE_CODE_OAUTH_TOKEN", token));
+    sendJson(res, r.ok ? 200 : 400, r);
+    return;
+  }
+  if (url.pathname === "/api/claude-login/status" && req.method === "GET") {
+    sendJson(res, 200, loginStatus(user.id));
+    return;
+  }
+  if (url.pathname === "/api/claude-login/code" && req.method === "POST") {
+    try {
+      const b = await jsonBody(req);
+      const r = submitCode(user.id, String(b.code ?? ""));
+      sendJson(res, r.ok ? 200 : 400, r);
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/claude-login/cancel" && req.method === "POST") {
+    cancelLogin(user.id);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  // Contexto de empresa (solo admin).
+  if (url.pathname === "/api/context/files" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, listContextFiles());
+    return;
+  }
+  if (url.pathname === "/api/context/file" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const content = readContextFile(url.searchParams.get("path") ?? "");
+      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" }).end(content);
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/context/file" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      writeContextFile(String(b.path ?? ""), String(b.content ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/context/create" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      createContextFile(String(b.path ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/context/delete" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      deleteContextFile(String(b.path ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // Logos / assets de marca (solo admin).
+  if (url.pathname === "/api/brand/assets" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, listBrandAssets());
+    return;
+  }
+  if (url.pathname === "/api/brand/file" && req.method === "GET") {
+    if (!isAdmin) { res.writeHead(403).end(); return; }
+    try {
+      const { buffer, mime } = readBrandAsset(url.searchParams.get("name") ?? "");
+      res.writeHead(200, { "Content-Type": mime, "Cache-Control": "no-cache" }).end(buffer);
+    } catch { res.writeHead(404).end("not found"); }
+    return;
+  }
+  if (url.pathname === "/api/brand/upload" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req, 6 * 1024 * 1024); // logo hasta 3 MB (base64 ≈ ×1.37)
+      saveBrandAsset(String(b.name ?? ""), String(b.dataBase64 ?? ""));
+      if (b.setAsLogo) setBrandLogo(String(b.name));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/brand/logo" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      setBrandLogo(String(b.name ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // Usuarios del panel (solo admin).
+  if (url.pathname === "/api/users" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, listUsers());
+    return;
+  }
+  if (url.pathname === "/api/users" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      const role = b.role === "admin" ? "admin" : "member";
+      const u = createUser(String(b.name ?? ""), String(b.password ?? ""), role);
+      sendJson(res, 200, { ok: true, id: u.id });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/users/delete" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      deleteUser(String(b.id ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/users/password" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      setPassword(String(b.id ?? ""), String(b.password ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
   }
 
@@ -848,7 +1210,7 @@ const server = createServer(async (req, res) => {
         if (!availableFormats().includes(format)) { res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Formato no disponible" })); return; }
         const aspOk = ["reel", "square", "feed"].includes(aspect) ? aspect : undefined;
         const audOk = ["voice", "music", "silent"].includes(audio) ? audio : undefined;
-        const job = startJob(format as Format, t, typeof platform === "string" && platform ? platform : undefined, { aspect: aspOk, audio: audOk });
+        const job = startJob(user, format as Format, t, typeof platform === "string" && platform ? platform : undefined, { aspect: aspOk, audio: audOk });
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ jobId: job.id }));
       } catch { res.writeHead(400).end(); }
     });
@@ -867,7 +1229,8 @@ const server = createServer(async (req, res) => {
         const { enabled, time } = JSON.parse(body);
         const t = /^\d{1,2}:\d{2}$/.test(String(time)) ? String(time).padStart(5, "0") : "09:00";
         const prev = readSched();
-        writeSched({ enabled: !!enabled, time: t, lastRun: prev.lastRun });
+        // La pieza diaria correrá con el perfil de agente de quien guarda la programación.
+        writeSched({ enabled: !!enabled, time: t, lastRun: prev.lastRun, userId: user.id });
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ ok: true }));
       } catch { res.writeHead(400).end(); }
     });
@@ -876,12 +1239,12 @@ const server = createServer(async (req, res) => {
 
   // ---- Plan / Set manuales ----
   if (req.method === "POST" && url.pathname === "/plan") {
-    const job = startPlanJob();
+    const job = startPlanJob(user);
     res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ jobId: job.id }));
     return;
   }
   if (req.method === "POST" && url.pathname === "/set") {
-    const n = startSet();
+    const n = startSet(user);
     res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ started: n }));
     return;
   }
@@ -897,7 +1260,11 @@ const server = createServer(async (req, res) => {
         if (!nets.length) { res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Elige al menos una red" })); return; }
         const item = (await listQueue()).find((i) => i.id === id);
         if (!item) { res.writeHead(404, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Pieza no encontrada" })); return; }
-        const job = startPublishJob(item, nets);
+        if (item.status === "rejected") {
+          res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "La pieza está RECHAZADA; apruébala (o edítala) antes de publicar" }));
+          return;
+        }
+        const job = startPublishJob(user, item, nets);
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ jobId: job.id }));
       } catch { res.writeHead(400).end(); }
     });
@@ -932,7 +1299,7 @@ const server = createServer(async (req, res) => {
         if (!p) { res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Falta la instrucción" })); return; }
         const item = (await listQueue()).find((i) => i.id === id);
         if (!item) { res.writeHead(404, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Pieza no encontrada" })); return; }
-        const job = regen ? startRegenJob(item, p) : startEditJob(item, p);
+        const job = regen ? startRegenJob(user, item, p) : startEditJob(user, item, p);
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ jobId: job.id }));
       } catch { res.writeHead(400).end(); }
     });
@@ -941,7 +1308,7 @@ const server = createServer(async (req, res) => {
 
   // ---- Estado de los jobs (polling) ----
   if (req.method === "GET" && url.pathname === "/jobs") {
-    const out = jobs.map((j) => ({ id: j.id, format: j.format, topic: j.topic, status: j.status, error: j.error, ms: Date.now() - j.started }));
+    const out = jobs.map((j) => ({ id: j.id, format: j.format, topic: j.topic, status: j.status, error: j.error, user: j.user, ms: Date.now() - j.started }));
     res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(out));
     return;
   }
@@ -968,19 +1335,39 @@ const server = createServer(async (req, res) => {
     const prefix = isDownload ? "/download/" : "/media/";
     const r = decodeURIComponent(url.pathname.slice(prefix.length));
     const filePath = normalize(join(OUTPUT, r));
-    if (!filePath.startsWith(OUTPUT) || !existsSync(filePath)) { res.writeHead(404).end("not found"); return; }
-    const headers: Record<string, string> = { "Content-Type": MIME[extname(filePath)] ?? "application/octet-stream" };
+    // startsWith con separador: sin él, un directorio hermano "output-x" pasaría el filtro.
+    if (!filePath.startsWith(OUTPUT + sep) || !existsSync(filePath)) { res.writeHead(404).end("not found"); return; }
+    const size = statSync(filePath).size;
+    const headers: Record<string, string> = {
+      "Content-Type": MIME[extname(filePath)] ?? "application/octet-stream",
+      "Accept-Ranges": "bytes",
+    };
     if (isDownload) headers["Content-Disposition"] = `attachment; filename="${basename(filePath)}"`;
-    res.writeHead(200, headers).end(readFileSync(filePath));
+    // Soporte de Range (206): imprescindible para hacer scrubbing del video y para iOS Safari.
+    const range = req.headers.range?.match(/^bytes=(\d*)-(\d*)$/);
+    if (range && !isDownload) {
+      const start = range[1] ? parseInt(range[1], 10) : 0;
+      const end = range[2] ? Math.min(parseInt(range[2], 10), size - 1) : size - 1;
+      if (start >= size || start > end) {
+        res.writeHead(416, { "Content-Range": `bytes */${size}` }).end();
+        return;
+      }
+      res.writeHead(206, { ...headers, "Content-Range": `bytes ${start}-${end}/${size}`, "Content-Length": String(end - start + 1) });
+      createReadStream(filePath, { start, end }).pipe(res);
+      return;
+    }
+    res.writeHead(200, { ...headers, "Content-Length": String(size) });
+    createReadStream(filePath).pipe(res); // stream, no readFileSync: mp4 grandes sin cargar a memoria
     return;
   }
 
-  page()
+  page(user)
     .then((html) => res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(html))
     .catch((e) => res.writeHead(500).end(String(e?.message ?? e)));
 });
 
 server.listen(env.panelPort, () => {
-  console.log(`\nPanel de aprobación → http://localhost:${env.panelPort}${PW ? "  (login activado)" : "  (sin login — define PANEL_PASSWORD)"}\n`);
+  const auth = hasUsers() ? "(login por usuario activado)" : "(primer arranque: crea el admin en el navegador)";
+  console.log(`\nPanel de aprobación → http://localhost:${env.panelPort}  ${auth}\n`);
   startScheduler(); // programación automática in-process (configurable desde el panel)
 });

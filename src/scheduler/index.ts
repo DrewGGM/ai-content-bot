@@ -4,12 +4,23 @@
  *   npm run schedule
  */
 import "dotenv/config"; // carga .env ANTES de cualquier lectura de process.env (orden de imports)
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { planNextContent } from "../pipeline/planContent.js";
 import { createContent } from "../pipeline/dispatch.js";
 import { capabilitiesReport } from "../lib/capabilities.js";
 
 async function main() {
   const stamp = new Date().toISOString();
+  // Aviso: si la programación del PANEL (Auto) también está activa, saldrían 2 piezas/día.
+  try {
+    const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+    const sched = JSON.parse(readFileSync(join(ROOT, "data", "schedule.json"), "utf8"));
+    if (sched?.enabled) {
+      console.warn("⚠️  La programación automática del PANEL (Auto) también está activada — con este cron saldrán 2 piezas al día. Desactiva una de las dos.");
+    }
+  } catch { /* sin schedule.json */ }
   console.log(`[scheduler ${stamp}] capacidades:\n${capabilitiesReport()}\n`);
   console.log(`[scheduler] Claude decidiendo la pieza de hoy...`);
 

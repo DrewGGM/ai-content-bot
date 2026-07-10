@@ -125,13 +125,15 @@ async function runViaQueue(model: string, input: any, timeoutMs = 360000): Promi
   const { status_url, response_url } = await submit.json();
 
   const deadline = Date.now() + timeoutMs;
+  let completed = false;
   while (Date.now() < deadline) {
     await sleep(4000);
     const st = await fetchRetry(status_url, { headers });
     const sj: any = await st.json();
-    if (sj.status === "COMPLETED") break;
+    if (sj.status === "COMPLETED") { completed = true; break; }
     if (sj.status === "FAILED" || sj.status === "ERROR") throw new Error(`fal job ${sj.status}`);
   }
+  if (!completed) throw new Error(`fal ${model}: timeout tras ${Math.round(timeoutMs / 1000)}s esperando el job`);
   const res = await fetchRetry(response_url, { headers });
   if (!res.ok) throw new Error(`fal queue result ${res.status}`);
   return res.json();

@@ -27,6 +27,9 @@ import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { join, extname } from "node:path";
 import { tmpdir } from "node:os";
+// Config/credenciales del PERFIL ACTIVO (usuario del panel) con fallback a process.env.
+// Así cada job corre con el agente/cuenta de quien lo lanzó (multi-cuenta en un servidor).
+import { envGet, childEnv } from "../lib/activeProfile.js";
 
 export type CopyProvider =
   | "claude" | "codex" | "gemini" | "qwen" | "kimi" | "cursor" | "copilot" | "opencode" | "custom"
@@ -36,13 +39,13 @@ const CLI_PROVIDERS = ["claude", "codex", "gemini", "qwen", "kimi", "cursor", "c
 
 // Se lee perezosamente (no al cargar el módulo) para garantizar que dotenv ya cargó el .env.
 export function copyProvider(): CopyProvider {
-  const p = (process.env.COPY_PROVIDER ?? "claude").toLowerCase().trim();
+  const p = (envGet("COPY_PROVIDER") ?? "claude").toLowerCase().trim();
   const all: string[] = [...CLI_PROVIDERS, "anthropic", "openai"];
   return (all.includes(p) ? p : "claude") as CopyProvider;
 }
 
-const model = () => process.env.COPY_MODEL?.trim() || "";
-const timeoutMs = () => Number(process.env.COPY_TIMEOUT_MS ?? 300000); // 5 min default
+const model = () => envGet("COPY_MODEL")?.trim() || "";
+const timeoutMs = () => Number(envGet("COPY_TIMEOUT_MS") ?? 300000); // 5 min default
 
 /** Default de visión por proveedor; COPY_VISION=true|false lo fuerza. */
 function visionDefault(p: CopyProvider): boolean {
@@ -54,9 +57,9 @@ function visionDefault(p: CopyProvider): boolean {
     case "anthropic": // bloque image base64 (ojo: DeepSeek-compat no soporta visión → COPY_VISION=false)
       return true;
     case "openai":
-      return (process.env.LLM_VISION ?? "true").toLowerCase() !== "false";
+      return (envGet("LLM_VISION") ?? "true").toLowerCase() !== "false";
     case "custom":
-      return (process.env.AGENT_VISION ?? "false").toLowerCase() === "true";
+      return (envGet("AGENT_VISION") ?? "false").toLowerCase() === "true";
     default: // qwen (según modelo), kimi (según modelo), copilot, opencode → conservador
       return false;
   }
@@ -78,27 +81,27 @@ export function copyProviderInfo(): {
 } {
   const p = copyProvider();
   const kind = (CLI_PROVIDERS as readonly string[]).includes(p) ? "cli" : "api";
-  const forced = process.env.COPY_VISION?.trim().toLowerCase();
+  const forced = envGet("COPY_VISION")?.trim().toLowerCase();
   const vision = forced === "true" ? true : forced === "false" ? false : visionDefault(p);
   const m = model();
   switch (p) {
     case "anthropic":
       return {
         provider: p, kind, model: m || "claude-sonnet-4-5", vision,
-        ready: !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN),
-        detail: `API ${process.env.ANTHROPIC_BASE_URL || "api.anthropic.com"}`,
+        ready: !!(envGet("ANTHROPIC_API_KEY") || envGet("ANTHROPIC_AUTH_TOKEN")),
+        detail: `API ${envGet("ANTHROPIC_BASE_URL") || "api.anthropic.com"}`,
       };
     case "openai":
       return {
         provider: p, kind, model: m || "gpt-4o-mini", vision,
-        ready: !!(process.env.LLM_API_KEY || process.env.OPENAI_API_KEY),
-        detail: `API ${process.env.LLM_BASE_URL || "https://api.openai.com/v1"}`,
+        ready: !!(envGet("LLM_API_KEY") || envGet("OPENAI_API_KEY")),
+        detail: `API ${envGet("LLM_BASE_URL") || "https://api.openai.com/v1"}`,
       };
     case "custom":
       return {
         provider: p, kind, model: m || "(el del agente)", vision,
-        ready: !!process.env.AGENT_CMD,
-        detail: process.env.AGENT_CMD ? `cmd: ${process.env.AGENT_CMD}` : "falta AGENT_CMD",
+        ready: !!envGet("AGENT_CMD"),
+        detail: envGet("AGENT_CMD") ? `cmd: ${envGet("AGENT_CMD")}` : "falta AGENT_CMD",
       };
     case "codex":    return { provider: p, kind, model: m || "(config de codex)", vision, ready: true, detail: "CLI codex exec" };
     case "gemini":   return { provider: p, kind, model: m || "(config de gemini)", vision, ready: true, detail: "CLI gemini -p" };
@@ -125,7 +128,9 @@ interface RunResult { stdout: string; stderr: string; code: number | null }
 /** Ejecuta un binario con el prompt por STDIN (evita ENAMETOOLONG con prompts largos) y timeout. */
 function runCli(cmd: string, args: string[], stdin: string, opts: { shell?: boolean } = {}): Promise<RunResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: ["pipe", "pipe", "pipe"], shell: opts.shell ?? false });
+    // childEnv(): entorno con los overrides del perfil activo (token OAuth del usuario,
+    // CLAUDE_CONFIG_DIR aislado, etc.). Sin perfil activo = process.env normal.
+    const child = spawn(cmd, args, { stdio: ["pipe", "pipe", "pipe"], shell: opts.shell ?? false, env: childEnv() });
     const timer = setTimeout(() => {
       child.kill();
       reject(new Error(`'${cmd}' superó el timeout de ${timeoutMs()}ms (COPY_TIMEOUT_MS)`));
@@ -250,11 +255,24 @@ async function askCursorCli(prompt: string, opts: AskOptions): Promise<string> {
 }
 
 async function askCopilotCli(prompt: string, opts: AskOptions): Promise<string> {
-  // GitHub Copilot CLI: copilot -p "..." con tools auto-aprobadas.
-  const full = opts.image ? imageInstruction(opts.image, prompt) : prompt;
-  const r = await runCli("copilot", ["-p", full, "--allow-all-tools"], "");
-  if (r.code !== 0 && !r.stdout.trim()) failCli("copilot", r);
-  return r.stdout.trim();
+  // GitHub Copilot CLI: copilot -p "..." con tools auto-aprobadas. El prompt va como
+  // ARGUMENTO y los del bot son enormes (contexto de marca + skills) → en Windows la línea
+  // de comandos tiene límite (~32K): si es largo, va a un archivo temporal que el agente lee.
+  let full = opts.image ? imageInstruction(opts.image, prompt) : prompt;
+  let tmp: string | null = null;
+  try {
+    if (full.length > 8000) {
+      tmp = mkdtempSync(join(tmpdir(), "copilot-"));
+      const f = join(tmp, "prompt.md");
+      writeFileSync(f, full);
+      full = `Lee el archivo ${f.replace(/\\/g, "/")} y sigue EXACTAMENTE las instrucciones que contiene. Responde únicamente lo que pide.`;
+    }
+    const r = await runCli("copilot", ["-p", full, "--allow-all-tools"], "");
+    if (r.code !== 0 && !r.stdout.trim()) failCli("copilot", r);
+    return r.stdout.trim();
+  } finally {
+    if (tmp) try { rmSync(tmp, { recursive: true, force: true }); } catch { /* temp */ }
+  }
 }
 
 async function askOpencodeCli(prompt: string, opts: AskOptions): Promise<string> {
@@ -284,7 +302,7 @@ async function askOpencodeCli(prompt: string, opts: AskOptions): Promise<string>
 async function askCustomCli(prompt: string, opts: AskOptions): Promise<string> {
   // Agente arbitrario: AGENT_CMD recibe el prompt por STDIN y responde por STDOUT.
   // Si tu agente puede leer archivos locales, pon AGENT_VISION=true para habilitar el QA visual.
-  const cmd = process.env.AGENT_CMD;
+  const cmd = envGet("AGENT_CMD");
   if (!cmd) throw new Error("COPY_PROVIDER=custom requiere AGENT_CMD en .env (comando que lee el prompt por stdin)");
   const full = opts.image ? imageInstruction(opts.image, prompt) : prompt;
   const r = await runCli(cmd, [], full, { shell: true });
@@ -312,9 +330,9 @@ async function fetchWithTimeout(url: string, init: RequestInit): Promise<Respons
 }
 
 async function askAnthropicApi(prompt: string, opts: AskOptions): Promise<string> {
-  const key = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN;
+  const key = envGet("ANTHROPIC_API_KEY") || envGet("ANTHROPIC_AUTH_TOKEN");
   if (!key) throw new Error("COPY_PROVIDER=anthropic requiere ANTHROPIC_API_KEY en .env");
-  const base = (process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com").replace(/\/$/, "");
+  const base = (envGet("ANTHROPIC_BASE_URL") || "https://api.anthropic.com").replace(/\/$/, "");
   const content: any[] = [];
   // La imagen va ANTES del texto (recomendación oficial para visión).
   if (opts.image) {
@@ -347,9 +365,9 @@ async function askAnthropicApi(prompt: string, opts: AskOptions): Promise<string
 }
 
 async function askOpenAiApi(prompt: string, opts: AskOptions): Promise<string> {
-  const key = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
+  const key = envGet("LLM_API_KEY") || envGet("OPENAI_API_KEY");
   if (!key) throw new Error("COPY_PROVIDER=openai requiere LLM_API_KEY (u OPENAI_API_KEY) en .env");
-  const base = (process.env.LLM_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
+  const base = (envGet("LLM_BASE_URL") || "https://api.openai.com/v1").replace(/\/$/, "");
   // Visión en formato OpenAI: data-URI base64 (compatible con OpenAI, OpenRouter, Groq, Moonshot,
   // Ollama…; Moonshot NO acepta URLs http, solo base64 — por eso siempre mandamos base64).
   const content: any = opts.image

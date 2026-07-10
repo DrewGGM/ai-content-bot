@@ -9,9 +9,6 @@ aprobación** con panel web y se puede publicar a Meta con un clic.
 
 > Flujo: genera → tú apruebas en el panel → publica. Human-in-the-loop.
 
-> 🔗 **Demo en vivo** (panel simulado con piezas reales generadas por el bot):
-> https://ai-content-bot-demo.andrewgarcia.dev
-
 ---
 
 ## Índice
