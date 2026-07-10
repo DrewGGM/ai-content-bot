@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI Content Bot · Demo</title>
-<meta name="description" content="Demo estática del AI Content Bot: piezas reales generadas por IA para una marca de ejemplo (Lyroo), con panel de aprobación simulado.">
+<meta name="description" content="Demo estática del AI Content Bot: piezas reales generadas por IA para una marca de ejemplo (Lyroo), con panel de aprobación multi-usuario simulado: cada usuario conecta su propia cuenta de Claude Code o sus API keys.">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700;800&display=swap');
 :root{--violet:#5B2DC4;--violet2:#7B4DDB;--mint:#00D4AA;--bg:#05060c;--card:#0f1120;--card2:#141733;--line:#20233f;--txt:#f4f5fb;--mut:#9a9cc0}
@@ -21,6 +21,8 @@ header{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);background:co
 .brand .badge{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,var(--violet),var(--mint));color:#fff}
 .brand small{font-weight:500;color:var(--mut);font-size:12px}
 .spacer{flex:1}
+.who{color:var(--mut);font-size:12.5px;display:inline-flex;align-items:center;gap:6px}
+.role{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:99px;background:color-mix(in srgb,var(--violet) 30%,transparent);color:#cdb6ff}
 .hbtn,.gen-btn,.gh{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;text-decoration:none;transition:filter .2s,border-color .2s}
 .hbtn{border:1px solid var(--line);background:transparent;color:var(--txt)}
 .hbtn:hover{border-color:var(--violet2)}
@@ -65,7 +67,7 @@ video{aspect-ratio:9/16;object-fit:cover;background:#000}
 .actions button:disabled{opacity:.38;cursor:default}
 footer{max-width:1560px;margin:0 auto;padding:26px;color:var(--mut);font-size:13px;border-top:1px solid var(--line);line-height:1.7}
 footer a{color:var(--mint);font-weight:600}
-.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--card2);border:1px solid var(--violet2);border-radius:13px;padding:13px 20px;font-size:13.5px;box-shadow:0 16px 44px #000c;opacity:0;pointer-events:none;transition:.25s;max-width:90vw;z-index:60}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--card2);border:1px solid var(--violet2);border-radius:13px;padding:13px 20px;font-size:13.5px;box-shadow:0 16px 44px #000c;opacity:0;pointer-events:none;transition:.25s;max-width:90vw;z-index:70}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .modal{position:fixed;inset:0;background:#000b;display:none;align-items:flex-start;justify-content:center;z-index:50;padding:8vh 16px;backdrop-filter:blur(4px)}
 .modal.show{display:flex}
@@ -73,15 +75,61 @@ footer a{color:var(--mint);font-weight:600}
 .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-weight:800}
 .mh-close{background:transparent;border:0;color:var(--mut);cursor:pointer;font-size:18px}
 .modal label{display:block;font-size:12px;color:var(--mut);margin:12px 0 6px;font-weight:600}
-.modal textarea,.modal select{width:100%;padding:11px;border-radius:11px;border:1px solid var(--line);background:#0b0d1c;color:var(--txt);font-size:14px;font-family:inherit}
+.modal textarea,.modal select,.modal input{width:100%;padding:11px;border-radius:11px;border:1px solid var(--line);background:#0b0d1c;color:var(--txt);font-size:14px;font-family:inherit}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
 .btn-ghost{padding:11px 18px;border-radius:11px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;background:transparent;color:var(--mut);border:1px solid var(--line)}
 .btn-primary{padding:11px 18px;border-radius:11px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;border:0;color:#fff;background:linear-gradient(135deg,var(--violet),var(--violet2))}
+.btn-primary.dangerbtn{background:linear-gradient(135deg,#a93226,#d0453a)}
+.btn-primary.sm,.btn-ghost.sm{padding:9px 13px;font-size:13px}
+.cf-body{color:var(--mut);font-size:13.5px;line-height:1.6;margin:0}
+.cf-body b{color:var(--txt)}
 .job{position:fixed;right:16px;bottom:16px;z-index:60;display:none;align-items:center;gap:10px;padding:12px 15px;border-radius:12px;border:1px solid var(--line);background:var(--card2);box-shadow:0 12px 30px #0009;font-size:12.5px}
 .job.show{display:flex}
 .spin{width:15px;height:15px;border:2px solid var(--violet2);border-top-color:transparent;border-radius:50%;animation:sp 1s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-@media (max-width:640px){.hbar,.tabs,.grid,.banner{padding-left:12px;padding-right:12px}.grid{grid-template-columns:1fr;gap:16px}}
+
+/* ---- Vista AJUSTES (simulada) ---- */
+.screen{display:none;max-width:980px;margin:0 auto;padding:22px;flex-direction:column;gap:22px}
+.screen.on{display:flex}
+.scard{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 10px 34px #0007}
+.scard h2{margin:0 0 4px;font-size:17px}
+.scard .sub{color:var(--mut);font-size:13px;margin:0 0 16px;line-height:1.55}
+.scard label{display:block;font-size:12px;color:var(--mut);margin:0 0 6px;font-weight:600}
+.scard input,.scard select,.scard textarea{width:100%;padding:11px;border-radius:11px;border:1px solid var(--line);background:#0b0d1c;color:var(--txt);font-size:14px;font-family:inherit}
+.scard textarea{resize:vertical;font-family:'Fira Code',monospace;font-size:12.5px;line-height:1.55}
+.row{display:flex;gap:14px;flex-wrap:wrap}.row>div{flex:1;min-width:200px}
+.mt{margin-top:14px}
+code{font-family:'Fira Code',monospace;font-size:12px;color:var(--mint)}
+.prov-note{margin-top:12px;padding:11px 14px;border-radius:12px;font-size:12.5px;line-height:1.55;color:var(--mut);
+  background:color-mix(in srgb,var(--violet) 8%,transparent);border:1px solid color-mix(in srgb,var(--violet2) 35%,var(--line))}
+.prov-note b{color:var(--txt)}
+.secret{border:1px solid var(--line);border-radius:13px;padding:13px 15px;margin-top:11px}
+.s-head{display:flex;align-items:center;gap:10px}
+.s-state{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:99px;background:#ffffff12;color:var(--mut)}
+.s-state.on{background:#00a57833;color:#00c893}
+.s-desc{color:var(--mut);font-size:12px;margin:6px 0 9px;line-height:1.45}
+.s-row{display:flex;gap:8px}.s-row input{flex:1}
+.wizard{border:1px dashed var(--violet2);border-radius:13px;padding:15px;margin-top:13px;background:color-mix(in srgb,var(--violet) 7%,transparent)}
+.wizard a.lnk{color:var(--mint);word-break:break-all;font-size:12.5px}
+.wz{display:none}.wz.on{display:block}
+.check{display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--mut);cursor:pointer;line-height:1.45}
+.check input{width:17px;height:17px;flex:none;margin:1px 0 0;accent-color:var(--violet);cursor:pointer}
+.filebar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.filebar select{flex:1;min-width:200px;width:auto}
+.brand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.basset{border:1px solid var(--line);border-radius:13px;padding:12px;display:flex;flex-direction:column;gap:9px;align-items:center}
+.basset.cur{border-color:var(--mint)}
+.basset .bimg{height:52px;display:grid;place-items:center;width:100%;border-radius:9px;overflow:hidden;
+  background:repeating-conic-gradient(#181b2e 0% 25%, #10121f 0% 50%) 0 0/16px 16px;font-weight:800;font-size:15px}
+.basset .bname{font-size:11px;color:var(--mut);font-family:'Fira Code',monospace;word-break:break-all;text-align:center}
+.basset .cur-tag{font-size:10.5px;font-weight:800;color:var(--mint)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5px}
+.msg{font-size:13px;min-height:18px;margin-top:10px;color:#00c893}
+.model-row{display:flex;gap:8px}.model-row>div{flex:1}
+.conn-ok{color:#00c893}
+@media (max-width:640px){.hbar,.tabs,.grid,.banner{padding-left:12px;padding-right:12px}.grid{grid-template-columns:1fr;gap:16px}.screen{padding:14px}.scard{padding:16px}}
 </style>
 </head>
 <body>
@@ -90,24 +138,132 @@ footer a{color:var(--mint);font-weight:600}
     <span class="brand"><span class="badge"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg></span>
       AI Content Bot <small>demo · marca de ejemplo: Lyroo</small></span>
     <span class="spacer"></span>
-    <button class="hbtn" onclick="toast('Simulación · en el bot real, la IA analiza tu historial (aprobado/rechazado/temas) y decide el próximo formato + tema')">Plan</button>
-    <button class="hbtn" onclick="toast('Simulación · en el bot real genera una pieza de cada formato disponible')">Set</button>
-    <button class="hbtn" onclick="toast('Simulación · en el bot real programa 1 pieza automática al día a la hora que elijas')">Auto</button>
+    <button class="hbtn" onclick="askConfirm({title:'Plan con IA',body:'La IA revisará tu historial (formatos, temas, aprobados y rechazados) y decidirá <b>qué pieza generar hoy</b> con tu agente configurado.',ok:'Generar plan'},function(){toast('Simulación · en el bot real la IA decide formato + tema según tu historial y genera la pieza')})">Plan</button>
+    <button class="hbtn" onclick="askConfirm({title:'Set completo',body:'Se generará <b>una pieza de cada formato disponible</b>. Es la acción más pesada (varios minutos, consumo de APIs).',ok:'Generar set'},function(){toast('Simulación · en el bot real genera una pieza de cada formato disponible')})">Set</button>
+    <button class="hbtn" onclick="toast('Simulación · programa 1 pieza automática al día; corre con el agente/cuenta de quien la programa')">Auto</button>
     <button class="gen-btn" onclick="openGen()">✦ Generar</button>
+    <button class="hbtn" id="navBtn" onclick="toggleScreen()">⚙ Ajustes</button>
+    <span class="who">👤 drew <span class="role">admin</span></span>
     <a class="gh" href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">GitHub ↗</a>
   </div>
   <div class="tabs" role="tablist" id="tabs"></div>
 </header>
 
-<div class="banner"><div class="banner-in">
-  <b>Demo estática.</b> Todas las piezas de abajo son <b>reales</b>: las generó el bot para la marca de
-  ejemplo <b>Lyroo</b> (copy escrito por un agente de IA con el contexto de la marca, visuales por IA o
-  renderizados por código, voz sintética y QA visual automático). Los botones simulan el panel real.
-  Código e instrucciones: <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">github.com/DrewGGM/ai-content-bot</a>.
+<div class="banner" id="banner"><div class="banner-in">
+  <b>Demo estática.</b> Las piezas son <b>reales</b> (generadas por el bot para la marca de ejemplo <b>Lyroo</b>);
+  los botones simulan el panel real. Novedades: <b>panel multi-usuario</b> — cada miembro del equipo entra con su
+  cuenta y conecta <b>su propio agente de IA</b> (login de Claude Code guiado, API keys cifradas), la empresa se
+  configura 100% desde Ajustes (contexto, prompts propios, logos) y toda acción pide <b>confirmación</b>.
+  Explora <b>⚙ Ajustes</b> arriba. Código: <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">github.com/DrewGGM/ai-content-bot</a>.
 </div></div>
 
 <main class="grid" id="grid"></main>
 
+<!-- ================= AJUSTES (simulado) ================= -->
+<div class="screen" id="settings">
+
+  <section class="scard">
+    <h2>🧠 Tu agente de IA <span style="color:var(--mut);font-weight:500;font-size:12px">— por usuario</span></h2>
+    <p class="sub">En el bot real, <b>cada usuario del panel</b> configura su propio agente: el copy, el planner y el QA
+    visual de SUS generaciones corren con SU cuenta (multi-cuenta de Claude Code o API keys en un mismo servidor,
+    credenciales cifradas con AES-256-GCM). El formulario muestra solo lo que cada proveedor necesita.</p>
+    <div class="row">
+      <div style="flex:1.2"><label>Proveedor</label>
+        <select id="pProvider" onchange="applyProviderUI()">
+          <option value="claude">Claude Code (suscripción, CLI)</option>
+          <option value="anthropic">API Anthropic / compatible</option>
+          <option value="openai">API OpenAI / compatible</option>
+          <option value="gemini">Google Gemini CLI</option>
+          <option value="codex">OpenAI Codex CLI</option>
+          <option value="custom">Comando custom (AGENT_CMD)</option>
+        </select></div>
+      <div style="flex:1.4"><label>Modelo (escribe o elige)</label>
+        <div class="model-row">
+          <div><input id="pModel" list="modelList" placeholder="default del proveedor"><datalist id="modelList"></datalist></div>
+          <button class="btn-ghost sm" onclick="loadModels()">⟳ Modelos</button>
+        </div></div>
+      <div><label>QA visual (visión)</label><select><option>Auto (según proveedor)</option><option>Forzar sí</option><option>Forzar no</option></select></div>
+    </div>
+    <div class="prov-note" id="provNote"></div>
+
+    <div class="wizard" id="wizard">
+      <b>🔗 Conectar Claude Code con TU cuenta</b>
+      <div class="wz on" id="wz0">
+        <p class="sub" style="margin:8px 0 10px" id="wzIntro">El asistente corre <code>claude setup-token</code> en el servidor:
+        te da un link de autorización OAuth, entras con TU cuenta de Claude (Pro/Max/Team), pegas el código y el
+        token de 1 año queda cifrado en tu perfil.</p>
+        <button class="btn-primary sm" id="wzStartBtn" onclick="wzStart()">🔗 Iniciar login con Claude</button>
+      </div>
+      <div class="wz" id="wz1">
+        <p class="sub" style="margin:8px 0 6px">1 · Abre este enlace y autoriza con tu cuenta de Claude:</p>
+        <p><a class="lnk" href="#" onclick="return false">https://claude.com/oauth/authorize?code=true&client_id=…&state=kJ92xF…&code_challenge=Znb4Qp… <span style="color:var(--mut)">(simulado)</span></a></p>
+        <p class="sub" style="margin:10px 0 6px">2 · Pega aquí el código que te muestra:</p>
+        <div class="s-row"><input id="wzCode" placeholder="Código de autorización (pega cualquier cosa — demo)">
+          <button class="btn-primary sm" onclick="wzCode()">✓ Enviar</button>
+          <button class="btn-ghost sm" onclick="wzShow(0)">✕</button></div>
+      </div>
+      <div class="wz" id="wz2"><p class="sub" style="margin:8px 0">Verificando… <span style="color:var(--mut);font-family:'Fira Code',monospace;font-size:11px">(en el bot real ves aquí la salida del CLI en vivo)</span></p></div>
+      <div class="wz" id="wz3"><p class="sub conn-ok" style="margin:8px 0"><b>✓ Cuenta conectada</b> — token guardado cifrado en tu perfil; tus generaciones ya usan tu suscripción de Claude.</p></div>
+    </div>
+
+    <div id="secretsBox"></div>
+
+    <div class="mt"><label class="check"><input type="checkbox"> <span>Aislar credenciales de CLIs para mí
+      (mi propio <code>CLAUDE_CONFIG_DIR</code> y <code>CODEX_HOME</code> en el servidor)</span></label></div>
+    <div class="mt" style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-primary" onclick="toast('Simulación · agente guardado — en el bot real tus próximos jobs ya corren con este proveedor/cuenta')">✓ Guardar agente</button>
+      <button class="btn-ghost" onclick="testAgent(this)">✦ Probar agente</button>
+    </div>
+    <div class="msg" id="agentMsg"></div>
+  </section>
+
+  <section class="scard">
+    <h2>📄 Contexto de la empresa <span class="role">admin</span></h2>
+    <p class="sub">Todo lo que el bot sabe de tu empresa se edita aquí: qué hace, productos, tono, estrategia…
+    y puedes <b>crear archivos .md nuevos</b> (prompts personalizados, guías de estilo, promociones) que el bot
+    inyecta automáticamente en cada generación. Los cambios aplican de inmediato, sin tocar código.</p>
+    <div class="filebar">
+      <select id="ctxFile" onchange="loadCtx()"></select>
+      <button class="btn-primary sm" onclick="toast('Simulación · guardado — aplica desde la próxima generación')">✓ Guardar</button>
+      <button class="btn-ghost sm" style="color:#e05252" onclick="delCtx()">🗑</button>
+    </div>
+    <textarea id="ctxBody" rows="9" spellcheck="false"></textarea>
+    <div class="filebar mt">
+      <input id="ctxNew" placeholder="nuevo-archivo.md (ej. estilo-visual.md, promociones-julio.md)" style="flex:1;min-width:220px">
+      <button class="btn-ghost sm" onclick="createCtx()">✓ Crear archivo</button>
+    </div>
+    <div class="msg" id="ctxMsg"></div>
+  </section>
+
+  <section class="scard">
+    <h2>🖼 Marca y logos <span class="role">admin</span></h2>
+    <p class="sub">Sube tus logos y elige cuál superpone el bot en imágenes y videos (ideal: SVG/PNG transparente).
+    Los colores y datos básicos viven en <code>config/brand.json</code>, editable en la sección de arriba.</p>
+    <div class="brand-grid" id="brandGrid"></div>
+    <div class="filebar mt">
+      <input type="file" style="flex:1;min-width:200px;padding:9px" onclick="event.preventDefault();toast('Simulación · en el bot real sube SVG/PNG/JPG/WebP (máx 3 MB) a assets/brand/')">
+      <label class="check" style="white-space:nowrap"><input type="checkbox" checked> <span>usar como logo principal</span></label>
+      <button class="btn-primary sm" onclick="toast('Simulación · logo subido y marcado como principal (config/brand.json → logoFile)')">✓ Subir</button>
+    </div>
+  </section>
+
+  <section class="scard">
+    <h2>👥 Usuarios del panel <span class="role">admin</span></h2>
+    <p class="sub">Cada usuario entra con su contraseña y configura su propio agente/cuenta de IA. Los admin además
+    gestionan usuarios, contexto y logos. En el bot real: contraseñas con scrypt, rate-limit de login y sesiones con expiración.</p>
+    <table><thead><tr><th>Usuario</th><th>Rol</th><th>Agente</th><th></th></tr></thead><tbody id="uRows"></tbody></table>
+    <div class="row mt">
+      <div><label>Nombre</label><input id="uName" placeholder="ej. Maria"></div>
+      <div><label>Contraseña</label><input type="password" placeholder="mínimo 6 caracteres"></div>
+      <div><label>Rol</label><select id="uRole"><option>member</option><option>admin</option></select></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn-primary" onclick="addUser()">✓ Crear usuario</button></div>
+    </div>
+    <div class="msg" id="uMsg"></div>
+  </section>
+
+</div>
+
+<!-- Modal generar -->
 <div id="genModal" class="modal" onclick="if(event.target===this)closeGen()">
   <div class="modal-box" role="dialog" aria-modal="true">
     <div class="modal-head"><span>✦ Generar contenido</span><button class="mh-close" onclick="closeGen()">✕</button></div>
@@ -130,6 +286,18 @@ footer a{color:var(--mint);font-weight:600}
   </div>
 </div>
 
+<!-- Modal de confirmación (nuevo: toda acción confirma antes de ejecutar) -->
+<div id="cfModal" class="modal" onclick="if(event.target===this)closeCf()">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <div class="modal-head"><span id="cfTitle"></span><button class="mh-close" onclick="closeCf()">✕</button></div>
+    <p class="cf-body" id="cfBody"></p>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeCf()">Cancelar</button>
+      <button class="btn-primary" id="cfOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <div class="job" id="job"><span class="spin"></span><span id="jobTxt">generando…</span></div>
 <div class="toast" id="toast"></div>
 
@@ -137,8 +305,11 @@ footer a{color:var(--mint);font-weight:600}
   <b style="color:#fff">¿Qué es esto?</b> Un bot open-source que genera contenido de redes para cualquier marca
   con <b>cualquier agente de IA</b> (Claude Code, Codex, Gemini CLI, Qwen, Kimi, Cursor, Copilot, OpenCode, o un
   comando propio) <b>o cualquier API de LLM</b> (Anthropic, OpenAI, OpenRouter, DeepSeek, Groq, Ollama local…).
+  <b>Panel multi-usuario:</b> cada miembro del equipo conecta su propia cuenta (login guiado de Claude Code con
+  <code>setup-token</code>, o API keys) — las credenciales se cifran en el servidor y cada generación corre con el
+  agente de quien la pidió. La empresa se configura 100% desde el panel: contexto, prompts propios, logos y colores.
   Escribe el copy con el contexto de tu empresa, genera el visual (IA o código), hace QA visual con visión,
-  y te deja aprobar/publicar desde un panel PWA.<br>
+  y te deja aprobar/publicar (con confirmación) desde un panel PWA.<br>
   → <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">Repositorio y documentación</a>
   · Hecho por <a href="https://andrewgarcia.dev" target="_blank" rel="noopener">Andrew García</a>.
 </footer>
@@ -192,13 +363,14 @@ function render(){
         <p class="cap">${esc(p.cap).replace(/\n/g,"<br>")}</p>
         <div class="tags">${p.tags.split(" ").map(t=>`<span class="tag">${t}</span>`).join(" ")}</div>
         <div class="actions">
-          <button class="ok" ${done?"disabled":""} onclick="setStatus('${p.id}','approved')">✓ Aprobar</button>
-          <button class="no" ${done?"disabled":""} onclick="setStatus('${p.id}','rejected')">✕ Rechazar</button>
+          <button class="ok" ${done?"disabled":""} onclick="askAct('${p.id}','approved')">✓ Aprobar</button>
+          <button class="no" ${done?"disabled":""} onclick="askAct('${p.id}','rejected')">✕ Rechazar</button>
         </div>
-        <div class="actions"><button class="pub" onclick="pub('${p.id}')">➤ Publicar</button></div>
+        <div class="actions"><button class="pub" onclick="askPub('${p.id}')">➤ Publicar</button></div>
         <div class="actions">
-          <button class="ghost" onclick="toast('Simulación · en el bot real la IA reescribe el caption o regenera el visual con tu instrucción')">✎ Editar con IA</button>
+          <button class="ghost" onclick="toast('Simulación · en el bot real la IA reescribe el caption o regenera el visual con tu instrucción (con tu agente)')">✎ Editar con IA</button>
           <button class="ghost" onclick="toast('Simulación · en el bot real descargas el mp4/imágenes originales')">↓ Descargar</button>
+          <button class="ghost" style="flex:0 0 46px" onclick="askDel('${p.id}')">🗑</button>
         </div>
       </div></article>`;
   }).join("");
@@ -213,23 +385,198 @@ function renderTabs(){
   document.querySelectorAll(".card").forEach(c=>c.classList.toggle("hide",filter!=="all"&&c.dataset.status!==filter));
 }
 function setFilter(f){filter=f;renderTabs()}
-function setStatus(id,st){const p=pieces.find(x=>x.id===id);p.status=st;render();toast(st==="approved"?"✅ Pieza aprobada (simulación — en el bot real queda lista para publicar)":"❌ Pieza rechazada (el planner aprende de esto y evita el ángulo)")}
-function pub(id){const p=pieces.find(x=>x.id===id);p.status="published";render();toast("🚀 Simulación · en el bot real esto publica a Instagram/Facebook vía Meta Graph API (media servida desde R2 con URL firmada)")}
 function slide(b,d){const t=b.parentElement.querySelector(".track");t.scrollBy({left:d*t.clientWidth,behavior:"smooth"})}
 let toastTimer;
-function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),4200)}
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),4600)}
+
+/* ---- Modal de confirmación (como en el panel real) ---- */
+let cfCb=null;
+function askConfirm(o,cb){
+  cfCb=cb;
+  document.getElementById("cfTitle").innerHTML=o.title;
+  document.getElementById("cfBody").innerHTML=o.body||"";
+  const ok=document.getElementById("cfOk");
+  ok.textContent=o.ok||"Confirmar";
+  ok.className="btn-primary"+(o.danger?" dangerbtn":"");
+  document.getElementById("cfModal").classList.add("show");
+}
+function closeCf(){document.getElementById("cfModal").classList.remove("show");cfCb=null}
+document.getElementById("cfOk").addEventListener("click",()=>{const cb=cfCb;closeCf();if(cb)cb()});
+
+function pieceLabel(p){return p.format+" · "+p.pillar}
+function askAct(id,st){
+  const p=pieces.find(x=>x.id===id);const ok=st==="approved";
+  askConfirm({title:ok?"✓ Aprobar pieza":"✕ Rechazar pieza",
+    body:"<b>"+pieceLabel(p)+"</b><br>"+(ok?"Quedará marcada como aprobada y lista para publicar.":"Quedará rechazada; el planner aprende y evita repetir este ángulo."),
+    ok:ok?"Sí, aprobar":"Sí, rechazar",danger:!ok},
+    ()=>{p.status=st;render();toast(ok?"✅ Pieza aprobada":"❌ Pieza rechazada — el planner lo tendrá en cuenta")});
+}
+function askPub(id){
+  const p=pieces.find(x=>x.id===id);
+  const warn=p.status==="pending"?"<br><br>⚠ Esta pieza aún está <b>pendiente</b> (sin aprobar) — se publicará tal cual está.":(p.status==="rejected"?"<br><br>⛔ En el bot real, una pieza <b>rechazada</b> no se puede publicar.":"");
+  askConfirm({title:"➤ Publicar a redes",body:"<b>"+pieceLabel(p)+"</b><br>Se publicará a las redes configuradas (Instagram/Facebook vía Meta Graph API)."+warn,ok:"Publicar"},
+    ()=>{if(p.status==="rejected"){toast("⛔ Simulación · el servidor rechaza publicar piezas rechazadas");return}
+      p.status="published";render();toast("🚀 Simulación · publicado — en el bot real la media se sirve desde R2 con URL firmada")});
+}
+function askDel(id){
+  const p=pieces.find(x=>x.id===id);
+  askConfirm({title:"🗑 Eliminar pieza",body:"<b>"+pieceLabel(p)+"</b><br>Se eliminará la pieza y <b>todos sus archivos</b> (imágenes, video, voz). No se puede deshacer.",ok:"Eliminar definitivamente",danger:true},
+    ()=>{pieces.splice(pieces.indexOf(p),1);render();toast("🗑 Pieza eliminada (simulación)")});
+}
+
+/* ---- Vista Ajustes ---- */
+let onSettings=false;
+function toggleScreen(){
+  onSettings=!onSettings;
+  document.getElementById("settings").classList.toggle("on",onSettings);
+  document.getElementById("grid").style.display=onSettings?"none":"";
+  document.getElementById("banner").style.display=onSettings?"none":"";
+  document.getElementById("tabs").style.display=onSettings?"none":"";
+  document.getElementById("navBtn").textContent=onSettings?"← Panel":"⚙ Ajustes";
+  if(onSettings)window.scrollTo({top:0});
+}
+
+/* Agente por usuario: UI condicional + modelos */
+const PUI={
+  claude:{note:"<b>Claude Code CLI</b> con tu suscripción (Pro/Max/Team). Conecta tu cuenta con el asistente de abajo — el token queda cifrado en tu perfil.",secrets:["CLAUDE_CODE_OAUTH_TOKEN"],wizard:true,models:["sonnet","opus","haiku","sonnet[1m]"]},
+  anthropic:{note:"<b>API de Anthropic</b> con API key — o cualquier endpoint compatible (Kimi/Moonshot, GLM, DeepSeek, MiniMax) con su URL base. El botón Modelos consulta <code>/v1/models</code> en vivo.",secrets:["ANTHROPIC_API_KEY"],wizard:false,models:["claude-sonnet-4-5","claude-opus-4-1","claude-haiku-4-5"]},
+  openai:{note:"<b>Endpoint OpenAI-compatible</b>: OpenAI, OpenRouter, Groq, DeepSeek, Ollama local… El botón Modelos consulta <code>/models</code> del endpoint en vivo.",secrets:["LLM_API_KEY"],wizard:false,models:["gpt-4o","gpt-4o-mini","deepseek-chat","llama-3.3-70b"]},
+  gemini:{note:"<b>Gemini CLI</b>: login de Google en el servidor o tu propia <code>GEMINI_API_KEY</code>.",secrets:["GEMINI_API_KEY"],wizard:false,models:["gemini-2.5-pro","gemini-2.5-flash"]},
+  codex:{note:"<b>Codex CLI</b>: usa el login de ChatGPT del servidor, o activa el aislamiento para tu propio login.",secrets:[],wizard:false,models:[]},
+  custom:{note:"<b>Comando custom</b>: cualquier ejecutable que reciba el prompt por stdin y responda por stdout.",secrets:[],wizard:false,models:[]}
+};
+const SECRETS={CLAUDE_CODE_OAUTH_TOKEN:"Token de Claude Code (tu suscripción) — generado con el asistente o con `claude setup-token`.",
+  ANTHROPIC_API_KEY:"API key de Anthropic o del endpoint compatible.",
+  LLM_API_KEY:"API key del endpoint OpenAI-compatible.",
+  GEMINI_API_KEY:"API key de Google Gemini."};
+const secretState={};
+function renderSecrets(keys){
+  document.getElementById("secretsBox").innerHTML=keys.map(k=>`
+    <div class="secret">
+      <div class="s-head"><code>${k}</code> <span class="s-state ${secretState[k]?"on":""}">${secretState[k]?"configurado":"no configurado"}</span></div>
+      <div class="s-desc">${SECRETS[k]} <b>Write-only:</b> una vez guardado, el panel nunca vuelve a mostrar el valor.</div>
+      <div class="s-row"><input type="password" placeholder="Pegar valor…">
+        <button class="btn-primary sm" onclick="saveSecret('${k}',this)">✓ Guardar</button>
+        <button class="btn-ghost sm" onclick="delSecret('${k}')">🗑</button></div>
+    </div>`).join("");
+}
+function saveSecret(k,btn){
+  const inp=btn.parentElement.querySelector("input");
+  if(!inp.value.trim()){toast("Pega un valor primero (demo: cualquier cosa)");return}
+  inp.value="";secretState[k]=true;applyProviderUI();
+  toast("🔒 Simulación · "+k+" guardado CIFRADO (AES-256-GCM) en tu perfil del servidor");
+}
+function delSecret(k){
+  askConfirm({title:"Borrar credencial",body:"Se eliminará <b>"+k+"</b> de tu perfil.",ok:"Borrar",danger:true},
+    ()=>{secretState[k]=false;applyProviderUI()});
+}
+function applyProviderUI(){
+  const p=document.getElementById("pProvider").value,ui=PUI[p];
+  document.getElementById("provNote").innerHTML=ui.note;
+  document.getElementById("wizard").style.display=ui.wizard?"":"none";
+  renderSecrets(ui.secrets);
+  document.getElementById("modelList").innerHTML=ui.models.map(m=>`<option value="${m}">`).join("");
+  if(ui.wizard&&secretState.CLAUDE_CODE_OAUTH_TOKEN){wzShow(3)}else if(ui.wizard&&!wzBusy){wzShow(0)}
+}
+function loadModels(){
+  const p=document.getElementById("pProvider").value,ui=PUI[p];
+  toast(ui.models.length?("⟳ "+ui.models.length+" modelos "+(p==="anthropic"||p==="openai"||p==="gemini"?"(en el bot real: consultados EN VIVO a la API con tus credenciales)":"sugeridos")+" — despliega el campo Modelo"):("Este CLI no tiene API de listado — escribe el modelo libremente"));
+}
+/* Wizard simulado */
+let wzBusy=false;
+function wzShow(n){[0,1,2,3].forEach(i=>document.getElementById("wz"+i).classList.toggle("on",i===n))}
+function wzStart(){wzBusy=true;wzShow(2);setTimeout(()=>wzShow(1),900)}
+function wzCode(){
+  if(!document.getElementById("wzCode").value.trim()){toast("Pega un código (demo: cualquier cosa)");return}
+  wzShow(2);
+  setTimeout(()=>{wzBusy=false;secretState.CLAUDE_CODE_OAUTH_TOKEN=true;applyProviderUI();wzShow(3);
+    toast("✓ Simulación · token sk-ant-oat01-… capturado y cifrado — tus generaciones ya usan TU cuenta")},1400);
+}
+function testAgent(btn){
+  btn.disabled=true;document.getElementById("agentMsg").textContent="Probando tu agente…";
+  setTimeout(()=>{btn.disabled=false;document.getElementById("agentMsg").textContent="✓ El agente respondió: OK (en el bot real hace una llamada mínima con TUS credenciales)"},1500);
+}
+
+/* Contexto simulado */
+const ctxFiles={
+  "knowledge/company.md":"# Empresa — Lyroo\n\n## Identidad\n- Nombre: Lyroo (LyrooPOS)\n- Qué hace: software POS + facturación electrónica DIAN para PyMEs en Colombia\n- Diferenciadores: funciona sin internet, folios DIAN ilimitados, precio fijo sin letra pequeña…",
+  "knowledge/products.md":"# Productos\n\n## LyrooPOS\n- Ventas, caja e inventario, offline-first\n- Facturación electrónica DIAN incluida e ilimitada…",
+  "config/brand.md":"# Tono de marca\n\n- Cercano y claro, español colombiano\n- Sin tecnicismos, sin promesas infladas\n- Emojis con moderación 🌿…",
+  "config/content-strategy.md":"# Estrategia de contenido\n\n## Pilares\n1. Diferenciadores (offline, folios ilimitados)\n2. Educativo DIAN/PyME\n3. Precio honesto\n4. Confianza…",
+  "config/brand.json":"{\n  \"name\": \"Lyroo\",\n  \"tagline\": \"Vende hoy. Factura fácil.\",\n  \"logoFile\": \"logo-horizontal-white.svg\",\n  \"colors\": { \"primary\": \"#5B2DC4\", \"accent\": \"#00D4AA\", \"dark\": \"#0F0F1A\" }\n}"
+};
+function loadCtxList(sel){
+  const s=document.getElementById("ctxFile");
+  s.innerHTML=Object.keys(ctxFiles).map(f=>`<option>${f}</option>`).join("");
+  if(sel)s.value=sel;
+  loadCtx();
+}
+function loadCtx(){document.getElementById("ctxBody").value=ctxFiles[document.getElementById("ctxFile").value]||""}
+function createCtx(){
+  let n=document.getElementById("ctxNew").value.trim();if(!n)return;
+  if(!/\.md$/i.test(n))n+=".md";
+  const path="knowledge/"+n;
+  ctxFiles[path]="# "+n.replace(/\.md$/,"").replace(/[-_]/g," ")+"\n\n> Contexto adicional: el bot inyecta este archivo en cada generación.\n\nEscribe aquí tus instrucciones, estilo o promociones…";
+  document.getElementById("ctxNew").value="";
+  loadCtxList(path);
+  document.getElementById("ctxMsg").textContent="✓ Archivo creado — el bot ya lo usa como contexto en cada generación (prompts personalizados sin tocar código).";
+}
+function delCtx(){
+  const p=document.getElementById("ctxFile").value;
+  if(!p.startsWith("knowledge/")){toast("⛔ Solo se pueden eliminar .md de knowledge/ — config/ está protegido");return}
+  askConfirm({title:"Eliminar archivo de contexto",body:"Se eliminará <b>"+p+"</b>. El bot dejará de usarlo en las generaciones.",ok:"Eliminar archivo",danger:true},
+    ()=>{delete ctxFiles[p];loadCtxList();document.getElementById("ctxMsg").textContent="Archivo eliminado."});
+}
+
+/* Logos simulados */
+let brandAssets=[{name:"logo-horizontal-white.svg",cur:true,label:"Lyroo"},{name:"logo-horizontal-dark.png",cur:false,label:"Lyroo"}];
+function renderBrand(){
+  document.getElementById("brandGrid").innerHTML=brandAssets.map(a=>`
+    <div class="basset ${a.cur?"cur":""}">
+      <div class="bimg"><span style="color:${a.name.includes("dark")?"#0F0F1A":"#fff"};text-shadow:0 0 8px ${a.name.includes("dark")?"#fff8":"#0008"}">${a.label}</span></div>
+      <div class="bname">${a.name}</div>
+      ${a.cur?'<span class="cur-tag">✓ logo principal</span>':'<button class="btn-ghost sm" onclick="setLogo(\''+a.name+'\')">Usar como logo</button>'}
+    </div>`).join("");
+}
+function setLogo(name){
+  askConfirm({title:"Cambiar logo principal",body:"<b>"+name+"</b> pasará a ser el logo que el bot superpone en imágenes y videos.",ok:"Usar este logo"},
+    ()=>{brandAssets.forEach(a=>a.cur=a.name===name);renderBrand();toast("✓ Logo principal actualizado (config/brand.json → logoFile)")});
+}
+
+/* Usuarios simulados */
+let users=[{name:"drew",role:"admin",agent:"Claude Code (su cuenta)"},{name:"Maria",role:"member",agent:"API DeepSeek (su key)"}];
+function renderUsers(){
+  document.getElementById("uRows").innerHTML=users.map((u,i)=>`
+    <tr><td>${esc(u.name)}</td><td><span class="role">${u.role}</span></td><td style="color:var(--mut)">${u.agent}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <button class="btn-ghost sm" onclick="toast('Simulación · en el bot real un admin asigna nueva contraseña desde un modal')">Contraseña</button>
+      <button class="btn-ghost sm" style="color:#e05252" onclick="delUser(${i})">Eliminar</button></td></tr>`).join("");
+}
+function addUser(){
+  const n=document.getElementById("uName").value.trim();if(!n){toast("Escribe un nombre");return}
+  users.push({name:n,role:document.getElementById("uRole").value,agent:"— sin configurar (elegirá su agente al entrar)"});
+  document.getElementById("uName").value="";renderUsers();
+  document.getElementById("uMsg").textContent="✓ Usuario creado — al entrar configurará su propio agente/cuenta de IA en Ajustes.";
+}
+function delUser(i){
+  askConfirm({title:"Eliminar usuario",body:"Se eliminará a <b>"+esc(users[i].name)+"</b>. Perderá el acceso y su perfil de agente dejará de usarse.",ok:"Eliminar usuario",danger:true},
+    ()=>{users.splice(i,1);renderUsers()});
+}
+
+/* Generar simulado */
 function openGen(){document.getElementById("genModal").classList.add("show")}
 function closeGen(){document.getElementById("genModal").classList.remove("show")}
 function fakeGen(){
   closeGen();const j=document.getElementById("job"),tx=document.getElementById("jobTxt");
   const topic=document.getElementById("genTopic").value.trim()||"tu tema";
   j.classList.add("show");
-  const steps=["✍️ escribiendo copy con el agente (contexto de marca)…","🎨 generando el visual…","👁 QA visual: el agente revisa la imagen…","🧩 componiendo logo + overlay…"];
+  const steps=["✍️ escribiendo copy con TU agente (contexto de marca)…","🎨 generando el visual…","👁 QA visual: el agente revisa la imagen…","🧩 componiendo logo + overlay…"];
   let i=0;tx.textContent=steps[0];
-  const iv=setInterval(()=>{i++;if(i<steps.length){tx.textContent=steps[i]}else{clearInterval(iv);j.classList.remove("show");toast(`✅ Simulación completa para "${topic}" — en el bot real la pieza aparecería aquí en la cola como Pendiente`)}},1400);
+  const iv=setInterval(()=>{i++;if(i<steps.length){tx.textContent=steps[i]}else{clearInterval(iv);j.classList.remove("show");toast(`✅ Simulación completa para "${topic}" — en el bot real la pieza aparecería en la cola como Pendiente, generada con tu cuenta`)}},1400);
 }
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeGen()});
-render();
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeGen();closeCf()}});
+
+render();applyProviderUI();loadCtxList();renderBrand();renderUsers();
 </script>
 </body>
 </html>
