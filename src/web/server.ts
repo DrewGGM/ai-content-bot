@@ -512,6 +512,7 @@ async function page(user: User): Promise<string> {
           <div class="meta">${icon(fmtIcon, "ic sm")}<span>${esc(it.format)}</span><i>·</i><span>${esc(it.platform)}</span>${it.pillar ? `<i>·</i><span>${esc(it.pillar)}</span>` : ""}</div>
           <p class="cap">${esc(it.caption).replace(/\n/g, "<br>")}</p>
           ${tags ? `<div class="tags">${tags}</div>` : ""}
+          <div class="act-stack">
           <div class="actions">
             <button class="ok" ${done ? "disabled" : ""} onclick="askAct(this,'${esc(it.id)}','approved')">${icon("check")} Aprobar</button>
             <button class="no" ${done ? "disabled" : ""} onclick="askAct(this,'${esc(it.id)}','rejected')">${icon("x")} Rechazar</button>
@@ -523,6 +524,7 @@ async function page(user: User): Promise<string> {
             <button class="edit-btn" onclick="openEdit(this,'${esc(it.id)}')">${icon("edit")} Editar con IA</button>
             ${downloadBtn(it)}
             <button class="del-btn" title="Eliminar pieza y sus assets" onclick="askDelete(this,'${esc(it.id)}')">${icon("trash")}</button>
+          </div>
           </div>
         </div>
       </article>`;
@@ -593,13 +595,14 @@ async function page(user: User): Promise<string> {
     .body{padding:16px;display:flex;flex-direction:column;gap:11px}
     .meta{display:flex;align-items:center;gap:6px;color:var(--mut);font-size:12px;text-transform:capitalize}
     .meta i{opacity:.5;font-style:normal} .meta span{white-space:nowrap}
-    .cap{font-size:13px;line-height:1.6;color:#dcdcec;margin:0;max-height:150px;overflow:auto}
+    .cap{font-size:13px;line-height:1.6;color:#dcdcec;margin:0;max-height:216px;overflow:auto;overscroll-behavior:contain}
     .tags{display:flex;flex-wrap:wrap;gap:5px} .tag{font-size:11px;color:var(--mint);font-family:'Fira Code',monospace}
+    .act-stack{margin-top:auto;display:flex;flex-direction:column;gap:9px}
     .actions{display:flex;gap:9px;flex-wrap:wrap}
     .actions button,.actions .dl{min-width:0}
-    button,.dl{flex:1;padding:11px;border:0;border-radius:11px;font-weight:700;cursor:pointer;color:#fff;
-      font-size:14px;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:7px;
-      text-decoration:none;transition:filter .2s,transform .12s}
+    button,.dl{flex:1;padding:10px;border:0;border-radius:11px;font-weight:700;cursor:pointer;color:#fff;
+      font-size:13.5px;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+      text-decoration:none;transition:filter .2s,transform .12s;white-space:nowrap}
     .ok{background:#00a578} .no{background:#c0392b} .dl{background:#1a1d33;border:1px solid var(--line);color:var(--txt)}
     .edit-btn{background:#1a1d33;border:1px solid var(--line);color:var(--txt)} .edit-btn:hover{border-color:var(--violet2)}
     .pub-btn{background:linear-gradient(135deg,var(--mint),#00a578);color:#04150f}
@@ -993,7 +996,7 @@ const server = createServer(async (req, res) => {
       const form = new URLSearchParams(body);
       const code = form.get("code") ?? "";
       if (SETUP_CODE && code !== SETUP_CODE) {
-        res.writeHead(401, { "Content-Type": "text/html; charset=utf-8" }).end(authPage("setup", "Código de instalación incorrecto."));
+        res.writeHead(401, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(authPage("setup", "Código de instalación incorrecto."));
         return;
       }
       try {
@@ -1004,7 +1007,7 @@ const server = createServer(async (req, res) => {
           Location: "/settings",
         }).end();
       } catch (e: any) {
-        res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" }).end(authPage("setup", String(e?.message ?? e)));
+        res.writeHead(400, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(authPage("setup", String(e?.message ?? e)));
       }
     });
     return;
@@ -1017,7 +1020,7 @@ const server = createServer(async (req, res) => {
     req.on("end", () => {
       const ip = String(req.headers["cf-connecting-ip"] ?? req.socket.remoteAddress ?? "?");
       if (!loginAllowed(ip)) {
-        res.writeHead(429, { "Content-Type": "text/html; charset=utf-8" }).end(authPage("login", "Demasiados intentos. Espera 1 minuto."));
+        res.writeHead(429, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(authPage("login", "Demasiados intentos. Espera 1 minuto."));
         return;
       }
       const form = new URLSearchParams(body);
@@ -1033,7 +1036,7 @@ const server = createServer(async (req, res) => {
       } else {
         loginFailed(ip);
         audit("(desconocido)", "login fallido", `usuario "${String(form.get("name") ?? "").slice(0, 40)}" · ip ${ip}`);
-        res.writeHead(401, { "Content-Type": "text/html; charset=utf-8" }).end(authPage("login", "Usuario o contraseña incorrectos."));
+        res.writeHead(401, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(authPage("login", "Usuario o contraseña incorrectos."));
       }
     });
     return;
@@ -1050,7 +1053,7 @@ const server = createServer(async (req, res) => {
   if (!user) {
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "")) {
       const mode = hasUsers() ? "login" : "setup";
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(authPage(mode));
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(authPage(mode));
     } else {
       res.writeHead(401).end("no autorizado");
     }
@@ -1074,7 +1077,7 @@ const server = createServer(async (req, res) => {
 
   // ---- Ajustes: página + APIs (perfil de agente, login de Claude, contexto, usuarios) ----
   if (req.method === "GET" && url.pathname === "/settings") {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" })
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" })
       .end(settingsPage({ id: user.id, name: user.name, role: user.role }, await ptySupported()));
     return;
   }
@@ -1486,7 +1489,7 @@ const server = createServer(async (req, res) => {
   }
 
   page(user)
-    .then((html) => res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(html))
+    .then((html) => res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(html))
     .catch((e) => res.writeHead(500).end(String(e?.message ?? e)));
 });
 
