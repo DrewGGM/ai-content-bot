@@ -5,7 +5,6 @@ import {
   Sequence,
   interpolate,
   spring,
-  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
@@ -20,6 +19,8 @@ export type VideoProps = {
   cta: string;
   colors: { primary: string; accent: string };
   durationInFrames: number;
+  /** Logo como data URI (svg/png/jpg/webp) — lo inyecta generateRemotion; "" = sin logo. */
+  logoSrc?: string;
 };
 
 // Fondo: gradiente de marca animado (violeta + acento).
@@ -40,12 +41,15 @@ const Bg: React.FC<{ c: VideoProps["colors"] }> = ({ c }) => {
   );
 };
 
-const Logo: React.FC<{ h: number }> = ({ h }) => {
+// Logo por data URI (lo pasa generateRemotion desde assets/brand). Sin logo → no se dibuja
+// nada (antes un staticFile("logo.svg") inexistente o con formato equivocado tumbaba el render).
+const Logo: React.FC<{ h: number; src?: string }> = ({ h, src }) => {
   const frame = useCurrentFrame();
   const o = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
+  if (!src) return null;
   return (
     <div style={{ position: "absolute", top: h * 0.05, left: 0, right: 0, display: "flex", justifyContent: "center", opacity: o }}>
-      <Img src={staticFile("logo.svg")} style={{ height: h > 1500 ? 84 : 66, width: "auto" }} />
+      <Img src={src} style={{ height: h > 1500 ? 84 : 66, width: "auto" }} />
     </div>
   );
 };
@@ -123,7 +127,7 @@ export const Video: React.FC<VideoProps> = (props) => {
   return (
     <AbsoluteFill style={{ backgroundColor: "#0a0b16" }}>
       <Bg c={props.colors} />
-      <Logo h={height} />
+      <Logo h={height} src={props.logoSrc} />
       <Sequence from={0} durationInFrames={a}>
         <Headline text={props.headline} accent={props.accentWord} color={props.colors.accent} size={vertical ? hSize : hSize * 0.85} localDur={a} />
       </Sequence>

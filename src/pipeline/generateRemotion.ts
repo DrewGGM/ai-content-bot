@@ -6,8 +6,8 @@
  *   silent  → solo animación
  * El titular/chips/CTA los escribe Claude; el logo real y colores salen de la marca.
  */
-import { mkdirSync, writeFileSync, copyFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { mkdirSync, writeFileSync, copyFileSync, readFileSync } from "node:fs";
+import { join, dirname, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { bundle } from "@remotion/bundler";
@@ -23,7 +23,6 @@ import type { RemotionCopy } from "./generateCopy.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const REMOTION_ENTRY = join(ROOT, "remotion", "index.ts");
-const LOGO_DEST = join(ROOT, "remotion", "public", "logo.svg");
 const FPS = 30;
 
 export type Aspect = "reel" | "square" | "feed";
@@ -43,10 +42,28 @@ const PUBLIC_DIR = join(ROOT, "remotion", "public");
 let _bundle: string | null = null;
 async function getBundle(): Promise<string> {
   if (_bundle) return _bundle;
-  const brand = loadBrandConfig();
-  try { copyFileSync(join(ROOT, "assets", "brand", brand.logoFile), LOGO_DEST); } catch { /* usa el que haya en public/ */ }
   _bundle = await bundle({ entryPoint: REMOTION_ENTRY, publicDir: PUBLIC_DIR });
   return _bundle;
+}
+
+/**
+ * Logo de marca como DATA URI para la composición (prop logoSrc). Soporta svg/png/jpg/webp
+ * y si no hay logo devuelve "" (el video sale sin logo). Antes se copiaba a public/logo.svg
+ * y un logo faltante o en otro formato tumbaba el render ("Error loading image ... logo.svg").
+ */
+function logoDataUri(): string {
+  try {
+    const brand = loadBrandConfig();
+    const p = join(ROOT, "assets", "brand", brand.logoFile);
+    const ext = extname(p).toLowerCase();
+    const mime =
+      ext === ".svg" ? "image/svg+xml" :
+      ext === ".png" ? "image/png" :
+      ext === ".webp" ? "image/webp" : "image/jpeg";
+    return `data:${mime};base64,${readFileSync(p).toString("base64")}`;
+  } catch {
+    return "";
+  }
 }
 
 export async function generateRemotion(
@@ -84,6 +101,7 @@ export async function generateRemotion(
     cta: copy.cta,
     colors: { primary: brand.colors.primary, accent: brand.colors.accent },
     durationInFrames: durationFrames,
+    logoSrc: logoDataUri(),
   };
   const composition = await selectComposition({ serveUrl, id: "Video", inputProps });
   const visuals = join(outDir, "visuals.mp4");
