@@ -278,6 +278,16 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       <div style="display:flex;align-items:flex-end"><button class="btn-primary" onclick="addUser()">${icon("check")} Crear usuario</button></div>
     </div>
     <div class="msg" id="uMsg"></div>
+  </section>
+
+  <section class="card">
+    <h2>${icon("clock")} Actividad <span style="color:var(--mut);font-weight:500;font-size:12px">— quién hizo qué</span></h2>
+    <p class="sub">Registro de acciones del panel y del cron (generaciones, aprobaciones, publicaciones, credenciales,
+    usuarios, contexto…). Se guarda en <code>data/audit.jsonl</code>; nunca registra valores de credenciales.</p>
+    <div class="filebar"><button class="btn-ghost sm" onclick="loadAudit()">${icon("loader")} Actualizar</button></div>
+    <div style="max-height:420px;overflow:auto">
+    <table><thead><tr><th style="white-space:nowrap">Cuándo</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
+    <tbody id="auditRows"></tbody></table></div>
   </section>` : ""}
 
   </main>
@@ -577,5 +587,20 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       });
     }
     loadUsers();
+
+    // ---- Actividad (admin) ----
+    function loadAudit(){
+      if(!IS_ADMIN)return;
+      j('/api/audit').then(function(rows){
+        document.getElementById('auditRows').innerHTML=rows.map(function(e){
+          var d=new Date(e.ts);
+          var when=d.toLocaleDateString('es-CO',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+          return '<tr><td style="white-space:nowrap;color:var(--mut);font-family:\'Fira Code\',monospace;font-size:11.5px">'+when+'</td>'+
+            '<td style="white-space:nowrap">'+ceHtml(e.user)+'</td><td style="white-space:nowrap;font-weight:600">'+ceHtml(e.action)+'</td>'+
+            '<td style="color:var(--mut);word-break:break-word">'+ceHtml(e.detail||'')+'</td></tr>';
+        }).join('')||'<tr><td colspan="4" style="color:var(--mut)">Sin actividad registrada todavía.</td></tr>';
+      }).catch(function(){});
+    }
+    loadAudit();
   </script></body></html>`;
 }

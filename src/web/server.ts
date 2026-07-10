@@ -37,6 +37,7 @@ import {
   listBrandAssets, readBrandAsset, saveBrandAsset, setBrandLogo,
 } from "../lib/contextFiles.js";
 import { listModels } from "../lib/modelCatalog.js";
+import { audit, readAudit } from "../lib/auditLog.js";
 
 const brand = loadBrandConfig();
 
@@ -228,6 +229,7 @@ const FORMAT_LABELS: Record<string, string> = {
 };
 function startJob(user: User, format: Format, topic: string, platform?: string, extra?: { aspect?: any; audio?: any }): Job {
   const job: Job = { id: randomBytes(6).toString("hex"), format, topic, status: "running", started: Date.now(), user: user.name };
+  audit(user.name, "generar", `${format} · ${topic}`);
   jobs.unshift(job);
   if (jobs.length > 20) jobs.length = 20;
   // fire-and-forget: la generación sigue en segundo plano; el front hace polling de /jobs.
@@ -241,6 +243,7 @@ function startJob(user: User, format: Format, topic: string, platform?: string, 
 
 function startEditJob(user: User, item: QueueItem, instruction: string): Job {
   const job: Job = { id: randomBytes(6).toString("hex"), format: item.format, topic: `editar: ${instruction}`, status: "running", started: Date.now(), user: user.name };
+  audit(user.name, "editar copy", `${item.id} · ${instruction.slice(0, 120)}`);
   jobs.unshift(job);
   if (jobs.length > 20) jobs.length = 20;
   runWithProfile(activeProfileFor(user), () => editCopy(item, instruction))
@@ -254,6 +257,7 @@ function startEditJob(user: User, item: QueueItem, instruction: string): Job {
 function startRegenJob(user: User, item: QueueItem, instruction: string): Job {
   const slug = item.dir.split(/[\\/]/).filter(Boolean).pop() || item.topic || item.id;
   const job: Job = { id: randomBytes(6).toString("hex"), format: item.format, topic: `regenerar: ${instruction}`, status: "running", started: Date.now(), user: user.name };
+  audit(user.name, "regenerar visual", `${item.id} · ${instruction.slice(0, 120)}`);
   jobs.unshift(job);
   if (jobs.length > 20) jobs.length = 20;
   runWithProfile(activeProfileFor(user), () =>
@@ -276,9 +280,12 @@ function startPublishJob(user: User, item: QueueItem, networks: Network[]): Job 
   const job: Job = { id: randomBytes(6).toString("hex"), format: item.format, topic: `publicar: ${networks.map((n) => NETWORK_LABEL[n]).join(", ")}`, status: "running", started: Date.now(), user: user.name };
   jobs.unshift(job);
   if (jobs.length > 20) jobs.length = 20;
+  audit(user.name, "publicar", `${item.id} → ${networks.join(", ")}`);
   publishItem(item, networks)
     .then(async (results) => {
       const fail = results.filter((r) => !r.ok);
+      audit(user.name, fail.length ? "publicación con fallos" : "publicado",
+        `${item.id} · ` + results.map((r) => `${r.network}:${r.ok ? "ok" : "error"}`).join(" "));
       if (results.some((r) => r.ok)) await updateStatus(item.id, "published");
       if (fail.length) { job.status = "error"; job.error = fail.map((f) => `${NETWORK_LABEL[f.network]}: ${f.error}`).join(" · "); }
       else { job.status = "done"; job.itemId = item.id; }
@@ -290,6 +297,7 @@ function startPublishJob(user: User, item: QueueItem, networks: Network[]): Job 
 // Plan: Claude decide la pieza según el historial y la genera (cae a design si un proveedor falla).
 function startPlanJob(user: User): Job {
   const job: Job = { id: randomBytes(6).toString("hex"), format: "plan", topic: "IA decide la pieza…", status: "running", started: Date.now(), user: user.name };
+  audit(user.name, "plan IA", "la IA decide formato + tema");
   jobs.unshift(job);
   if (jobs.length > 20) jobs.length = 20;
   runWithProfile(activeProfileFor(user), async () => {
@@ -317,6 +325,7 @@ const SET_TOPICS: Record<string, string> = {
   ugc: "Un cliente recomienda tu producto y por qué",
 };
 function startSet(user: User): number {
+  audit(user.name, "set completo", "una pieza por formato disponible");
   const avail = availableFormats();
   for (const f of avail) startJob(user, f as Format, SET_TOPICS[f] ?? "Contenido de marca");
   return avail.length;
@@ -362,6 +371,7 @@ function startScheduler(): void {
         try { await createContent({ format: plan.format, topic: plan.topic, platform: plan.platform }); }
         catch { await createContent({ format: "design", topic: plan.topic, platform: plan.platform }); }
       });
+      audit("cron", "pieza automática generada", owner ? `con el agente de ${owner.name}` : "con el agente del servidor");
       console.log(`[scheduler] pieza automática generada (${now.date}${owner ? `, agente de ${owner.name}` : ""})`);
     } catch (e: any) { console.error("[scheduler]", e?.message ?? e); }
   }, 60_000);
@@ -624,6 +634,8 @@ async function page(user: User): Promise<string> {
     .job .jt{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:capitalize}
     .job .jerr{font-size:11px;color:#ff9d94;line-height:1.45;margin-top:3px;white-space:normal;word-break:break-word;max-height:52px;overflow:auto}
     .job .js{flex:none;display:inline-flex} .job b{flex:none;font-family:'Fira Code',monospace;font-size:11px}
+    .job .jx{flex:none;background:transparent;border:0;color:var(--mut);cursor:pointer;padding:2px;display:inline-flex;border-radius:6px}
+    .job .jx:hover{color:#fff;background:#ffffff14}
     .job.run .js{color:var(--violet2);animation:spin 1.1s linear infinite}
     .job.done{border-color:#00a57855} .job.done .js{color:#00c893}
     .job.error{border-color:#c0392b66} .job.error .js{color:#e05252}
@@ -890,6 +902,10 @@ async function page(user: User): Promise<string> {
         .catch(function(){alert('Error de red')});
     }
     var jobsSeen={};
+    function dismissJob(id){
+      fetch('/jobs/dismiss',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})})
+        .then(function(){pollJobs()}).catch(function(){});
+    }
     function pollJobs(){
       fetch('/jobs').then(function(r){return r.json()}).then(function(list){
         var box=document.getElementById('jobs');
@@ -898,7 +914,8 @@ async function page(user: User): Promise<string> {
           var ic=j.status==='running'?LOADER:(j.status==='done'?CHECK:XIC);
           var s=j.status==='running'?(Math.round(j.ms/1000)+'s'):(j.status==='done'?'Listo':'Error');
           var errLine=(j.status==='error'&&j.error)?'<div class="jerr">'+ce(String(j.error).slice(0,220))+'</div>':'';
-          return '<div class="job '+cls+'"><span class="js">'+ic+'</span><div class="jb"><span class="jt">'+(j.user?ce(j.user)+' · ':'')+ce(j.format)+' · '+ce(j.topic)+'</span>'+errLine+'</div><b>'+s+'</b></div>';
+          var xTitle=j.status==='running'?'Ocultar (la generación sigue en el servidor)':'Descartar';
+          return '<div class="job '+cls+'"><span class="js">'+ic+'</span><div class="jb"><span class="jt">'+(j.user?ce(j.user)+' · ':'')+ce(j.format)+' · '+ce(j.topic)+'</span>'+errLine+'</div><b>'+s+'</b><button class="jx" title="'+xTitle+'" onclick="dismissJob(\''+j.id+'\')">'+XIC+'</button></div>';
         }).join('');
         var doneNow=list.some(function(j){var was=jobsSeen[j.id];jobsSeen[j.id]=j.status;return was==='running'&&j.status==='done'});
         if(doneNow){setTimeout(function(){location.reload()},900);return}
@@ -970,6 +987,7 @@ const server = createServer(async (req, res) => {
       const user = verifyLogin(form.get("name") ?? "", form.get("password") ?? "");
       if (user) {
         loginFails.delete(ip);
+        audit(user.name, "inició sesión", `ip ${ip}`);
         const sid = createSession(user.id);
         res.writeHead(302, {
           "Set-Cookie": `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`,
@@ -977,6 +995,7 @@ const server = createServer(async (req, res) => {
         }).end();
       } else {
         loginFailed(ip);
+        audit("(desconocido)", "login fallido", `usuario "${String(form.get("name") ?? "").slice(0, 40)}" · ip ${ip}`);
         res.writeHead(401, { "Content-Type": "text/html; charset=utf-8" }).end(authPage("login", "Usuario o contraseña incorrectos."));
       }
     });
@@ -1009,6 +1028,7 @@ const server = createServer(async (req, res) => {
       try {
         const { id, status } = JSON.parse(body);
         const updated = await updateStatus(id, status);
+        if (updated) audit(user.name, status === "approved" ? "aprobó pieza" : status === "rejected" ? "rechazó pieza" : `estado → ${status}`, id);
         res.writeHead(updated ? 200 : 404).end(JSON.stringify({ ok: !!updated }));
       } catch { res.writeHead(400).end(); }
     });
@@ -1032,6 +1052,7 @@ const server = createServer(async (req, res) => {
         copyProvider: b.copyProvider, copyModel: b.copyModel, copyVision: b.copyVision,
         isolateCli: b.isolateCli, extraEnv: b.extraEnv,
       });
+      audit(user.name, "agente actualizado", `${b.copyProvider || "(default servidor)"}${b.copyModel ? " · " + b.copyModel : ""}`);
       sendJson(res, 200, profileSummary(user.id));
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
@@ -1040,6 +1061,7 @@ const server = createServer(async (req, res) => {
     try {
       const b = await jsonBody(req);
       setSecret(user.id, String(b.key ?? ""), String(b.value ?? ""));
+      audit(user.name, "credencial guardada", String(b.key ?? ""));
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
@@ -1048,6 +1070,7 @@ const server = createServer(async (req, res) => {
     try {
       const b = await jsonBody(req);
       clearSecret(user.id, String(b.key ?? ""));
+      audit(user.name, "credencial borrada", String(b.key ?? ""));
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
@@ -1075,7 +1098,10 @@ const server = createServer(async (req, res) => {
 
   // Wizard de login de Claude Code (setup-token vía pty).
   if (url.pathname === "/api/claude-login/start" && req.method === "POST") {
-    const r = await startLogin(user.id, (token) => setSecret(user.id, "CLAUDE_CODE_OAUTH_TOKEN", token));
+    const r = await startLogin(user.id, (token) => {
+      setSecret(user.id, "CLAUDE_CODE_OAUTH_TOKEN", token);
+      audit(user.name, "Claude Code conectado", "token de setup-token guardado");
+    });
     sendJson(res, r.ok ? 200 : 400, r);
     return;
   }
@@ -1116,6 +1142,7 @@ const server = createServer(async (req, res) => {
     try {
       const b = await jsonBody(req);
       writeContextFile(String(b.path ?? ""), String(b.content ?? ""));
+      audit(user.name, "contexto editado", String(b.path ?? ""));
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
@@ -1125,6 +1152,7 @@ const server = createServer(async (req, res) => {
     try {
       const b = await jsonBody(req);
       createContextFile(String(b.path ?? ""));
+      audit(user.name, "contexto creado", String(b.path ?? ""));
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
@@ -1134,6 +1162,7 @@ const server = createServer(async (req, res) => {
     try {
       const b = await jsonBody(req);
       deleteContextFile(String(b.path ?? ""));
+      audit(user.name, "contexto eliminado", String(b.path ?? ""));
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
@@ -1159,6 +1188,7 @@ const server = createServer(async (req, res) => {
       const b = await jsonBody(req, 6 * 1024 * 1024); // logo hasta 3 MB (base64 ≈ ×1.37)
       saveBrandAsset(String(b.name ?? ""), String(b.dataBase64 ?? ""));
       if (b.setAsLogo) setBrandLogo(String(b.name));
+      audit(user.name, "logo subido", `${String(b.name ?? "")}${b.setAsLogo ? " (principal)" : ""}`);
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
@@ -1168,6 +1198,7 @@ const server = createServer(async (req, res) => {
     try {
       const b = await jsonBody(req);
       setBrandLogo(String(b.name ?? ""));
+      audit(user.name, "logo principal", String(b.name ?? ""));
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
@@ -1185,6 +1216,7 @@ const server = createServer(async (req, res) => {
       const b = await jsonBody(req);
       const role = b.role === "admin" ? "admin" : "member";
       const u = createUser(String(b.name ?? ""), String(b.password ?? ""), role);
+      audit(user.name, "usuario creado", `${u.name} (${role})`);
       sendJson(res, 200, { ok: true, id: u.id });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
@@ -1193,7 +1225,9 @@ const server = createServer(async (req, res) => {
     if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
     try {
       const b = await jsonBody(req);
+      const target = getUserById(String(b.id ?? ""));
       deleteUser(String(b.id ?? ""));
+      audit(user.name, "usuario eliminado", target?.name ?? String(b.id ?? ""));
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
@@ -1203,6 +1237,7 @@ const server = createServer(async (req, res) => {
     try {
       const b = await jsonBody(req);
       setPassword(String(b.id ?? ""), String(b.password ?? ""));
+      audit(user.name, "contraseña cambiada", getUserById(String(b.id ?? ""))?.name ?? "");
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
@@ -1251,6 +1286,7 @@ const server = createServer(async (req, res) => {
         let owner = user.id;
         if (isAdmin && typeof userId === "string" && getUserById(userId)) owner = userId;
         writeSched({ enabled: !!enabled, time: t, lastRun: prev.lastRun, userId: owner });
+        audit(user.name, "programación automática", `${enabled ? "ON" : "OFF"} · ${t} · agente de ${getUserById(owner)?.name ?? "?"}`);
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ ok: true }));
       } catch { res.writeHead(400).end(); }
     });
@@ -1302,6 +1338,7 @@ const server = createServer(async (req, res) => {
         if (!item) { res.writeHead(404, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Pieza no encontrada" })); return; }
         await deleteAssets(item);
         await deleteItem(id);
+        audit(user.name, "eliminó pieza", `${id} (${item.format})`);
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ ok: true }));
       } catch (e: any) { res.writeHead(500, { "Content-Type": "application/json" }).end(JSON.stringify({ error: String(e?.message ?? e) })); }
     });
@@ -1323,6 +1360,26 @@ const server = createServer(async (req, res) => {
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ jobId: job.id }));
       } catch { res.writeHead(400).end(); }
     });
+    return;
+  }
+
+  // ---- Actividad / auditoría (solo admin) ----
+  if (url.pathname === "/api/audit" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, readAudit(200));
+    return;
+  }
+
+  // ---- Descartar una tarjeta de job (la X del panel) ----
+  if (url.pathname === "/jobs/dismiss" && req.method === "POST") {
+    try {
+      const b = await jsonBody(req);
+      const i = jobs.findIndex((j) => j.id === String(b.id ?? ""));
+      if (i >= 0) jobs.splice(i, 1);
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) {
+      sendJson(res, 400, { error: String(e?.message ?? e) });
+    }
     return;
   }
 
