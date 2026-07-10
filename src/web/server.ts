@@ -549,7 +549,7 @@ async function page(user: User): Promise<string> {
     .media .badge{position:absolute;top:11px;left:11px;padding:4px 11px;border-radius:99px;font-size:10.5px;
       font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#fff;box-shadow:0 4px 14px #0007;line-height:1.4}
     video,.single{width:100%;display:block}
-    video{aspect-ratio:9/16;object-fit:cover;background:#000}
+    video{background:#000;max-height:74vh} /* proporción NATURAL: los cuadrados y 4:5 se ven como son, no recortados a 9:16 */
     .single{cursor:zoom-in}
     .carousel{position:relative}
     .track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none}
