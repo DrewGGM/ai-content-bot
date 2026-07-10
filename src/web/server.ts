@@ -712,6 +712,10 @@ async function page(user: User): Promise<string> {
       <label class="check"><input type="checkbox" id="schedEnabled"> <span>Generar 1 pieza automáticamente cada día (Claude decide el formato/tema según tu historial; cae a diseño si un proveedor falla).</span></label>
       <div style="margin-top:14px"><label for="schedTime">Hora (Colombia)</label>
         <input type="time" id="schedTime" value="09:00" style="width:auto"></div>
+      <div style="margin-top:14px"><label for="schedAgent">Con el agente / cuenta de</label>
+        <select id="schedAgent"></select>
+        <div style="font-size:12px;color:var(--mut);margin-top:6px;line-height:1.45">La pieza diaria corre con el
+        proveedor y las credenciales de ese usuario (los admin pueden elegir a cualquiera).</div></div>
       <div class="modal-err" id="schedErr"></div>
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeSched()">Cancelar</button>
@@ -828,9 +832,15 @@ async function page(user: User): Promise<string> {
         .then(function(x){btn.disabled=false;if(!x.ok){err.textContent=(x.d&&x.d.error)||'Error al editar';return}closeEdit();pollJobs()})
         .catch(function(){btn.disabled=false;err.textContent='Error de red'});
     }
-    function openSched(){document.getElementById('schedErr').textContent='';fetch('/schedule').then(function(r){return r.json()}).then(function(s){document.getElementById('schedEnabled').checked=!!s.enabled;document.getElementById('schedTime').value=s.time||'09:00';document.getElementById('schedModal').classList.add('show')}).catch(function(){})}
+    function openSched(){document.getElementById('schedErr').textContent='';fetch('/schedule').then(function(r){return r.json()}).then(function(s){
+      document.getElementById('schedEnabled').checked=!!s.enabled;document.getElementById('schedTime').value=s.time||'09:00';
+      var sel=document.getElementById('schedAgent');
+      sel.innerHTML=(s.users||[]).map(function(u){return '<option value="'+u.id+'">'+ce(u.name)+'</option>'}).join('');
+      if(s.userId)sel.value=s.userId;
+      document.getElementById('schedModal').classList.add('show');
+    }).catch(function(){})}
     function closeSched(){document.getElementById('schedModal').classList.remove('show')}
-    function saveSched(){var enabled=document.getElementById('schedEnabled').checked;var time=document.getElementById('schedTime').value||'09:00';var btn=document.getElementById('schedSave');btn.disabled=true;fetch('/schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enabled,time:time})}).then(function(r){btn.disabled=false;if(r.ok){closeSched()}else{document.getElementById('schedErr').textContent='No se pudo guardar'}}).catch(function(){btn.disabled=false;document.getElementById('schedErr').textContent='Error de red'})}
+    function saveSched(){var enabled=document.getElementById('schedEnabled').checked;var time=document.getElementById('schedTime').value||'09:00';var btn=document.getElementById('schedSave');btn.disabled=true;fetch('/schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enabled,time:time,userId:document.getElementById('schedAgent').value})}).then(function(r){btn.disabled=false;if(r.ok){closeSched()}else{document.getElementById('schedErr').textContent='No se pudo guardar'}}).catch(function(){btn.disabled=false;document.getElementById('schedErr').textContent='Error de red'})}
     var pubId=null;
     function openPub(btn,id){
       pubId=id;document.getElementById('pubErr').textContent='';
@@ -1218,7 +1228,14 @@ const server = createServer(async (req, res) => {
   }
   // ---- Programación automática (leer / guardar) ----
   if (req.method === "GET" && url.pathname === "/schedule") {
-    res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(readSched()));
+    // Dueño del cron visible en el modal; los admin pueden reasignarlo a cualquier usuario.
+    const sched = readSched();
+    const owner = sched.userId ? getUserById(sched.userId) : null;
+    const users = isAdmin
+      ? listUsers().map((u) => ({ id: u.id, name: u.name }))
+      : [{ id: user.id, name: `${user.name} (tú)` }];
+    res.writeHead(200, { "Content-Type": "application/json" })
+      .end(JSON.stringify({ ...sched, ownerName: owner?.name ?? null, users }));
     return;
   }
   if (req.method === "POST" && url.pathname === "/schedule") {
@@ -1226,11 +1243,14 @@ const server = createServer(async (req, res) => {
     req.on("data", (c) => (body += c));
     req.on("end", () => {
       try {
-        const { enabled, time } = JSON.parse(body);
+        const { enabled, time, userId } = JSON.parse(body);
         const t = /^\d{1,2}:\d{2}$/.test(String(time)) ? String(time).padStart(5, "0") : "09:00";
         const prev = readSched();
-        // La pieza diaria correrá con el perfil de agente de quien guarda la programación.
-        writeSched({ enabled: !!enabled, time: t, lastRun: prev.lastRun, userId: user.id });
+        // Dueño del cron = con el agente de QUIÉN corre la pieza diaria. Los member solo
+        // pueden asignarse a sí mismos; los admin a cualquier usuario existente.
+        let owner = user.id;
+        if (isAdmin && typeof userId === "string" && getUserById(userId)) owner = userId;
+        writeSched({ enabled: !!enabled, time: t, lastRun: prev.lastRun, userId: owner });
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ ok: true }));
       } catch { res.writeHead(400).end(); }
     });

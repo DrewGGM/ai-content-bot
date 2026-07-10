@@ -10,6 +10,26 @@ import { fileURLToPath } from "node:url";
 import { planNextContent } from "../pipeline/planContent.js";
 import { createContent } from "../pipeline/dispatch.js";
 import { capabilitiesReport } from "../lib/capabilities.js";
+import { listUsers, getUserById } from "../lib/users.js";
+import { activeProfileFor } from "../lib/agentProfile.js";
+import { runWithProfile, type ActiveProfile } from "../lib/activeProfile.js";
+
+/**
+ * SCHEDULE_USER (env, opcional): nombre o id de un usuario del panel — la pieza diaria del
+ * cron del SO corre con SU agente/credenciales (igual que el "Auto" del panel). Sin definir,
+ * usa la configuración del servidor (.env).
+ */
+function cronProfile(): ActiveProfile | null {
+  const who = process.env.SCHEDULE_USER?.trim();
+  if (!who) return null;
+  const user = getUserById(who) ?? listUsers().find((u) => u.name.toLowerCase() === who.toLowerCase()) ?? null;
+  if (!user) {
+    console.warn(`⚠ SCHEDULE_USER="${who}" no coincide con ningún usuario del panel — se usa el agente del servidor (.env)`);
+    return null;
+  }
+  console.log(`[scheduler] la pieza corre con el agente de: ${user.name}`);
+  return activeProfileFor(user);
+}
 
 async function main() {
   const stamp = new Date().toISOString();
@@ -24,19 +44,21 @@ async function main() {
   console.log(`[scheduler ${stamp}] capacidades:\n${capabilitiesReport()}\n`);
   console.log(`[scheduler] Claude decidiendo la pieza de hoy...`);
 
-  const plan = await planNextContent();
-  console.log(`  Decisión: ${plan.format} · pilar:${plan.pillar} · tema: ${plan.topic}`);
-  console.log(`  Razón: ${plan.rationale}`);
+  await runWithProfile(cronProfile(), async () => {
+    const plan = await planNextContent();
+    console.log(`  Decisión: ${plan.format} · pilar:${plan.pillar} · tema: ${plan.topic}`);
+    console.log(`  Razón: ${plan.rationale}`);
 
-  try {
-    const item = await createContent({ format: plan.format, topic: plan.topic, platform: plan.platform });
-    console.log(`✅ ${item.format} "${item.id}" en cola (pending). Apruébalo en el panel.`);
-  } catch (err: any) {
-    // Fallback: si el proveedor falla (ej. fal sin saldo), siempre producimos un design (código puro).
-    console.error(`⚠️  ${plan.format} falló (${err.message}). Fallback a 'design'...`);
-    const item = await createContent({ format: "design", topic: plan.topic, platform: plan.platform });
-    console.log(`✅ design "${item.id}" en cola (fallback). Apruébalo en el panel.`);
-  }
+    try {
+      const item = await createContent({ format: plan.format, topic: plan.topic, platform: plan.platform });
+      console.log(`✅ ${item.format} "${item.id}" en cola (pending). Apruébalo en el panel.`);
+    } catch (err: any) {
+      // Fallback: si el proveedor falla (ej. fal sin saldo), siempre producimos un design (código puro).
+      console.error(`⚠️  ${plan.format} falló (${err.message}). Fallback a 'design'...`);
+      const item = await createContent({ format: "design", topic: plan.topic, platform: plan.platform });
+      console.log(`✅ design "${item.id}" en cola (fallback). Apruébalo en el panel.`);
+    }
+  });
 }
 
 main().catch((err) => {
