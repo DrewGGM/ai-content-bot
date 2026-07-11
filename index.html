@@ -95,6 +95,8 @@ footer a{color:var(--mint);font-weight:600}
 .scard h2{margin:0 0 4px;font-size:17px}
 .scard .sub{color:var(--mut);font-size:13px;margin:0 0 16px;line-height:1.55}
 .scard label{display:block;font-size:12px;color:var(--mut);margin:0 0 6px;font-weight:600}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tw table{min-width:430px}
 .scard input,.scard select,.scard textarea{width:100%;padding:11px;border-radius:11px;border:1px solid var(--line);background:#0b0d1c;color:var(--txt);font-size:14px;font-family:inherit}
 .scard textarea{resize:vertical;font-family:'Fira Code',monospace;font-size:12.5px;line-height:1.55}
 .row{display:flex;gap:14px;flex-wrap:wrap}.row>div{flex:1;min-width:200px}
@@ -256,14 +258,14 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
     <code>$paso.salida</code>. Incluye presets <b>"Reel: imagen IA animada"</b> y <b>"Personaje presentador"</b>
     (la IA crea un personaje, le pone tu guion con voz y lo anima hablando con OmniHuman). Se eligen como
     formato al Generar y se editan como JSON aquí mismo.</p>
-    <table><thead><tr><th>Workflow</th><th>Descripción</th><th></th></tr></thead><tbody>
+    <div class="tw"><table><thead><tr><th>Workflow</th><th>Descripción</th><th></th></tr></thead><tbody>
       <tr><td style="white-space:nowrap;font-weight:600">Reel: imagen IA animada</td>
         <td style="color:var(--mut);font-size:12px">Imagen premium → image-to-video → voz + subtítulos → música → logo</td>
         <td style="text-align:right"><button class="btn-ghost sm" onclick="toast('Simulación · en el bot real se edita el JSON de pasos aquí')">Editar</button></td></tr>
       <tr><td style="white-space:nowrap;font-weight:600">Personaje presentador</td>
         <td style="color:var(--mut);font-size:12px">Retrato IA + guion con voz → personaje hablando (OmniHuman) → subtítulos + marca</td>
         <td style="text-align:right"><button class="btn-ghost sm" onclick="toast('Simulación · en el bot real se edita el JSON de pasos aquí')">Editar</button></td></tr>
-    </tbody></table>
+    </tbody></table></div>
     <div class="filebar mt">
       <input placeholder="nombre-del-workflow" style="width:200px">
       <button class="btn-primary sm" onclick="toast('Simulación · crea un workflow desde plantilla y edítalo en JSON')">✓ Crear desde plantilla</button>
@@ -308,7 +310,7 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
     <h2>👥 Usuarios del panel <span class="role">admin</span></h2>
     <p class="sub">Cada usuario entra con su contraseña y configura su propio agente/cuenta de IA. Los admin además
     gestionan usuarios, contexto y logos. En el bot real: contraseñas con scrypt, rate-limit de login y sesiones con expiración.</p>
-    <table><thead><tr><th>Usuario</th><th>Rol</th><th>Agente</th><th></th></tr></thead><tbody id="uRows"></tbody></table>
+    <div class="tw"><table><thead><tr><th>Usuario</th><th>Rol</th><th>Agente</th><th></th></tr></thead><tbody id="uRows"></tbody></table></div>
     <div class="row mt">
       <div><label>Nombre</label><input id="uName" placeholder="ej. Maria"></div>
       <div><label>Contraseña</label><input type="password" placeholder="mínimo 6 caracteres"></div>
