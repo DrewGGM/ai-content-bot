@@ -17,11 +17,13 @@ export interface ImageOpts {
   resolution?: "1K" | "2K" | "4K";
   model?: string;
   provider?: ImageProvider;
+  referenceImages?: string[]; // solo fal (nano-banana-pro/edit): logo + referencias de estilo
+  rawPrompt?: boolean; // no anteponer la dirección de arte genérica (el prompt ya es completo)
 }
 
 export async function generateImage(opts: ImageOpts): Promise<string> {
   const provider = (opts.provider ?? (process.env.IMAGE_PROVIDER as ImageProvider) ?? "fal").toLowerCase() as ImageProvider;
-  const prompt = withArtDirection(opts.prompt);
+  const prompt = opts.rawPrompt ? opts.prompt : withArtDirection(opts.prompt);
   const base = { ...opts, prompt };
 
   switch (provider) {

@@ -51,20 +51,37 @@ const FLUX_SIZE_MAP: Record<string, string> = {
 };
 
 /** Genera una imagen con fal y la guarda en `dest`. Default: Nano Banana Pro a 2K.
- *  El `prompt` debe venir ya con la dirección de arte aplicada (lo hace el dispatcher images.ts). */
+ *  El `prompt` debe venir ya con la dirección de arte aplicada (lo hace el dispatcher images.ts).
+ *  Si se pasan `referenceImages` (data URIs / URLs), usa el endpoint de EDICIÓN de Nano Banana
+ *  Pro (Gemini 3 Pro) con esas referencias — reproduce el logo real y mantiene la identidad
+ *  de marca consistente entre piezas (como pasarle imágenes de referencia a ChatGPT). */
 export async function falImage(opts: {
   prompt: string;
   dest: string;
   aspect?: "9:16" | "1:1" | "4:5" | "16:9";
   model?: string;
   resolution?: "1K" | "2K" | "4K";
+  referenceImages?: string[];
 }): Promise<string> {
   const aspect = opts.aspect ?? "9:16";
-  const model = opts.model ?? IMAGE_MODELS.nanoBananaPro;
-  const isGoogle = model.includes("nano-banana") || model.includes("gemini");
+  const refs = (opts.referenceImages ?? []).filter(Boolean);
+  const resolution = opts.resolution ?? "2K";
   const prompt = opts.prompt;
 
-  const resolution = opts.resolution ?? "2K";
+  // Con referencias → Nano Banana Pro EDIT (image_urls). aspect_ratio/resolution se envían
+  // igual (se ignoran si el endpoint no los usa; el prompt refuerza el formato).
+  if (refs.length) {
+    const model = opts.model ?? `${IMAGE_MODELS.nanoBananaPro}/edit`;
+    const input = { prompt, image_urls: refs, aspect_ratio: aspect, resolution, num_images: 1 };
+    const result = await runViaQueue(model, input, 300000);
+    const url = result?.images?.[0]?.url ?? result?.data?.images?.[0]?.url;
+    if (!url) throw new Error("fal.ai (edit) no devolvió imagen");
+    await downloadTo(url, opts.dest);
+    return opts.dest;
+  }
+
+  const model = opts.model ?? IMAGE_MODELS.nanoBananaPro;
+  const isGoogle = model.includes("nano-banana") || model.includes("gemini");
   // Cada familia de modelos usa un esquema de entrada distinto.
   const input = isGoogle
     ? { prompt, aspect_ratio: aspect, resolution, num_images: 1 }

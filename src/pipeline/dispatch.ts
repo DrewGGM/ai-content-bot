@@ -5,9 +5,10 @@ import { fileURLToPath } from "node:url";
 import { loadBrandContext } from "../knowledge/loader.js";
 import {
   generateReelCopy, generateRemotionCopy, generateUgcScript,
-  generateCarouselCopy, generatePostCopy, generateDesignCopy, generateDeckCopy,
+  generateCarouselCopy, generatePostCopy, generateBrandPostCopy, generateDesignCopy, generateDeckCopy,
 } from "./generateCopy.js";
 import { generateReel } from "./generateReel.js";
+import { generateBrandPost } from "./generateBrandPost.js";
 import { generateRemotion, type Aspect, type AudioMode } from "./generateRemotion.js";
 import { generateUgcReel } from "./generateUgcReel.js";
 import { generateCarousel } from "./generateCarousel.js";
@@ -19,8 +20,9 @@ import { runWorkflow, readWorkflow } from "../workflows/engine.js";
 import type { QueueItem } from "../queue/queue.js";
 
 // reel = b-roll · motion = motion-graphics · ugc = avatar HeyGen · design/deck = por código (sin IA)
+// brandpost = post 1:1 premium con Nano Banana Pro edit + logo/referencias de marca.
 // "workflow:<nombre>" = workflow personalizado de config/workflows/ (motor src/workflows/).
-export type Format = "reel" | "motion" | "ugc" | "carousel" | "post" | "design" | "deck" | `workflow:${string}`;
+export type Format = "reel" | "motion" | "ugc" | "carousel" | "post" | "brandpost" | "design" | "deck" | `workflow:${string}`;
 
 function defaultVoiceId(): string {
   const { voice } = loadBrandContext();
@@ -81,6 +83,10 @@ export async function createContent(opts: {
     case "post": {
       console.log(`  → copy del post (Claude Code)...`);
       return generatePost(fixSlug(await generatePostCopy(opts.topic, inst)), platform, createdAt);
+    }
+    case "brandpost": {
+      console.log(`  → copy del post de marca premium (Claude Code)...`);
+      return generateBrandPost(fixSlug(await generateBrandPostCopy(opts.topic, inst)), platform, createdAt, inst);
     }
     case "design": {
       console.log(`  → copy del poster de diseño (Claude Code)...`);

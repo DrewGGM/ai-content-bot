@@ -11,6 +11,7 @@ export interface BrandConfig {
   language: string;
   ctaDefault: string;
   logoFile: string;
+  website?: string; // opcional: se muestra al pie de los posts de marca (ej. "lyroo.com.co")
   colors: { primary: string; primaryLight: string; accent: string; dark: string };
 }
 
@@ -20,6 +21,7 @@ const DEFAULTS: BrandConfig = {
   language: "es",
   ctaDefault: "Escríbenos por WhatsApp",
   logoFile: "logo-horizontal-white.svg",
+  website: "",
   colors: { primary: "#5B2DC4", primaryLight: "#7B4DDB", accent: "#00D4AA", dark: "#0F0F1A" },
 };
 

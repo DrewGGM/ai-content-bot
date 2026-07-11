@@ -49,6 +49,29 @@ export async function renderLogoPlate(W: number, plateH: number): Promise<Buffer
     .toBuffer();
 }
 
+/**
+ * Logo como IMAGEN DE REFERENCIA para Nano Banana Pro (edit): rasteriza el SVG y lo compone
+ * sobre una tarjeta del color oscuro de marca para que la silueta del logo (a menudo blanco)
+ * sea visible. El modelo reproduce esta marca en las piezas, recoloreándola según la composición.
+ * Devuelve un data URI PNG, o null si no hay logo.
+ */
+export async function brandLogoReferenceDataUri(): Promise<string | null> {
+  try {
+    const dark = loadBrandConfig().colors.dark;
+    const W = 640, H = 400, logoW = Math.round(W * 0.6);
+    const logo = await logoPng(logoW);
+    const lMeta = await sharp(logo).metadata();
+    const lH = lMeta.height ?? Math.round(logoW * 0.43);
+    const card = Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="${dark}"/></svg>`);
+    const png = await sharp(card)
+      .composite([{ input: logo, top: Math.round((H - lH) / 2), left: Math.round((W - logoW) / 2) }])
+      .png().toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Superpone el plate (scrim + logo) en la parte superior de la imagen y sobreescribe el archivo. */
 export async function overlayLogo(imagePath: string): Promise<void> {
   const img = sharp(imagePath);

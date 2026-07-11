@@ -16,12 +16,14 @@ export async function generateReviewedImage(opts: {
   resolution?: "1K" | "2K" | "4K";
   brief: string;
   label?: string;
+  referenceImages?: string[]; // fal nano-banana-pro/edit: logo + referencias de estilo
+  rawPrompt?: boolean; // el prompt ya viene completo (no anteponer la dirección de arte genérica)
 }): Promise<void> {
   let prompt = opts.prompt;
   const label = opts.label ?? basename(opts.dest);
 
   for (let attempt = 1; attempt <= QA_ATTEMPTS; attempt++) {
-    await generateImage({ prompt, dest: opts.dest, aspect: opts.aspect, resolution: opts.resolution });
+    await generateImage({ prompt, dest: opts.dest, aspect: opts.aspect, resolution: opts.resolution, referenceImages: opts.referenceImages, rawPrompt: opts.rawPrompt });
     if (attempt >= QA_ATTEMPTS) return; // último intento: aceptar
 
     const v = await reviewImage(opts.dest, prompt, opts.brief);

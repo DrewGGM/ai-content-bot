@@ -22,6 +22,7 @@ npm run motion -- "tema"    # reel motion-graphics (texto animado, sin fal)
 npm run ugc -- "tema"       # reel UGC (avatar HeyGen)                          [HeyGen]
 npm run carousel -- "tema"  # carrusel 4-6 imágenes                            [fal]
 npm run post -- "tema"      # post imagen única                                [fal]
+npm run brandpost -- "tema" # post de marca premium (Nano Banana Pro edit + logo/referencias) [fal]
 npm run design -- "tema"    # post de diseño por CÓDIGO (SVG+sharp, sin API de imagen)
 npm run plan                # Claude elige formato+tema según historial
 npm run set                 # una pieza de cada formato
@@ -33,6 +34,11 @@ npm run schedule            # scheduler diario (usa el planner)
 ## Reglas clave del sistema
 - **No hornear texto/logo dentro de la imagen o video generado por IA** — se distorsiona. El
   titular, logo, subtítulos y CTA van como **capa de overlay en post** (ASS + ffmpeg + sharp).
+  EXCEPCIÓN: el formato **`brandpost`** (post de marca premium) SÍ hornea todo, porque usa
+  **Nano Banana Pro (Gemini 3 Pro) en modo edit** con el logo real + imágenes de referencia
+  (`assets/brand/references/`) como ancla de estilo — ese modelo escribe texto y reproduce el
+  logo con calidad. Prompt maestro en `artDirection.brandPosterPrompt`; pipeline
+  `generateBrandPost.ts`; referencias `src/lib/brandReferences.ts`. Solo funciona con `IMAGE_PROVIDER=fal`.
 - El **copy/planner/edición/QA** pasan SIEMPRE por `askLLM/askLLMJson` de `src/providers/llm.ts`
   (enruta por `COPY_PROVIDER`). No llamar CLIs ni APIs de LLM directamente desde los pipelines.
   Default: Claude Code (`claude -p`) con la suscripción, sin API key.

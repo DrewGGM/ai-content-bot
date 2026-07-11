@@ -40,6 +40,7 @@ import { listModels } from "../lib/modelCatalog.js";
 import { listMusic, saveMusic, deleteMusic } from "../lib/musicLibrary.js";
 import { audit, readAudit } from "../lib/auditLog.js";
 import { readStyleOverride, saveStyleOverride, defaultArtDirection } from "../lib/artDirection.js";
+import { listBrandReferences, saveBrandReference, deleteBrandReference, readBrandReference } from "../lib/brandReferences.js";
 import { listInstalledSkills, setSkillEnabled, uploadSkill, deleteSkill } from "../lib/skills.js";
 import { listCompanySecrets, setCompanySecret, deleteCompanySecret, applyCompanySecrets } from "../lib/companySecrets.js";
 import { listWorkflows, readWorkflow, saveWorkflow, deleteWorkflow, workflowTemplate } from "../workflows/engine.js";
@@ -247,6 +248,7 @@ const FORMAT_LABELS: Record<string, string> = {
   design: "Diseño — 1 póster, código sin API",
   deck: "Carrusel (código) — varios pósters, sin fal",
   post: "Post — imagen única (fal)",
+  brandpost: "Post de marca premium — logo + referencias (fal)",
   carousel: "Carrusel — imágenes IA (fal)",
   reel: "Reel — video b-roll (fal)",
   motion: "Video (Remotion) — animado por código, sin fal",
@@ -1307,6 +1309,41 @@ const server = createServer(async (req, res) => {
       const b = await jsonBody(req);
       deleteMusic(String(b.name ?? ""));
       audit(user.name, "música eliminada", String(b.name ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // Referencias de estilo de marca (solo admin): anclan la identidad de los posts de marca premium.
+  if (url.pathname === "/api/references" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, listBrandReferences());
+    return;
+  }
+  if (url.pathname === "/api/references/file" && req.method === "GET") {
+    if (!isAdmin) { res.writeHead(403).end(); return; }
+    try {
+      const { buffer, mime } = readBrandReference(url.searchParams.get("name") ?? "");
+      res.writeHead(200, { "Content-Type": mime, "Cache-Control": "no-cache" }).end(buffer);
+    } catch { res.writeHead(404).end("not found"); }
+    return;
+  }
+  if (url.pathname === "/api/references/upload" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req, 9 * 1024 * 1024); // referencia hasta 6 MB (base64 ≈ ×1.37)
+      saveBrandReference(String(b.name ?? ""), String(b.dataBase64 ?? ""));
+      audit(user.name, "referencia de marca subida", String(b.name ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/references/delete" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      deleteBrandReference(String(b.name ?? ""));
+      audit(user.name, "referencia de marca eliminada", String(b.name ?? ""));
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;

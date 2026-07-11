@@ -89,6 +89,7 @@ async function main() {
     case "ugc":
     case "carousel":
     case "post":
+    case "brandpost":
     case "design":
     case "deck": {
       if (!arg) {
@@ -96,7 +97,7 @@ async function main() {
         break;
       }
       const map: Record<string, Format> = {
-        carousel: "carousel", post: "post", motion: "motion", ugc: "ugc", reel: "reel", generate: "reel", design: "design", deck: "deck",
+        carousel: "carousel", post: "post", brandpost: "brandpost", motion: "motion", ugc: "ugc", reel: "reel", generate: "reel", design: "design", deck: "deck",
       };
       const format = map[command];
       if (!(availableFormats() as string[]).includes(format)) {

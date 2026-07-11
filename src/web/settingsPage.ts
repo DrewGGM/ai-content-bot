@@ -285,6 +285,20 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
   </section>
 
   <section class="card">
+    <h2>${icon("post")} Referencias de estilo (posts de marca) <span class="role">admin</span></h2>
+    <p class="sub">El secreto para que las piezas se vean <b>premium y consistentes</b>: sube 1-4 <b>imágenes de ejemplo</b>
+    del estilo que quieres (por ejemplo un post que te encantó). El formato <b>"Post de marca premium"</b> se las pasa a
+    Nano Banana Pro (Gemini 3 Pro) junto a tu logo, y <b>copia esa línea gráfica</b> — logo, colores, tipografía y
+    composición — en cada nueva pieza. Igual que darle referencias a ChatGPT.</p>
+    <div id="refGrid" class="brand-grid"></div>
+    <div class="filebar mt">
+      <input type="file" id="refFile" accept=".png,.jpg,.jpeg,.webp" style="flex:1;min-width:220px;padding:9px">
+      <button class="btn-primary sm" onclick="uploadRef(this)">${icon("check")} Subir referencia</button>
+    </div>
+    <div class="msg" id="refMsg"></div>
+  </section>
+
+  <section class="card">
     <h2>${icon("edit")} Estilos de diseño (prompt) <span class="role">admin</span></h2>
     <p class="sub">La <b>dirección de arte</b> que la IA aplica a todas las imágenes y posters. Déjalo vacío para usar
     el estilo premium por defecto del bot, o escribe el tuyo (en lenguaje de imagen: texturas, luz, tipografía,
@@ -644,6 +658,41 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       reader.readAsDataURL(f);
     }
     loadBrand();
+
+    // ---- Referencias de estilo (admin) ----
+    function loadRefs(){
+      if(!IS_ADMIN)return;
+      j('/api/references').then(function(refs){
+        document.getElementById('refGrid').innerHTML=refs.map(function(a){
+          return '<div class="basset">'+
+            '<div class="bimg"><img src="/api/references/file?name='+encodeURIComponent(a.name)+'&t='+Date.now()+'" alt=""></div>'+
+            '<div class="bname">'+ceHtml(a.name)+'</div>'+
+            '<button class="btn-ghost sm danger" onclick="delRef(\\''+ceHtml(a.name)+'\\')">Eliminar</button>'+
+            '</div>';
+        }).join('')||'<p class="sub">Sin referencias — sube 1-4 ejemplos del estilo que quieres para tus posts de marca.</p>';
+      }).catch(function(){});
+    }
+    function uploadRef(btn){
+      var inp=document.getElementById('refFile'),f=inp.files&&inp.files[0];
+      if(!f){msg('refMsg','Elige una imagen primero.',false);return}
+      if(f.size>6*1024*1024){msg('refMsg','Máximo 6 MB.',false);return}
+      var name=f.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-');
+      btn.disabled=true;
+      var reader=new FileReader();
+      reader.onload=function(){
+        j('/api/references/upload',{name:name,dataBase64:String(reader.result).split(',')[1]||''})
+          .then(function(){btn.disabled=false;inp.value='';msg('refMsg','Referencia subida — el formato "Post de marca premium" ya la usa.',true);loadRefs()})
+          .catch(function(e){btn.disabled=false;msg('refMsg',e.message,false)});
+      };
+      reader.onerror=function(){btn.disabled=false;msg('refMsg','No se pudo leer la imagen.',false)};
+      reader.readAsDataURL(f);
+    }
+    function delRef(name){
+      askConfirm({title:'Eliminar referencia',body:'Se elimina <b>'+name+'</b> de las referencias de estilo.',ok:'Eliminar',danger:true},function(){
+        j('/api/references/delete',{name:name}).then(loadRefs).catch(function(e){msg('refMsg',e.message,false)});
+      });
+    }
+    loadRefs();
 
     // ---- Usuarios (admin) ----
     function ceHtml(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}

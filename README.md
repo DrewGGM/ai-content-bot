@@ -199,6 +199,7 @@ npm run design   -- "tema"    # póster por código (sin API de imagen) — siem
 npm run deck     -- "tema"    # carrusel por código (varios pósters)   — siempre disponible
 npm run motion   -- "tema"    # video animado por código (Remotion)    — siempre disponible
 npm run post     -- "tema"    # post imagen única IA           [fal/openai/gemini]
+npm run brandpost -- "tema"   # post de marca premium: logo + referencias [fal · Nano Banana Pro]
 npm run carousel -- "tema"    # carrusel 4-6 imágenes IA       [fal/openai/gemini]
 npm run reel     -- "tema"    # reel b-roll cinematográfico    [fal + ElevenLabs]
 npm run ugc      -- "tema"    # reel UGC con avatar            [HeyGen]
@@ -267,6 +268,16 @@ entrada de otro usando referencias `$paso.salida`:
 Incluye dos presets listos: **Reel: imagen IA animada** (imagen → animarla → voz → subs → música →
 marca) y **Personaje presentador** (la IA crea un personaje, le pone tu guion con voz y lo anima
 hablando). Aparecen como formatos al Generar, y se regeneran/editan como cualquier pieza.
+
+## Posts de marca premium (imágenes consistentes con tu logo)
+
+El formato **`brandpost`** produce posts 1:1 estilo agencia (logo, titular, subtítulo, mockup del
+producto, iconos, CTA y web — todo en la imagen) con **Nano Banana Pro (Gemini 3 Pro) en modo edit**.
+La clave de la consistencia: sube **1-4 imágenes de referencia** en Ajustes → *Referencias de estilo*
+(por ejemplo un post que te encantó). El bot les pasa esas referencias + tu **logo real** al modelo,
+que **copia la línea gráfica** en cada pieza nueva — igual que darle referencias a ChatGPT. Requiere
+`IMAGE_PROVIDER=fal`. Las referencias viven en `assets/brand/references/` (contenido de marca, no se
+versiona). El prompt maestro se afina desde Ajustes → *Estilos de diseño*.
 
 ## Publicación en redes
 

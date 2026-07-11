@@ -407,3 +407,49 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     pillar: data.pillar,
   };
 }
+
+// ---------- POST DE MARCA PREMIUM (Nano Banana Pro edit + referencias) ----------
+// La IA solo aporta los TEXTOS (en el idioma de marca) y la idea del mockup; la composición
+// visual y la identidad las fija el prompt maestro + las imágenes de referencia.
+export interface BrandPostCopy {
+  slug: string;
+  headline: string;
+  subline: string;
+  cta: string;
+  visualIdea: string;
+  iconLabels: string[];
+  caption: string;
+  hashtags: string[];
+  pillar?: string;
+}
+
+export async function generateBrandPostCopy(topic: string, instruction?: string): Promise<BrandPostCopy> {
+  const data = await ask(
+    `Eres el director creativo de ${brand().name}. Crea el contenido de un POST DE MARCA premium (cuadrado 1:1, estilo SaaS moderno tipo Stripe/Linear) sobre: "${topic}".
+La imagen se diseña con IA a partir de referencias de marca; tú defines SOLO los textos (en el idioma de la marca) y qué mostrar como visual.
+Devuelve ÚNICAMENTE un JSON válido (sin markdown):
+{
+  "slug": "kebab-case-corto",
+  "pillar": "uno de los pilares de contenido",
+  "headline": "titular principal potente y corto (4-8 palabras), en el idioma de la marca",
+  "subline": "subtítulo de apoyo de 1 frase corta",
+  "cta": "llamada a la acción corta y discreta (2-4 palabras)",
+  "visualIdea": "EN INGLÉS: qué mockup/visual de producto mostrar acorde al tema (ej. 'a laptop showing an electronic invoicing dashboard with DIAN status', 'a phone with a POS checkout screen', 'a sales analytics dashboard with charts')",
+  "iconLabels": ["2-3 etiquetas MUY cortas para chips con icono, en el idioma de la marca (ej. 'Facturación DIAN', 'POS', 'A medida')"],
+  "caption": "caption en español con gancho, saltos de línea, beneficio y CTA. Emojis moderados",
+  "hashtags": ["un hashtag de la marca", "5-8 hashtags relevantes"]
+}`,
+    instruction,
+  );
+  return {
+    slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
+    headline: data.headline ?? "",
+    subline: data.subline ?? "",
+    cta: data.cta ?? brand().ctaDefault,
+    visualIdea: data.visualIdea ?? "",
+    iconLabels: Array.isArray(data.iconLabels) ? data.iconLabels.slice(0, 3) : [],
+    caption: data.caption ?? "",
+    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    pillar: data.pillar,
+  };
+}

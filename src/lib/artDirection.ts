@@ -90,3 +90,49 @@ function artDirectionDefault(seed: string): string {
 export function withArtDirection(prompt: string): string {
   return `${prompt}\n\n${artDirection(prompt)}`;
 }
+
+// ---------- PROMPT MAESTRO para POSTS DE MARCA (Nano Banana Pro edit + referencias) ----------
+// A diferencia de la escena b-roll (foto sin texto), aquí SÍ se hornea todo: logo, titular,
+// subtítulo, mockup del producto, iconos, CTA y web — como el ejemplo premium de ChatGPT.
+// La consistencia real la dan las IMÁGENES DE REFERENCIA (assets/brand/references) que se pasan
+// aparte; este texto fija la composición y la identidad. El override editable (config/art-direction.md)
+// se añade como guía extra.
+
+export interface BrandPosterFields {
+  headline: string;
+  subline?: string;
+  cta?: string;
+  visualIdea?: string; // qué mockup/ilustración mostrar (dashboard, POS, factura…)
+  iconLabels?: string[]; // 2-3 chips/iconos pequeños opcionales
+}
+
+export function brandPosterPrompt(f: BrandPosterFields): string {
+  const b = loadBrandConfig();
+  const c = b.colors;
+  const website = (b.website ?? "").trim();
+  const custom = styleOverride();
+  const icons = (f.iconLabels ?? []).filter(Boolean).slice(0, 3);
+
+  return [
+    `Design a premium, square 1080x1080 Instagram post for the software brand "${b.name}"${b.tagline ? ` (${b.tagline})` : ""}.`,
+    `Modern, minimal, high-end SaaS aesthetic — think Stripe, Linear, Vercel, Notion, Framer, Apple: clean, spacious, tech-forward, agency-grade advertising quality.`,
+    ``,
+    `BRAND IDENTITY (use the provided reference images as the SINGLE source of truth for style, layout language and the logo):`,
+    `- Reproduce the "${b.name}" logo mark from the reference images faithfully; place the logo at the TOP-LEFT. Do not redraw or restyle the logo.`,
+    `- Palette: primary purple ${c.primary}, violet ${c.primaryLight}, cyan accent ${c.accent}, on a very light near-white background (or deep ${c.dark} if the references are dark). Soft smooth gradients, subtle abstract tech patterns, lots of whitespace.`,
+    `- Typography: modern geometric sans-serif — heavy/bold for the headline, light for the subtitle. Impeccable spelling. Rounded corners, soft diffused shadows.`,
+    ``,
+    `COMPOSITION:`,
+    `- One big headline (left side): "${f.headline}". Emphasize a key word in the cyan→violet gradient.`,
+    f.subline ? `- Short subtitle below the headline: "${f.subline}".` : ``,
+    f.visualIdea
+      ? `- Hero visual on the right or bottom: ${f.visualIdea}. Render it as a realistic, crisp product UI mockup (e.g. a laptop or phone showing a clean ${b.name} dashboard with charts, KPIs and a sidebar), on-brand colors, believable and detailed — NOT a flat generic illustration.`
+      : `- Hero visual on the right: a realistic, crisp product UI mockup (laptop/phone showing a clean ${b.name} dashboard with charts and KPIs), on-brand.`,
+    icons.length ? `- ${icons.length} small rounded icon chips with tiny labels: ${icons.map((i) => `"${i}"`).join(", ")}. Line-style icons only.` : ``,
+    f.cta ? `- One discreet call-to-action: "${f.cta}".` : ``,
+    website ? `- Small website at the bottom: "${website}".` : ``,
+    ``,
+    `RULES: premium advertising look, uncluttered, no unnecessary boxes, no excess icons, no watermarks, no extra logos, no lorem ipsum, perfect legible Spanish text exactly as written above. Keep the exact same visual identity as the reference images so every post is recognizably "${b.name}".`,
+    custom ? `\nEXTRA BRAND STYLE GUIDANCE (from the team):\n${custom}` : ``,
+  ].filter(Boolean).join("\n");
+}

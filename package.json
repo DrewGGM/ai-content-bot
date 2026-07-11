@@ -19,6 +19,7 @@
     "ugc": "tsx src/index.ts ugc",
     "carousel": "tsx src/index.ts carousel",
     "post": "tsx src/index.ts post",
+    "brandpost": "tsx src/index.ts brandpost",
     "design": "tsx src/index.ts design",
     "deck": "tsx src/index.ts deck",
     "panel": "tsx src/web/server.ts",
