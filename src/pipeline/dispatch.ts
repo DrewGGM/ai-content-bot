@@ -14,10 +14,13 @@ import { generateCarousel } from "./generateCarousel.js";
 import { generatePost } from "./generatePost.js";
 import { generateDesignPost } from "./generateDesignPost.js";
 import { generateDeck } from "./generateDeck.js";
+import { downloadMusicFromUrl } from "../lib/musicLibrary.js";
+import { runWorkflow, readWorkflow } from "../workflows/engine.js";
 import type { QueueItem } from "../queue/queue.js";
 
 // reel = b-roll · motion = motion-graphics · ugc = avatar HeyGen · design/deck = por código (sin IA)
-export type Format = "reel" | "motion" | "ugc" | "carousel" | "post" | "design" | "deck";
+// "workflow:<nombre>" = workflow personalizado de config/workflows/ (motor src/workflows/).
+export type Format = "reel" | "motion" | "ugc" | "carousel" | "post" | "design" | "deck" | `workflow:${string}`;
 
 function defaultVoiceId(): string {
   const { voice } = loadBrandContext();
@@ -42,11 +45,22 @@ export async function createContent(opts: {
   instruction?: string; // instrucción del usuario al regenerar (afecta copy + visual)
   reuse?: { slug: string; createdAt: string }; // fuerza el mismo id/carpeta → regenera EN EL SITIO
   aspect?: Aspect; // solo motion (Remotion): reel 9:16 | square 1:1 | feed 4:5
-  audio?: AudioMode; // solo motion (Remotion): voice | music | silent
+  audio?: AudioMode; // solo motion (Remotion): voice | voice_music | music | silent
+  musicUrl?: string; // solo motion: URL de una pista que pegó el usuario (se descarga y se usa)
 }): Promise<QueueItem> {
   const platform = opts.platform ?? "instagram";
   const createdAt = opts.reuse?.createdAt ?? new Date().toISOString();
   const inst = opts.instruction;
+
+  // Workflows personalizables (config/workflows/*.json): pipeline de pasos encadenados.
+  if (opts.format.startsWith("workflow:")) {
+    const name = opts.format.slice("workflow:".length);
+    console.log(`  → ejecutando workflow "${name}"...`);
+    return runWorkflow(readWorkflow(name), {
+      topic: opts.topic, platform, aspect: opts.aspect, instruction: inst, reuse: opts.reuse,
+    });
+  }
+
   const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
   // Al regenerar, forzamos el slug del item existente para reusar id + carpeta (INSERT OR REPLACE).
   // En piezas NUEVAS el slug se hace ÚNICO (sufijo -2, -3…): dos piezas con el mismo slug
@@ -80,15 +94,25 @@ export async function createContent(opts: {
       // Video por CÓDIGO con Remotion (reemplaza el motion-graphics viejo).
       console.log(`  → copy del video Remotion (Claude Code)...`);
       // Voz solo si hay key Y voiceId (con key pero sin voiceId antes reventaba el job).
-      let audio: AudioMode = opts.audio ?? (voiceReady() ? "voice" : "silent");
-      if (audio === "voice" && !voiceReady()) {
-        console.warn("  ⚠ modo voz sin ELEVENLABS_API_KEY o sin default.voiceId (knowledge/voice.json) — el video sale silencioso");
-        audio = "silent";
+      // La música siempre es intentable: biblioteca local o descarga automática CC0
+      // (Openverse); si todo falla, generateRemotion cae limpiamente a silencioso.
+      let audio: AudioMode = opts.audio ?? (voiceReady() ? "voice_music" : "music");
+      if ((audio === "voice" || audio === "voice_music") && !voiceReady()) {
+        console.warn(`  ⚠ modo voz sin ELEVENLABS_API_KEY o sin default.voiceId (knowledge/voice.json) — cae a música de fondo`);
+        audio = "music";
+      }
+      // Si el usuario pegó una URL de música, se descarga a la biblioteca y esa pista manda
+      // (y el modo se ajusta para que efectivamente suene: silent→music, voice→voice_music).
+      let musicTrack: string | undefined;
+      if (opts.musicUrl) {
+        musicTrack = await downloadMusicFromUrl(opts.musicUrl);
+        if (audio === "silent") audio = "music";
+        else if (audio === "voice") audio = "voice_music";
       }
       console.log(`  → generando video Remotion (aspecto: ${opts.aspect ?? "reel"}, audio: ${audio})...`);
       return generateRemotion(
         fixSlug(await generateRemotionCopy(opts.topic, inst)),
-        { platform, aspect: opts.aspect ?? "reel", audio, voiceId: audio === "voice" ? defaultVoiceId() : undefined },
+        { platform, aspect: opts.aspect ?? "reel", audio, voiceId: audio === "voice" || audio === "voice_music" ? defaultVoiceId() : undefined, musicTrack },
         createdAt,
       );
     }

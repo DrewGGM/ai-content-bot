@@ -267,6 +267,83 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
   </section>
 
   <section class="card">
+    <h2>${icon("motion")} Música de fondo <span class="role">admin</span></h2>
+    <p class="sub"><b>Automático:</b> si esta biblioteca está vacía, la IA <b>busca y descarga sola</b> una pista
+    <b>CC0 (sin copyright)</b> desde Openverse (bibliotecas libres) acorde al tema de la pieza, y la cachea aquí con sus
+    créditos. También puedes subir pistas propias — la IA elige por el <b>nombre del archivo</b>
+    (<code>energetico-tech.mp3</code>, <code>calmado-acustico.mp3</code>). Se usan en los modos
+    "Voz + música de fondo" y "Solo música" de los videos.</p>
+    <table><thead><tr><th>Pista</th><th>Tamaño</th><th></th></tr></thead><tbody id="mRows"></tbody></table>
+    <div class="filebar mt">
+      <input type="file" id="musicFile" accept=".mp3,.wav,.m4a,.ogg,.aac" style="flex:1;min-width:220px;padding:9px">
+      <button class="btn-primary sm" onclick="uploadMusic(this)">${icon("check")} Subir pista</button>
+    </div>
+    <div class="msg" id="mMsg"></div>
+  </section>
+
+  <section class="card">
+    <h2>${icon("edit")} Estilos de diseño (prompt) <span class="role">admin</span></h2>
+    <p class="sub">La <b>dirección de arte</b> que la IA aplica a todas las imágenes y posters. Déjalo vacío para usar
+    el estilo premium por defecto del bot, o escribe el tuyo (en lenguaje de imagen: texturas, luz, tipografía,
+    composición — la paleta de la marca se aplica siempre). Se guarda en <code>config/art-direction.md</code> y
+    aplica desde la próxima generación.</p>
+    <textarea id="styleText" rows="8" style="width:100%;font-family:monospace;font-size:12.5px" placeholder="(vacío = estilo por defecto)"></textarea>
+    <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--mut);font-size:12.5px">Ver el estilo por defecto (para partir de él)</summary>
+    <pre id="styleDefault" style="white-space:pre-wrap;font-size:11.5px;color:var(--mut);max-height:220px;overflow:auto"></pre></details>
+    <div class="filebar mt">
+      <button class="btn-primary sm" onclick="saveStyle(this)">${icon("check")} Guardar estilos</button>
+      <button class="btn-ghost sm" onclick="resetStyle()">Restaurar el default</button>
+    </div>
+    <div class="msg" id="styleMsg"></div>
+  </section>
+
+  <section class="card">
+    <h2>${icon("spark")} Skills de la IA <span class="role">admin</span></h2>
+    <p class="sub">Conocimiento que la IA usa al escribir y planear (playbooks de community manager, guías de diseño,
+    tácticas propias). <b>Activa/desactiva</b> cuáles usa, o <b>sube las tuyas</b>: un archivo <code>.md</code> con el
+    playbook (se inyecta en cada generación mientras esté activa). Las preinstaladas no se pueden eliminar, solo desactivar.</p>
+    <table><thead><tr><th></th><th>Skill</th><th>Descripción</th><th></th></tr></thead><tbody id="skRows"></tbody></table>
+    <div class="filebar mt">
+      <input id="skSlug" placeholder="nombre-de-la-skill" style="width:200px" autocomplete="off">
+      <input type="file" id="skFile" accept=".md,.txt" style="flex:1;min-width:220px;padding:9px">
+      <button class="btn-primary sm" onclick="uploadSkillFile(this)">${icon("check")} Subir skill</button>
+    </div>
+    <div class="msg" id="skMsg"></div>
+  </section>
+
+  <section class="card">
+    <h2>${icon("motion")} Workflows de contenido <span class="role">admin</span></h2>
+    <p class="sub">Pipelines <b>personalizables</b> que encadenan IAs paso a paso (estilo ElevenLabs Flows):
+    imagen IA → animarla (image-to-video) → voz → subtítulos → música → ensamblado con tu marca; o un
+    <b>personaje IA</b> que presenta tu producto. Se eligen como formato al Generar. Pasos disponibles:
+    <code>copy</code>, <code>image</code>, <code>animate</code>, <code>tts</code>, <code>subtitles</code>,
+    <code>music</code>, <code>avatar</code>, <code>assemble</code> — conecta salidas con <code>$paso.salida</code>.</p>
+    <table><thead><tr><th>Workflow</th><th>Descripción</th><th></th></tr></thead><tbody id="wfRows"></tbody></table>
+    <div class="filebar mt">
+      <input id="wfName" placeholder="nombre-del-workflow" style="width:220px" autocomplete="off">
+      <button class="btn-primary sm" onclick="newWf()">${icon("check")} Crear desde plantilla</button>
+    </div>
+    <div id="wfEditor" style="display:none;margin-top:12px">
+      <label>Editando: <b id="wfEditName"></b></label>
+      <textarea id="wfJson" rows="16" style="width:100%;font-family:monospace;font-size:12px" spellcheck="false"></textarea>
+      <div class="filebar mt">
+        <button class="btn-primary sm" onclick="saveWf(this)">${icon("check")} Guardar workflow</button>
+        <button class="btn-ghost sm" onclick="document.getElementById('wfEditor').style.display='none'">Cerrar</button>
+      </div>
+    </div>
+    <div class="msg" id="wfMsg"></div>
+  </section>
+
+  <section class="card">
+    <h2>${icon("send")} Conexiones — redes sociales y proveedores <span class="role">admin</span></h2>
+    <p class="sub">Tokens para <b>publicar</b> (Instagram/Facebook/LinkedIn/TikTok/X) y keys de los <b>proveedores de
+    medios</b> (fal, ElevenLabs, HeyGen). Se guardan <b>cifradas</b> en el servidor y son de solo escritura (nunca se
+    muestran). Si una variable ya está en el <code>.env</code> del servidor, esa manda.</p>
+    <table><thead><tr><th>Credencial</th><th>Estado</th><th style="min-width:260px"></th><th></th></tr></thead><tbody id="snRows"></tbody></table>
+    <div class="msg" id="snMsg"></div>
+  </section>
+
+  <section class="card">
     <h2>${icon("users")} Usuarios del panel</h2>
     <p class="sub">Cada usuario entra con su contraseña y configura su propio agente/cuenta de IA.
     Los admin además gestionan usuarios y el contexto de empresa.</p>
@@ -589,6 +666,180 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       });
     }
     loadUsers();
+
+    // ---- Música (admin) ----
+    function loadMusic(){
+      if(!IS_ADMIN)return;
+      j('/api/music/list').then(function(tracks){
+        document.getElementById('mRows').innerHTML=tracks.map(function(t){
+          return '<tr><td style="font-family:monospace;font-size:12.5px">'+ceHtml(t.name)+(t.desc?'<div style="color:var(--mut);font-size:11px">'+ceHtml(t.desc)+'</div>':'')+'</td>'+
+            '<td style="white-space:nowrap;color:var(--mut)">'+(t.bytes/1048576).toFixed(1)+' MB</td>'+
+            '<td style="text-align:right"><button class="btn-ghost sm danger" onclick="delMusic(\\''+ceHtml(t.name)+'\\')">Eliminar</button></td></tr>';
+        }).join('')||'<tr><td colspan="3" style="color:var(--mut)">Sin pistas — sube la primera abajo (la IA la usará de fondo en los videos).</td></tr>';
+      }).catch(function(){});
+    }
+    function uploadMusic(btn){
+      var inp=document.getElementById('musicFile');
+      var f=inp.files&&inp.files[0];
+      if(!f){msg('mMsg','Elige un archivo primero.',false);return}
+      if(f.size>15*1024*1024){msg('mMsg','Máximo 15 MB.',false);return}
+      var name=f.name.toLowerCase().replace(/[^a-z0-9._ -]/g,'-');
+      btn.disabled=true;
+      var reader=new FileReader();
+      reader.onload=function(){
+        var b64=String(reader.result).split(',')[1]||'';
+        j('/api/music/upload',{name:name,dataBase64:b64})
+          .then(function(){btn.disabled=false;inp.value='';msg('mMsg','Pista subida — la IA ya puede elegirla.',true);loadMusic()})
+          .catch(function(e){btn.disabled=false;msg('mMsg',e.message,false)});
+      };
+      reader.onerror=function(){btn.disabled=false;msg('mMsg','No se pudo leer el archivo.',false)};
+      reader.readAsDataURL(f);
+    }
+    function delMusic(name){
+      askConfirm({title:'Eliminar pista',body:'Se eliminará <b>'+name+'</b> de la biblioteca. Los videos ya generados no cambian.',ok:'Eliminar pista',danger:true},function(){
+        j('/api/music/delete',{name:name}).then(loadMusic).catch(function(e){msg('mMsg',e.message,false)});
+      });
+    }
+    loadMusic();
+
+    // ---- Estilos de diseño (admin) ----
+    function loadStyle(){
+      if(!IS_ADMIN)return;
+      j('/api/style').then(function(s){
+        document.getElementById('styleText').value=s.override||'';
+        document.getElementById('styleDefault').textContent=s['default']||'';
+      }).catch(function(){});
+    }
+    function saveStyle(btn){
+      btn.disabled=true;
+      j('/api/style',{content:document.getElementById('styleText').value})
+        .then(function(){btn.disabled=false;msg('styleMsg','Estilos guardados — aplican desde la próxima generación.',true)})
+        .catch(function(e){btn.disabled=false;msg('styleMsg',e.message,false)});
+    }
+    function resetStyle(){
+      askConfirm({title:'Restaurar estilos',body:'Se vuelve al estilo premium por defecto del bot (tu texto personalizado se elimina).',ok:'Restaurar'},function(){
+        j('/api/style',{content:''}).then(function(){msg('styleMsg','Estilo por defecto restaurado.',true);loadStyle()}).catch(function(e){msg('styleMsg',e.message,false)});
+      });
+    }
+    loadStyle();
+
+    // ---- Skills de la IA (admin) ----
+    function loadSkills(){
+      if(!IS_ADMIN)return;
+      j('/api/skills').then(function(list){
+        document.getElementById('skRows').innerHTML=list.map(function(s){
+          return '<tr><td><label class="check" style="margin:0"><input type="checkbox" data-dir="'+ceHtml(s.dir)+'" '+(s.enabled?'checked':'')+' onchange="toggleSkill(this)"></label></td>'+
+            '<td style="white-space:nowrap;font-weight:600">'+ceHtml(s.name)+(s.custom?' <span class="role">propia</span>':'')+'</td>'+
+            '<td style="color:var(--mut);font-size:12px">'+ceHtml((s.description||'').slice(0,140))+'</td>'+
+            '<td style="text-align:right">'+(s.custom?'<button class="btn-ghost sm danger" data-dir="'+ceHtml(s.dir)+'" onclick="delSkill(this)">Eliminar</button>':'')+'</td></tr>';
+        }).join('')||'<tr><td colspan="4" style="color:var(--mut)">Sin skills instaladas — sube la primera abajo.</td></tr>';
+      }).catch(function(){});
+    }
+    function toggleSkill(cb){
+      j('/api/skills/toggle',{dir:cb.dataset.dir,enabled:cb.checked})
+        .then(function(){msg('skMsg',cb.checked?'Skill activada.':'Skill desactivada (la IA deja de usarla).',true)})
+        .catch(function(e){cb.checked=!cb.checked;msg('skMsg',e.message,false)});
+    }
+    function uploadSkillFile(btn){
+      var inp=document.getElementById('skFile'),f=inp.files&&inp.files[0];
+      var slug=document.getElementById('skSlug').value.trim();
+      if(!f){msg('skMsg','Elige un archivo .md primero.',false);return}
+      if(!slug)slug=f.name.replace(/\\.(md|txt)$/i,'');
+      btn.disabled=true;
+      var reader=new FileReader();
+      reader.onload=function(){
+        j('/api/skills/upload',{slug:slug,content:String(reader.result)})
+          .then(function(){btn.disabled=false;inp.value='';document.getElementById('skSlug').value='';msg('skMsg','Skill subida y activa — la IA ya la usa.',true);loadSkills()})
+          .catch(function(e){btn.disabled=false;msg('skMsg',e.message,false)});
+      };
+      reader.onerror=function(){btn.disabled=false;msg('skMsg','No se pudo leer el archivo.',false)};
+      reader.readAsText(f);
+    }
+    function delSkill(btn){
+      var dir=btn.dataset.dir;
+      askConfirm({title:'Eliminar skill',body:'Se elimina <b>'+dir+'</b> del servidor. La IA dejará de usarla.',ok:'Eliminar skill',danger:true},function(){
+        j('/api/skills/delete',{dir:dir}).then(loadSkills).catch(function(e){msg('skMsg',e.message,false)});
+      });
+    }
+    loadSkills();
+
+    // ---- Workflows de contenido (admin) ----
+    var wfTemplate='';
+    function loadWf(){
+      if(!IS_ADMIN)return;
+      j('/api/workflows').then(function(r){
+        wfTemplate=r.template||'';
+        document.getElementById('wfRows').innerHTML=(r.workflows||[]).map(function(w){
+          return '<tr><td style="white-space:nowrap;font-weight:600">'+ceHtml(w.title)+'<div style="color:var(--mut);font-family:monospace;font-size:10.5px">'+ceHtml(w.name)+'</div></td>'+
+            '<td style="color:var(--mut);font-size:12px">'+ceHtml(w.description||'')+'</td>'+
+            '<td style="text-align:right;white-space:nowrap"><button class="btn-ghost sm" data-name="'+ceHtml(w.name)+'" onclick="editWf(this)">Editar</button> '+
+            '<button class="btn-ghost sm danger" data-name="'+ceHtml(w.name)+'" onclick="delWf(this)">Eliminar</button></td></tr>';
+        }).join('')||'<tr><td colspan="3" style="color:var(--mut)">Sin workflows — crea el primero abajo.</td></tr>';
+      }).catch(function(){});
+    }
+    function editWf(btn){
+      fetch('/api/workflows/get?name='+encodeURIComponent(btn.dataset.name)).then(function(r){return r.json()}).then(function(d){
+        if(d.error){msg('wfMsg',d.error,false);return}
+        document.getElementById('wfEditName').textContent=d.name;
+        document.getElementById('wfJson').value=d.content;
+        document.getElementById('wfEditor').style.display='block';
+      });
+    }
+    function newWf(){
+      var name=document.getElementById('wfName').value.trim().toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'');
+      if(!name){msg('wfMsg','Escribe un nombre (minúsculas y guiones).',false);return}
+      document.getElementById('wfEditName').textContent=name;
+      document.getElementById('wfJson').value=wfTemplate;
+      document.getElementById('wfEditor').style.display='block';
+      msg('wfMsg','Edita la plantilla y pulsa Guardar para crear "'+name+'".',true);
+    }
+    function saveWf(btn){
+      var name=document.getElementById('wfEditName').textContent;
+      btn.disabled=true;
+      j('/api/workflows/save',{name:name,content:document.getElementById('wfJson').value})
+        .then(function(){btn.disabled=false;msg('wfMsg','Workflow guardado — ya aparece como formato al Generar.',true);loadWf()})
+        .catch(function(e){btn.disabled=false;msg('wfMsg',e.message,false)});
+    }
+    function delWf(btn){
+      var name=btn.dataset.name;
+      askConfirm({title:'Eliminar workflow',body:'Se elimina <b>'+name+'</b>. Las piezas ya generadas no cambian, pero no se podrán regenerar con este workflow.',ok:'Eliminar',danger:true},function(){
+        j('/api/workflows/delete',{name:name}).then(loadWf).catch(function(e){msg('wfMsg',e.message,false)});
+      });
+    }
+    loadWf();
+
+    // ---- Conexiones: redes sociales y proveedores (admin) ----
+    function loadSocial(){
+      if(!IS_ADMIN)return;
+      j('/api/social').then(function(list){
+        var lastGroup='';
+        document.getElementById('snRows').innerHTML=list.map(function(k){
+          var head=k.group!==lastGroup?'<tr><td colspan="4" style="font-weight:700;padding-top:14px">'+ceHtml(k.group)+'</td></tr>':'';
+          lastGroup=k.group;
+          var estado=k.set?(k.source==='env'?'<span style="color:var(--mut)">● en el .env del servidor</span>':'<span style="color:#5dd39e">● configurada (panel)</span>'):'<span style="color:var(--mut)">— sin configurar</span>';
+          return head+'<tr><td style="white-space:nowrap">'+ceHtml(k.label)+'<div style="color:var(--mut);font-family:monospace;font-size:10.5px">'+ceHtml(k.key)+'</div></td>'+
+            '<td style="white-space:nowrap;font-size:12px">'+estado+'</td>'+
+            '<td><input type="password" autocomplete="new-password" placeholder="pegar valor…" data-key="'+ceHtml(k.key)+'" style="width:100%"'+(k.source==='env'?' disabled':'')+'></td>'+
+            '<td style="text-align:right;white-space:nowrap">'+(k.source==='env'?'':'<button class="btn-primary sm" data-key="'+ceHtml(k.key)+'" onclick="saveSocial(this)">Guardar</button>'+(k.source==='panel'?' <button class="btn-ghost sm danger" data-key="'+ceHtml(k.key)+'" onclick="delSocial(this)">Quitar</button>':''))+'</td></tr>';
+        }).join('');
+      }).catch(function(){});
+    }
+    function saveSocial(btn){
+      var key=btn.dataset.key;
+      var inp=document.querySelector('#snRows input[data-key="'+key+'"]');
+      if(!inp||!inp.value.trim()){msg('snMsg','Pega el valor primero.',false);return}
+      btn.disabled=true;
+      j('/api/social',{key:key,value:inp.value})
+        .then(function(){btn.disabled=false;msg('snMsg','Credencial guardada (cifrada). Ya está activa.',true);loadSocial()})
+        .catch(function(e){btn.disabled=false;msg('snMsg',e.message,false)});
+    }
+    function delSocial(btn){
+      var key=btn.dataset.key;
+      askConfirm({title:'Quitar credencial',body:'Se elimina <b>'+key+'</b> guardada desde el panel.',ok:'Quitar',danger:true},function(){
+        j('/api/social/delete',{key:key}).then(loadSocial).catch(function(e){msg('snMsg',e.message,false)});
+      });
+    }
+    loadSocial();
 
     // ---- Actividad (admin) ----
     function loadAudit(){

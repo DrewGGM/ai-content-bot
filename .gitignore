@@ -16,8 +16,13 @@ logs/
 # Output pesado / temporal
 assets/raw/*
 assets/output/*
+assets/music/*
 !assets/raw/.gitkeep
 !assets/output/.gitkeep
+!assets/music/.gitkeep
+
+# artefactos locales de pruebas
+scratch/
 
 # OS
 .DS_Store

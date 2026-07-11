@@ -1,0 +1,33 @@
+{
+  "name": "personaje-presentador",
+  "title": "Personaje presentador (IA)",
+  "description": "La IA crea un personaje (retrato), le pone tu guion con voz ElevenLabs y lo anima hablando (OmniHuman). Subtítulos + logo de marca.",
+  "steps": [
+    {
+      "id": "copy",
+      "type": "copy",
+      "input": { "tema": "$input.topic" },
+      "options": { "fields": ["script", "caption", "hashtags", "character_prompt", "cta"] }
+    },
+    { "id": "cara", "type": "image", "input": { "prompt": "$copy.character_prompt" } },
+    { "id": "voz", "type": "tts", "input": { "text": "$copy.script" } },
+    {
+      "id": "actor",
+      "type": "avatar",
+      "input": { "image": "$cara.image", "audio": "$voz.audio" },
+      "options": { "provider": "omnihuman" }
+    },
+    {
+      "id": "subs",
+      "type": "subtitles",
+      "input": { "alignment": "$voz.alignment", "cta": "$copy.cta" }
+    },
+    {
+      "id": "final",
+      "type": "assemble",
+      "input": { "video": "$actor.video", "voice": "$voz.audio", "ass": "$subs.ass" },
+      "options": { "brandOverlay": true }
+    }
+  ],
+  "output": { "video": "$final.video", "caption": "$copy.caption" }
+}

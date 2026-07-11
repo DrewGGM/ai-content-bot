@@ -55,6 +55,17 @@ npm run schedule            # scheduler diario (usa el planner)
   `llm.ts` lee env con `envGet()`/`childEnv()`, NUNCA process.env directo para config de copy).
   Asistente de login de Claude Code (`claude setup-token` + node-pty): `src/lib/claudeLogin.ts`.
   Contexto de empresa editable desde el panel (allowlist): `src/lib/contextFiles.ts`.
+- **Workflows personalizables**: `src/workflows/engine.ts` (JSON en `config/workflows/*.json`,
+  referencias `$paso.salida`) + `steps.ts` (copy/image/animate/tts/subtitles/music/avatar/assemble
+  — SIEMPRE envuelven providers existentes, no llaman APIs directo). Se despachan como formato
+  `workflow:<nombre>` vía `dispatch.ts` y se editan desde el panel.
+- **Música de fondo**: `src/lib/musicLibrary.ts` — biblioteca en `assets/music/` (la IA elige por
+  nombre), auto-descarga CC0 de Openverse si está vacía (OJO: sin `category=music`, ese filtro
+  devuelve 0), descarga por URL del usuario (`downloadMusicFromUrl`), créditos en `credits.json`.
+- **Credenciales de empresa** (tokens de redes + keys de proveedores): `src/lib/companySecrets.ts`,
+  cifradas y aplicadas a process.env al arrancar server/scheduler; el `.env` del servidor manda.
+- **Estilos**: `config/art-direction.md` (si existe) reemplaza la dirección de arte por defecto —
+  editable en el panel. Skills activables/subibles desde el panel (`config/skills.json`).
 - **Deploy**: Opción A (VPS + cron + Cloudflare Tunnel) documentada en `DEPLOY.md`.
 - **Persistencia**: cola/historial `QUEUE_STORE=local|d1` (`src/queue/queue.ts` async + `d1.ts`);
   assets `ASSET_STORE=local|s3` (`src/lib/assets.ts`). `npm run init-db` crea el esquema D1.
@@ -64,10 +75,12 @@ npm run schedule            # scheduler diario (usa el planner)
   skills de diseño nuevas, refleja sus principios aquí (en lenguaje de imagen, NO CSS).
 
 ## Dónde está cada cosa
-- `src/providers/` — llm (copy multi-agente/API), vision (QA), fal (imagen+video), elevenlabs (voz), heygen.
+- `src/providers/` — llm (copy multi-agente/API), vision (QA), fal (imagen + image-to-video +
+  avatar OmniHuman), elevenlabs (voz), heygen.
 - `src/pipeline/` — un generador por formato + `planContent` + `visualQA` + `dispatch`.
-- `src/lib/` — `artDirection`, `brand` (logo real), `motionBg`, `srt` (subtítulos/overlay),
-  `pronunciation`, `env`.
+- `src/workflows/` — motor de workflows personalizables (engine + steps).
+- `src/lib/` — `artDirection`, `brand` (logo real), `musicLibrary`, `skills`, `companySecrets`,
+  `users`/`agentProfile`/`activeProfile`, `auditLog`, `contextFiles`, `srt`, `pronunciation`, `env`.
 - `src/web/server.ts` — panel. `src/queue/` — cola. `src/scheduler/` — cron.
 
 ## Convenciones

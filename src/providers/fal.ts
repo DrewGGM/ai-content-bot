@@ -140,6 +140,28 @@ async function runViaQueue(model: string, input: any, timeoutMs = 360000): Promi
 }
 
 /**
+ * PERSONAJE que habla: retrato (imagen local) + audio (voz local) → video del personaje
+ * hablando con gestos naturales (ByteDance OmniHuman en fal — la mejor calidad/simplicidad
+ * 2025-26; misma key de fal). Lo usan los workflows tipo "personaje presentador".
+ */
+export async function generateTalkingAvatar(opts: {
+  imagePath: string;
+  audioPath: string;
+  dest: string;
+  model?: string;
+}): Promise<string> {
+  const model = opts.model ?? "fal-ai/bytedance/omnihuman";
+  const result: any = await runViaQueue(model, {
+    image_url: imageToDataUri(opts.imagePath),
+    audio_url: `data:audio/mpeg;base64,${readFileSync(opts.audioPath).toString("base64")}`,
+  }, 600000);
+  const url = result?.video?.url ?? result?.data?.video?.url;
+  if (!url) throw new Error("fal.ai (omnihuman) no devolvió video");
+  await downloadTo(url, opts.dest);
+  return opts.dest;
+}
+
+/**
  * Anima una imagen local a un video corto (image-to-video) con Kling.
  * `prompt` describe el MOVIMIENTO deseado (cámara, sujetos). Devuelve la ruta del .mp4.
  */

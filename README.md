@@ -20,11 +20,12 @@ aprobación** con panel web y se puede publicar a Meta con un clic.
 5. [Proveedores de media (voz, imagen, video, avatar)](#proveedores-de-media)
 6. [Uso](#uso)
 7. [Panel de aprobación](#panel-de-aprobación)
-8. [Publicación en redes](#publicación-en-redes)
-9. [Persistencia en la nube (opcional)](#persistencia-en-la-nube-opcional)
-10. [Deploy](#deploy)
-11. [Estructura del proyecto](#estructura-del-proyecto)
-12. [Solución de problemas](#solución-de-problemas)
+8. [Workflows de contenido (personalizables)](#workflows-de-contenido-personalizables)
+9. [Publicación en redes](#publicación-en-redes)
+10. [Persistencia en la nube (opcional)](#persistencia-en-la-nube-opcional)
+11. [Deploy](#deploy)
+12. [Estructura del proyecto](#estructura-del-proyecto)
+13. [Solución de problemas](#solución-de-problemas)
 
 ---
 
@@ -219,13 +220,53 @@ npm run panel                 # http://localhost:4321
 ```
 
 - Revisa cada pieza (video, carrusel con flechas, imagen con zoom), **aprueba/rechaza/descarga**.
-- **Generar** desde el panel (formato, tema, plataforma; en video: aspecto 9:16/1:1/4:5 y audio
-  voz/música/silencio).
-- **Editar con IA**: reescribe el caption con una instrucción, o regenera el visual completo.
-- **Plan** y **Set** con un clic; **Auto**: programación diaria configurable desde el propio panel.
-- **Publicar** a las redes configuradas.
+- **Generar** desde el panel (formato o workflow, tema, plataforma; en video: aspecto 9:16/1:1/4:5,
+  audio voz+música/voz/música/silencio y **URL de música** opcional).
+- **Editar con IA**: reescribe el caption con una instrucción, o regenera el visual completo —
+  incluyendo cambiar aspecto, **poner/quitar música** o pasarle **la URL de una pista**.
+- **Plan** y **Set** con un clic; **Auto**: pieza diaria con la cuenta/agente del usuario que elijas.
+- **Publicar** a las redes configuradas. Toasts de progreso descartables y confirmación para toda acción.
 - Es una **PWA**: ábrelo desde el celular y "Agregar a pantalla de inicio".
-- Login opcional con `PANEL_PASSWORD` (recomendado si lo expones a internet).
+
+### Multi-usuario y multi-agente
+
+- **Login por usuario** (admin/miembro), sesiones persistentes y rate-limit de intentos.
+- Cada usuario conecta **su propio agente de IA** en Ajustes: asistente guiado de **Claude Code**
+  (`setup-token`: link + código, sin tocar la terminal) o API keys — **cifradas** (AES-256-GCM),
+  de solo escritura, aisladas por usuario (los jobs corren con el perfil de quien los lanza).
+- **Registro de actividad** (`data/audit.jsonl`): quién generó/aprobó/publicó/configuró qué.
+
+### Todo configurable desde Ajustes (admin)
+
+- **Contexto de empresa**: edita/crea/elimina los `.md` de `knowledge/` y `config/` (prompts propios incluidos).
+- **Marca y logos**: sube logos y elige el principal.
+- **Estilos de diseño**: personaliza el prompt de dirección de arte de las imágenes (`config/art-direction.md`).
+- **Skills de la IA**: activa/desactiva las instaladas y **sube las tuyas** (un `.md` con tu playbook).
+- **Música de fondo**: biblioteca de pistas libres; si está vacía, la IA **busca y descarga sola** una
+  pista **CC0** (Openverse) acorde al tema, con créditos guardados.
+- **Workflows**: crea/edita los pipelines de pasos (ver sección siguiente).
+- **Conexiones**: tokens de redes sociales y keys de proveedores, cifradas y write-only.
+
+## Workflows de contenido (personalizables)
+
+Pipelines que **encadenan IAs paso a paso** (estilo ElevenLabs Flows / fal.ai Workflows), definidos
+en JSON (`config/workflows/*.json`) y editables desde el panel. Cada paso conecta su salida con la
+entrada de otro usando referencias `$paso.salida`:
+
+| Paso | Qué hace |
+|---|---|
+| `copy` | el agente escribe titular/guion/caption/prompts con TODO el contexto de marca |
+| `image` | imagen IA premium con QA visual y dirección de arte |
+| `animate` | anima la imagen (image-to-video Kling/Veo vía fal) |
+| `tts` | voz ElevenLabs con timestamps |
+| `subtitles` | subtítulos .ass sincronizados + titular/CTA |
+| `music` | música de la biblioteca o descarga CC0 automática |
+| `avatar` | personaje que habla: retrato+voz → **OmniHuman** (fal) o guion → HeyGen |
+| `assemble` | ensamblado ffmpeg: aspecto, subtítulos, logo de marca, mezcla voz+música |
+
+Incluye dos presets listos: **Reel: imagen IA animada** (imagen → animarla → voz → subs → música →
+marca) y **Personaje presentador** (la IA crea un personaje, le pone tu guion con voz y lo anima
+hablando). Aparecen como formatos al Generar, y se regeneran/editan como cualquier pieza.
 
 ## Publicación en redes
 
@@ -236,8 +277,9 @@ Requisitos para Meta:
 1. Cuenta de Instagram **Business** ligada a una Página de Facebook.
 2. App en [Meta for Developers](https://developers.facebook.com) con permisos
    `instagram_content_publish`, `pages_manage_posts`.
-3. En `.env`: `INSTAGRAM_ACCESS_TOKEN` (token de página de larga duración),
-   `INSTAGRAM_BUSINESS_ACCOUNT_ID`, `FACEBOOK_PAGE_ID`.
+3. Credenciales: `INSTAGRAM_ACCESS_TOKEN` (token de página de larga duración),
+   `INSTAGRAM_BUSINESS_ACCOUNT_ID`, `FACEBOOK_PAGE_ID` — en el `.env` **o directamente desde el
+   panel** (Ajustes → Conexiones; se guardan cifradas, el `.env` tiene prioridad).
 4. Para publicar, los assets deben estar en R2/S3 (`ASSET_STORE=s3`) — Meta descarga la media
    desde una URL temporal firmada.
 
@@ -275,16 +317,19 @@ En Windows: `scripts/install-schedule.ps1` registra la tarea diaria en el Progra
 
 ```
 content-bot/
-├── config/              # brand.json (identidad), brand.md, content-strategy.md, calendar.json
+├── config/              # brand.json (identidad), brand.md, content-strategy.md, calendar.json,
+│   └── workflows/       # workflows personalizables (JSON de pasos encadenados)
 ├── knowledge/           # company, products, processes, faqs, voice.json  ← tu contexto
-├── assets/brand/        # tu logo
+├── assets/brand/        # tu logo         assets/music/  ← biblioteca de pistas (auto-descarga CC0)
 ├── remotion/            # composición React del video por código (motion)
 ├── src/
 │   ├── index.ts         # CLI
 │   ├── providers/       # llm (⭐ multi-agente/API), vision (QA), images (fal/openai/gemini),
-│   │                    # fal, elevenlabs, heygen, music
+│   │                    # fal (imagen/i2v/OmniHuman), elevenlabs, heygen, music
 │   ├── pipeline/        # un generador por formato + planner + visualQA + dispatch
-│   ├── lib/             # brandConfig, artDirection, designPoster, brand (logo), srt, capabilities
+│   ├── workflows/       # motor de workflows (engine + pasos)
+│   ├── lib/             # brandConfig, artDirection, skills, musicLibrary, users, agentProfile,
+│   │                    # companySecrets, auditLog, contextFiles, srt, capabilities…
 │   ├── publish/         # meta (IG/FB) + orquestador
 │   ├── queue/ web/ scheduler/
 ├── ARCHITECTURE.md · DEPLOY.md · CLAUDE.md · .env.example

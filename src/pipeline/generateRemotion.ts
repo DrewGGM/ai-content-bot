@@ -14,6 +14,7 @@ import { bundle } from "@remotion/bundler";
 import { selectComposition, renderMedia } from "@remotion/renderer";
 import { textToSpeechWithTimestamps } from "../providers/elevenlabs.js";
 import { generateMusic } from "../providers/music.js";
+import { obtainMusic } from "../lib/musicLibrary.js";
 import { alignmentToAss } from "../lib/srt.js";
 import { applyPronunciation, fixSubtitleText } from "../lib/pronunciation.js";
 import { audioDuration } from "./assembleVideo.js";
@@ -26,7 +27,24 @@ const REMOTION_ENTRY = join(ROOT, "remotion", "index.ts");
 const FPS = 30;
 
 export type Aspect = "reel" | "square" | "feed";
-export type AudioMode = "voice" | "music" | "silent";
+export type AudioMode = "voice" | "voice_music" | "music" | "silent";
+
+/**
+ * Resuelve la pista de fondo: 1º la BIBLIOTECA local (assets/music — la IA elige según la
+ * pieza), 2º si está vacía la IA BUSCA Y DESCARGA una pista CC0 (sin copyright) de Openverse,
+ * 3º generación con ElevenLabs Music (si hay key), 4º null (sin música).
+ */
+async function resolveMusic(outDir: string, durSec: number, brief: string, brandName: string): Promise<string | null> {
+  const local = await obtainMusic(brief);
+  if (local) return local;
+  if (process.env.ELEVENLABS_API_KEY) {
+    console.log("  → música generada (ElevenLabs — biblioteca vacía)...");
+    const dest = join(outDir, "music.mp3");
+    await generateMusic({ prompt: `Upbeat, modern, clean branding background music for ${brandName}. Positive, corporate, no vocals.`, durationSec: durSec, dest });
+    return dest;
+  }
+  return null;
+}
 
 function run(cmd: string, args: string[], cwd: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -68,7 +86,9 @@ function logoDataUri(): string {
 
 export async function generateRemotion(
   copy: RemotionCopy,
-  opts: { platform: string; aspect: Aspect; audio: AudioMode; voiceId?: string },
+  // musicTrack: ruta de una pista CONCRETA (p. ej. descargada de una URL que pegó el
+  // usuario al generar/editar) — tiene prioridad sobre la elección automática de la IA.
+  opts: { platform: string; aspect: Aspect; audio: AudioMode; voiceId?: string; musicTrack?: string },
   createdAt: string,
 ): Promise<QueueItem> {
   const outDir = join(ROOT, "assets", "output", copy.slug);
@@ -79,7 +99,7 @@ export async function generateRemotion(
   // 1) Voz + subtítulos (si aplica) → determina la duración.
   let voicePath: string | undefined;
   let durationFrames: number;
-  if (opts.audio === "voice") {
+  if (opts.audio === "voice" || opts.audio === "voice_music") {
     if (!opts.voiceId) throw new Error("El modo voz necesita un voiceId (ElevenLabs).");
     console.log("  → voz + timestamps (ElevenLabs)...");
     voicePath = join(outDir, "voice.mp3");
@@ -108,14 +128,43 @@ export async function generateRemotion(
   await renderMedia({ composition, serveUrl, codec: "h264", outputLocation: visuals, inputProps });
 
   // 3) Audio + ensamblado final con ffmpeg (cwd = outDir para rutas relativas).
-  if (opts.audio === "voice") {
+  const durSec = durationFrames / FPS;
+  const brief = `${copy.headline}. ${(copy.chips ?? []).join(", ")}. ${copy.caption?.slice(0, 200) ?? ""}`;
+  const fadeSt = Math.max(0, durSec - 1.2).toFixed(2);
+
+  if (opts.audio === "voice_music") {
+    // Voz + subtítulos + música de fondo mezclada BAJA (la IA elige la pista de la biblioteca).
+    const track = opts.musicTrack ?? await resolveMusic(outDir, durSec, brief, brand.name);
+    if (track) {
+      console.log("  → ensamblando (voz + subtítulos + música de fondo)...");
+      await run("ffmpeg", [
+        "-y", "-i", "visuals.mp4", "-i", "voice.mp3", "-stream_loop", "-1", "-i", track,
+        "-filter_complex",
+        `[0:v]ass=subs.ass[v];[2:a]volume=0.22,afade=t=out:st=${fadeSt}:d=1.2[m];[1:a][m]amix=inputs=2:duration=first:normalize=0[a]`,
+        "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+        "-t", String(durSec), "reel.mp4",
+      ], outDir);
+    } else {
+      console.warn("  ⚠ sin música disponible (biblioteca vacía y sin ELEVENLABS_API_KEY) — sale solo con voz");
+      await run("ffmpeg", ["-y", "-i", "visuals.mp4", "-i", "voice.mp3", "-filter_complex", "[0:v]ass=subs.ass[v]", "-map", "[v]", "-map", "1:a", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "reel.mp4"], outDir);
+    }
+  } else if (opts.audio === "voice") {
     console.log("  → ensamblando (voz + subtítulos)...");
     await run("ffmpeg", ["-y", "-i", "visuals.mp4", "-i", "voice.mp3", "-filter_complex", "[0:v]ass=subs.ass[v]", "-map", "[v]", "-map", "1:a", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "reel.mp4"], outDir);
   } else if (opts.audio === "music") {
-    console.log("  → música de fondo (ElevenLabs)...");
-    const durSec = durationFrames / FPS;
-    await generateMusic({ prompt: `Upbeat, modern, clean branding background music for ${brand.name}. Positive, corporate, no vocals.`, durationSec: durSec, dest: join(outDir, "music.mp3") });
-    await run("ffmpeg", ["-y", "-i", "visuals.mp4", "-i", "music.mp3", "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-shortest", "-af", `afade=t=out:st=${Math.max(0, durSec - 1.2).toFixed(2)}:d=1.2`, "reel.mp4"], outDir);
+    const track = opts.musicTrack ?? await resolveMusic(outDir, durSec, brief, brand.name);
+    if (track) {
+      console.log("  → ensamblando (música de fondo)...");
+      await run("ffmpeg", [
+        "-y", "-i", "visuals.mp4", "-stream_loop", "-1", "-i", track,
+        "-filter_complex", `[1:a]volume=0.9,afade=t=out:st=${fadeSt}:d=1.2[a]`,
+        "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac",
+        "-t", String(durSec), "reel.mp4",
+      ], outDir);
+    } else {
+      console.warn("  ⚠ sin música disponible (sube pistas a assets/music o configura ELEVENLABS_API_KEY) — sale silencioso");
+      copyFileSync(visuals, videoPath);
+    }
   } else {
     copyFileSync(visuals, videoPath);
   }

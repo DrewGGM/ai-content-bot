@@ -37,7 +37,12 @@ import {
   listBrandAssets, readBrandAsset, saveBrandAsset, setBrandLogo,
 } from "../lib/contextFiles.js";
 import { listModels } from "../lib/modelCatalog.js";
+import { listMusic, saveMusic, deleteMusic } from "../lib/musicLibrary.js";
 import { audit, readAudit } from "../lib/auditLog.js";
+import { readStyleOverride, saveStyleOverride, defaultArtDirection } from "../lib/artDirection.js";
+import { listInstalledSkills, setSkillEnabled, uploadSkill, deleteSkill } from "../lib/skills.js";
+import { listCompanySecrets, setCompanySecret, deleteCompanySecret, applyCompanySecrets } from "../lib/companySecrets.js";
+import { listWorkflows, readWorkflow, saveWorkflow, deleteWorkflow, workflowTemplate } from "../workflows/engine.js";
 
 const brand = loadBrandConfig();
 
@@ -247,14 +252,14 @@ const FORMAT_LABELS: Record<string, string> = {
   motion: "Video (Remotion) — animado por código, sin fal",
   ugc: "UGC — avatar HeyGen",
 };
-function startJob(user: User, format: Format, topic: string, platform?: string, extra?: { aspect?: any; audio?: any }): Job {
+function startJob(user: User, format: Format, topic: string, platform?: string, extra?: { aspect?: any; audio?: any; musicUrl?: string }): Job {
   const job: Job = { id: randomBytes(6).toString("hex"), format, topic, status: "running", started: Date.now(), user: user.name };
   audit(user.name, "generar", `${format} · ${topic}`);
   jobs.unshift(job);
   if (jobs.length > 20) jobs.length = 20;
   // fire-and-forget: la generación sigue en segundo plano; el front hace polling de /jobs.
   runWithProfile(activeProfileFor(user), () =>
-    createContent({ format, topic, ...(platform ? { platform } : {}), ...(extra?.aspect ? { aspect: extra.aspect } : {}), ...(extra?.audio ? { audio: extra.audio } : {}) })
+    createContent({ format, topic, ...(platform ? { platform } : {}), ...(extra?.aspect ? { aspect: extra.aspect } : {}), ...(extra?.audio ? { audio: extra.audio } : {}), ...(extra?.musicUrl ? { musicUrl: extra.musicUrl } : {}) })
   )
     .then((item) => { job.status = "done"; job.itemId = item.id; })
     .catch((e) => { job.status = "error"; job.error = String(e?.message ?? e); });
@@ -274,7 +279,7 @@ function startEditJob(user: User, item: QueueItem, instruction: string): Job {
 }
 
 // Regenera el VISUAL (imagen/video) de una pieza con la instrucción, reusando su id/carpeta.
-function startRegenJob(user: User, item: QueueItem, instruction: string, extra?: { aspect?: any; audio?: any }): Job {
+function startRegenJob(user: User, item: QueueItem, instruction: string, extra?: { aspect?: any; audio?: any; musicUrl?: string }): Job {
   const slug = item.dir.split(/[\\/]/).filter(Boolean).pop() || item.topic || item.id;
   const job: Job = { id: randomBytes(6).toString("hex"), format: item.format, topic: `regenerar: ${instruction}`, status: "running", started: Date.now(), user: user.name };
   audit(user.name, "regenerar visual", `${item.id} · ${instruction.slice(0, 120)}`);
@@ -289,6 +294,7 @@ function startRegenJob(user: User, item: QueueItem, instruction: string, extra?:
       reuse: { slug, createdAt: item.createdAt },
       ...(extra?.aspect ? { aspect: extra.aspect } : {}),
       ...(extra?.audio ? { audio: extra.audio } : {}),
+      ...(extra?.musicUrl ? { musicUrl: extra.musicUrl } : {}),
     })
   )
     .then((it) => { job.status = "done"; job.itemId = it.id; })
@@ -538,7 +544,12 @@ async function page(user: User): Promise<string> {
   const settingsBtn = `<a class="logout" href="/settings" title="Ajustes: tu agente IA, contexto y usuarios">${icon("gear")}<span>Ajustes</span></a>`;
 
   const genFormats = availableFormats();
-  const fmtOptions = genFormats.map((f) => `<option value="${f}">${esc(FORMAT_LABELS[f] ?? f)}</option>`).join("");
+  const wfs = listWorkflows();
+  const fmtOptions =
+    genFormats.map((f) => `<option value="${f}">${esc(FORMAT_LABELS[f] ?? f)}</option>`).join("") +
+    (wfs.length
+      ? `<optgroup label="Workflows (personalizables en Ajustes)">${wfs.map((w) => `<option value="workflow:${esc(w.name)}">${esc(w.title)}</option>`).join("")}</optgroup>`
+      : "");
   const platOptions = ["", "instagram", "facebook", "tiktok", "linkedin"]
     .map((p) => `<option value="${p}">${p ? p[0].toUpperCase() + p.slice(1) : "Automática"}</option>`).join("");
 
@@ -572,7 +583,7 @@ async function page(user: User): Promise<string> {
     .tab .n{font-family:'Fira Code',monospace;font-size:11px;padding:1px 8px;border-radius:99px;
       background:#ffffff1a;min-width:22px;text-align:center}
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px;
-      padding:8px 26px 40px;max-width:1560px;margin:0 auto}
+      padding:8px 26px 40px;max-width:1560px;margin:0 auto;align-items:start}
     .card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);
       border-radius:18px;overflow:hidden;display:flex;flex-direction:column;
       box-shadow:0 10px 34px #0007;transition:transform .2s,border-color .2s,box-shadow .2s}
@@ -714,8 +725,15 @@ async function page(user: User): Promise<string> {
           <option value="reel">Reel 9:16</option><option value="square">Cuadrado 1:1</option><option value="feed">Feed 4:5</option>
         </select></div>
         <div><label for="genAudio">Audio</label><select id="genAudio">
-          <option value="voice">Con voz + subtítulos</option><option value="music">Sin voz + música</option><option value="silent">Silencioso</option>
+          <option value="voice_music">Voz + música de fondo</option>
+          <option value="voice">Con voz + subtítulos</option>
+          <option value="music">Solo música (IA elige de tu biblioteca)</option>
+          <option value="silent">Silencioso</option>
         </select></div>
+      </div>
+      <div id="genMusicRow" style="display:none;margin-top:10px">
+        <label for="genMusicUrl">URL de música (opcional)</label>
+        <input id="genMusicUrl" type="url" placeholder="Pega el link directo de una pista (mp3/ogg/wav) — si lo dejas vacío, la IA elige/descarga una libre">
       </div>
       <div class="modal-err" id="genErr"></div>
       <div class="modal-actions">
@@ -738,8 +756,15 @@ async function page(user: User): Promise<string> {
           <option value="reel">Reel 9:16</option><option value="square">Cuadrado 1:1</option><option value="feed">Feed 4:5</option>
         </select></div>
         <div><label for="editAudio">Audio</label><select id="editAudio">
-          <option value="voice">Con voz + subtítulos</option><option value="music">Sin voz + música</option><option value="silent">Silencioso</option>
+          <option value="voice_music">Voz + música de fondo</option>
+          <option value="voice">Con voz + subtítulos</option>
+          <option value="music">Solo música (IA elige de tu biblioteca)</option>
+          <option value="silent">Silencioso (quitar la música)</option>
         </select></div>
+      </div>
+      <div id="editMusicRow" style="display:none;margin-top:10px">
+        <label for="editMusicUrl">URL de música (opcional)</label>
+        <input id="editMusicUrl" type="url" placeholder="Pega el link directo de una pista para usarla de fondo — vacío = la IA elige/descarga una libre">
       </div>
       <div class="modal-err" id="editErr"></div>
       <div class="modal-actions">
@@ -845,7 +870,13 @@ async function page(user: User): Promise<string> {
 
     var LOADER=${JSON.stringify(icon("loader"))},CHECK=${JSON.stringify(icon("check"))},XIC=${JSON.stringify(icon("x"))},TRASH=${JSON.stringify(icon("trash"))};
     function ce(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-    function onGenFormat(){document.getElementById('genVideoOpts').style.display=(document.getElementById('genFormat').value==='motion')?'flex':'none'}
+    function onGenFormat(){
+      var f=document.getElementById('genFormat').value;
+      var v=(f==='motion');var wf=(f.indexOf('workflow:')===0);
+      document.getElementById('genVideoOpts').style.display=(v||wf)?'flex':'none';
+      document.getElementById('genAudio').parentElement.style.display=wf?'none':'block';
+      document.getElementById('genMusicRow').style.display=v?'block':'none';
+    }
     function openGen(){document.getElementById('genErr').textContent='';onGenFormat();document.getElementById('genModal').classList.add('show');setTimeout(function(){document.getElementById('genTopic').focus()},50)}
     function closeGen(){document.getElementById('genModal').classList.remove('show')}
     document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeGen();closeEdit();closeSched();closePub();closeCf()}});
@@ -855,18 +886,23 @@ async function page(user: User): Promise<string> {
       var platform=document.getElementById('genPlatform').value;
       var aspect=document.getElementById('genAspect').value;
       var audio=document.getElementById('genAudio').value;
+      var musicUrl=document.getElementById('genMusicUrl').value.trim();
       var err=document.getElementById('genErr'),btn=document.getElementById('genSubmit');
       if(!topic){err.textContent='Escribe un tema.';return}
+      if(musicUrl&&!/^https?:\\/\\//.test(musicUrl)){err.textContent='La URL de música debe empezar por http(s)://';return}
       btn.disabled=true;
-      fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({format:format,topic:topic,platform:platform,aspect:aspect,audio:audio})})
+      fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({format:format,topic:topic,platform:platform,aspect:aspect,audio:audio,musicUrl:musicUrl})})
         .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
         .then(function(x){btn.disabled=false;if(!x.ok){err.textContent=(x.d&&x.d.error)||'Error al generar';return}closeGen();document.getElementById('genTopic').value='';pollJobs()})
         .catch(function(){btn.disabled=false;err.textContent='Error de red'});
     }
     var editId=null,editFmt='';
     function onEditRegen(){
-      var show=document.getElementById('editRegen').checked&&editFmt==='motion';
+      var isVid=(editFmt==='motion'||editFmt.indexOf('workflow:')===0);
+      var show=document.getElementById('editRegen').checked&&isVid;
       document.getElementById('editVideoOpts').style.display=show?'flex':'none';
+      document.getElementById('editAudio').parentElement.style.display=(editFmt==='motion')?'block':'none';
+      document.getElementById('editMusicRow').style.display=(show&&editFmt==='motion')?'block':'none';
     }
     function openEdit(btn,id){
       editId=id;editFmt=(btn.closest('.card')||{dataset:{}}).dataset.format||'';
@@ -879,10 +915,12 @@ async function page(user: User): Promise<string> {
     function submitEdit(){
       var prompt=document.getElementById('editPrompt').value.trim();
       var regen=document.getElementById('editRegen').checked;
+      var musicUrl=document.getElementById('editMusicUrl').value.trim();
       var err=document.getElementById('editErr'),btn=document.getElementById('editSubmit');
       if(!prompt){err.textContent='Escribe qué cambiar.';return}
+      if(regen&&musicUrl&&!/^https?:\\/\\//.test(musicUrl)){err.textContent='La URL de música debe empezar por http(s)://';return}
       btn.disabled=true;
-      fetch('/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editId,prompt:prompt,regen:regen,aspect:document.getElementById('editAspect').value,audio:document.getElementById('editAudio').value})})
+      fetch('/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editId,prompt:prompt,regen:regen,aspect:document.getElementById('editAspect').value,audio:document.getElementById('editAudio').value,musicUrl:musicUrl})})
         .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
         .then(function(x){btn.disabled=false;if(!x.ok){err.textContent=(x.d&&x.d.error)||'Error al editar';return}closeEdit();pollJobs()})
         .catch(function(){btn.disabled=false;err.textContent='Error de red'});
@@ -1247,6 +1285,149 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // Biblioteca de música (solo admin): pistas libres que la IA asigna a los videos.
+  if (url.pathname === "/api/music/list" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, listMusic());
+    return;
+  }
+  if (url.pathname === "/api/music/upload" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req, 22 * 1024 * 1024); // pista hasta 15 MB (base64 ≈ ×1.37)
+      saveMusic(String(b.name ?? ""), String(b.dataBase64 ?? ""));
+      audit(user.name, "música subida", String(b.name ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/music/delete" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      deleteMusic(String(b.name ?? ""));
+      audit(user.name, "música eliminada", String(b.name ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // Estilos de diseño (solo admin): prompt de dirección de arte personalizable.
+  if (url.pathname === "/api/style" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, { override: readStyleOverride(), default: defaultArtDirection() });
+    return;
+  }
+  if (url.pathname === "/api/style" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      saveStyleOverride(String(b.content ?? ""));
+      audit(user.name, "estilos de diseño", String(b.content ?? "").trim() ? "personalizados" : "restaurados al default");
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // Skills de la IA (solo admin): activar/desactivar, subir propias, eliminar.
+  if (url.pathname === "/api/skills" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, listInstalledSkills());
+    return;
+  }
+  if (url.pathname === "/api/skills/toggle" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      setSkillEnabled(String(b.dir ?? ""), !!b.enabled);
+      audit(user.name, "skill " + (b.enabled ? "activada" : "desactivada"), String(b.dir ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/skills/upload" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req, 1024 * 1024);
+      uploadSkill(String(b.slug ?? ""), String(b.content ?? ""));
+      audit(user.name, "skill subida", String(b.slug ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/skills/delete" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      deleteSkill(String(b.dir ?? ""));
+      audit(user.name, "skill eliminada", String(b.dir ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // Conexiones de empresa (solo admin): tokens de redes sociales y keys de proveedores.
+  // Write-only: nunca se devuelven valores, solo si están configuradas y su origen.
+  if (url.pathname === "/api/social" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, listCompanySecrets());
+    return;
+  }
+  if (url.pathname === "/api/social" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      setCompanySecret(String(b.key ?? ""), String(b.value ?? ""));
+      audit(user.name, "credencial de empresa guardada", String(b.key ?? "")); // solo el NOMBRE, jamás el valor
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/social/delete" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      deleteCompanySecret(String(b.key ?? ""));
+      audit(user.name, "credencial de empresa eliminada", String(b.key ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // Workflows de contenido personalizables (lista para todos; edición solo admin).
+  if (url.pathname === "/api/workflows" && req.method === "GET") {
+    sendJson(res, 200, { workflows: listWorkflows(), template: isAdmin ? workflowTemplate() : undefined });
+    return;
+  }
+  if (url.pathname === "/api/workflows/get" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const def = readWorkflow(String(url.searchParams.get("name") ?? ""));
+      sendJson(res, 200, { name: def.name, content: JSON.stringify(def, null, 2) });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/workflows/save" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req, 256 * 1024);
+      saveWorkflow(String(b.name ?? ""), String(b.content ?? ""));
+      audit(user.name, "workflow guardado", String(b.name ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/workflows/delete" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      deleteWorkflow(String(b.name ?? ""));
+      audit(user.name, "workflow eliminado", String(b.name ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
   // Usuarios del panel (solo admin).
   if (url.pathname === "/api/users" && req.method === "GET") {
     if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
@@ -1292,13 +1473,18 @@ const server = createServer(async (req, res) => {
     req.on("data", (c) => (body += c));
     req.on("end", () => {
       try {
-        const { format, topic, platform, aspect, audio } = JSON.parse(body);
+        const { format, topic, platform, aspect, audio, musicUrl } = JSON.parse(body);
         const t = String(topic ?? "").trim();
         if (!t) { res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Falta el tema" })); return; }
-        if (!availableFormats().includes(format)) { res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Formato no disponible" })); return; }
+        const isWf = typeof format === "string" && format.startsWith("workflow:");
+        if (isWf) {
+          const wfName = format.slice("workflow:".length);
+          if (!listWorkflows().some((w) => w.name === wfName)) { res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Ese workflow no existe" })); return; }
+        } else if (!availableFormats().includes(format)) { res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Formato no disponible" })); return; }
         const aspOk = ["reel", "square", "feed"].includes(aspect) ? aspect : undefined;
-        const audOk = ["voice", "music", "silent"].includes(audio) ? audio : undefined;
-        const job = startJob(user, format as Format, t, typeof platform === "string" && platform ? platform : undefined, { aspect: aspOk, audio: audOk });
+        const audOk = ["voice", "voice_music", "music", "silent"].includes(audio) ? audio : undefined;
+        const mUrl = typeof musicUrl === "string" && /^https?:\/\//.test(musicUrl.trim()) ? musicUrl.trim().slice(0, 500) : undefined;
+        const job = startJob(user, format as Format, t, typeof platform === "string" && platform ? platform : undefined, { aspect: aspOk, audio: audOk, musicUrl: mUrl });
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ jobId: job.id }));
       } catch { res.writeHead(400).end(); }
     });
@@ -1394,14 +1580,15 @@ const server = createServer(async (req, res) => {
     req.on("data", (c) => (body += c));
     req.on("end", async () => {
       try {
-        const { id, prompt, regen, aspect, audio } = JSON.parse(body);
+        const { id, prompt, regen, aspect, audio, musicUrl } = JSON.parse(body);
         const p = String(prompt ?? "").trim();
         if (!p) { res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Falta la instrucción" })); return; }
         const item = (await listQueue()).find((i) => i.id === id);
         if (!item) { res.writeHead(404, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Pieza no encontrada" })); return; }
         const aspOk = ["reel", "square", "feed"].includes(aspect) ? aspect : undefined;
-        const audOk = ["voice", "music", "silent"].includes(audio) ? audio : undefined;
-        const job = regen ? startRegenJob(user, item, p, { aspect: aspOk, audio: audOk }) : startEditJob(user, item, p);
+        const audOk = ["voice", "voice_music", "music", "silent"].includes(audio) ? audio : undefined;
+        const mUrl = typeof musicUrl === "string" && /^https?:\/\//.test(musicUrl.trim()) ? musicUrl.trim().slice(0, 500) : undefined;
+        const job = regen ? startRegenJob(user, item, p, { aspect: aspOk, audio: audOk, musicUrl: mUrl }) : startEditJob(user, item, p);
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ jobId: job.id }));
       } catch { res.writeHead(400).end(); }
     });
@@ -1495,6 +1682,9 @@ const server = createServer(async (req, res) => {
     .then((html) => res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(html))
     .catch((e) => res.writeHead(500).end(String(e?.message ?? e)));
 });
+
+// Credenciales de empresa guardadas desde el panel → process.env (el .env del servidor manda).
+applyCompanySecrets();
 
 server.listen(env.panelPort, () => {
   const auth = hasUsers() ? "(login por usuario activado)" : "(primer arranque: crea el admin en el navegador)";

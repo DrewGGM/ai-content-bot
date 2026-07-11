@@ -99,7 +99,7 @@ async function main() {
         carousel: "carousel", post: "post", motion: "motion", ugc: "ugc", reel: "reel", generate: "reel", design: "design", deck: "deck",
       };
       const format = map[command];
-      if (!availableFormats().includes(format)) {
+      if (!(availableFormats() as string[]).includes(format)) {
         console.log(`⚠️  El formato "${format}" no está disponible ahora mismo (falta un proveedor).`);
         console.log(`   Revisa capacidades: npm run capabilities`);
         console.log(`   Alternativa sin API de imagen: npm run design -- "${arg}"`);

@@ -28,6 +28,11 @@ const BRAND_RULES =
   "No inventes datos ni cifras que no estén en el contexto. No prometas resultados garantizados. " +
   "El texto va en el idioma de la marca (por defecto español); los prompts de imagen van en inglés.";
 
+/** Pregunta al agente con TODO el contexto de marca + skills (lo usan también los workflows). */
+export async function askBrandJson(prompt: string, instruction?: string): Promise<any> {
+  return ask(prompt, instruction);
+}
+
 async function ask(prompt: string, instruction?: string): Promise<any> {
   const { raw } = loadBrandContext();
   const guidance = loadSkillGuidance();

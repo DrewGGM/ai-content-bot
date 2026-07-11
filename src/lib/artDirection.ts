@@ -4,7 +4,39 @@
  * de imagen — NO código CSS. Incluye un MOTOR DE VARIACIÓN: cada pieza elige un "vibe"
  * distinto (siempre dentro de la paleta de marca) para que el contenido se vea premium y variado.
  */
+import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadBrandConfig } from "./brandConfig.js";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+// Override editable desde el panel (Ajustes → Estilos de diseño). Si existe y tiene
+// contenido, REEMPLAZA la dirección de arte por defecto (la paleta de marca se añade
+// siempre). Se lee en cada llamada: el panel lo puede cambiar en caliente.
+const OVERRIDE_FILE = join(ROOT, "config", "art-direction.md");
+
+function styleOverride(): string {
+  try {
+    return readFileSync(OVERRIDE_FILE, "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+
+/** Para el panel: override actual ("" = usando el default). */
+export function readStyleOverride(): string {
+  return styleOverride();
+}
+
+/** Guarda el override desde el panel; contenido vacío = volver al default. */
+export function saveStyleOverride(content: string): void {
+  if (Buffer.byteLength(content, "utf8") > 64 * 1024) throw new Error("Demasiado largo (máx 64 KB)");
+  if (!content.trim()) {
+    try { unlinkSync(OVERRIDE_FILE); } catch { /* no existía */ }
+    return;
+  }
+  writeFileSync(OVERRIDE_FILE, content.trim() + "\n");
+}
 
 // Arquetipos de acabado/composición (textura, luz, tipografía) — todos compatibles con la marca.
 const VIBES = [
@@ -20,7 +52,24 @@ function pick(seed: string): string {
   return VIBES[h % VIBES.length];
 }
 
+/** Texto por defecto (visible en el panel como punto de partida para personalizar). */
+export function defaultArtDirection(): string {
+  return artDirectionDefault("ejemplo");
+}
+
 export function artDirection(seed = ""): string {
+  const { colors } = loadBrandConfig();
+  const custom = styleOverride();
+  if (custom) {
+    return (
+      `ART DIRECTION (mandatory — defined by the brand team):\n${custom}\n` +
+      `Brand palette (always honor): gradient ${colors.primary} → ${colors.primaryLight} → ${colors.accent} over a ${colors.dark} base.`
+    );
+  }
+  return artDirectionDefault(seed);
+}
+
+function artDirectionDefault(seed: string): string {
   const { colors } = loadBrandConfig();
   const vibe = pick(seed || String(Date.now()));
   return (

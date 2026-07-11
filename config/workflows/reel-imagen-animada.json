@@ -1,0 +1,34 @@
+{
+  "name": "reel-imagen-animada",
+  "title": "Reel: imagen IA animada",
+  "description": "Imagen IA premium → animada con image-to-video → voz + subtítulos → música de fondo → ensamblado con el logo de la marca.",
+  "steps": [
+    {
+      "id": "copy",
+      "type": "copy",
+      "input": { "tema": "$input.topic" },
+      "options": { "fields": ["headline", "voiceover", "cta", "caption", "hashtags", "image_prompt", "motion_prompt"] }
+    },
+    { "id": "img", "type": "image", "input": { "prompt": "$copy.image_prompt" } },
+    {
+      "id": "anim",
+      "type": "animate",
+      "input": { "image": "$img.image", "prompt": "$copy.motion_prompt" },
+      "options": { "duration": 5 }
+    },
+    { "id": "voz", "type": "tts", "input": { "text": "$copy.voiceover" } },
+    {
+      "id": "subs",
+      "type": "subtitles",
+      "input": { "alignment": "$voz.alignment", "headline": "$copy.headline", "cta": "$copy.cta" }
+    },
+    { "id": "musica", "type": "music", "input": { "brief": "$input.topic" } },
+    {
+      "id": "final",
+      "type": "assemble",
+      "input": { "video": "$anim.video", "voice": "$voz.audio", "music": "$musica.track", "ass": "$subs.ass" },
+      "options": { "brandOverlay": true }
+    }
+  ],
+  "output": { "video": "$final.video", "caption": "$copy.caption" }
+}
