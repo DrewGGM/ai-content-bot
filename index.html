@@ -151,9 +151,11 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
 
 <div class="banner" id="banner"><div class="banner-in">
   <b>Demo estática.</b> Las piezas son <b>reales</b> (generadas por el bot para la marca de ejemplo <b>Lyroo</b>);
-  los botones simulan el panel real. Novedades: <b>panel multi-usuario</b> — cada miembro del equipo entra con su
-  cuenta y conecta <b>su propio agente de IA</b> (login de Claude Code guiado, API keys cifradas), la empresa se
-  configura 100% desde Ajustes (contexto, prompts propios, logos) y toda acción pide <b>confirmación</b>.
+  los botones simulan el panel real. Novedades: <b>workflows personalizables</b> que encadenan IAs
+  (imagen → animarla → voz → subtítulos → música → marca, o un <b>personaje IA</b> que presenta tu producto),
+  <b>música de fondo</b> que la IA descarga sola (CC0, sin copyright) o desde una URL tuya, <b>estilos de diseño
+  y skills</b> configurables, credenciales de redes cifradas desde el panel, y <b>panel multi-usuario</b> — cada
+  miembro conecta <b>su propio agente de IA</b>. Toda acción pide <b>confirmación</b>.
   Explora <b>⚙ Ajustes</b> arriba. Código: <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">github.com/DrewGGM/ai-content-bot</a>.
 </div></div>
 
@@ -244,6 +246,61 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
       <input type="file" style="flex:1;min-width:200px;padding:9px" onclick="event.preventDefault();toast('Simulación · en el bot real sube SVG/PNG/JPG/WebP (máx 3 MB) a assets/brand/')">
       <label class="check" style="white-space:nowrap"><input type="checkbox" checked> <span>usar como logo principal</span></label>
       <button class="btn-primary sm" onclick="toast('Simulación · logo subido y marcado como principal (config/brand.json → logoFile)')">✓ Subir</button>
+    </div>
+  </section>
+
+  <section class="scard">
+    <h2>🧩 Workflows de contenido <span class="role">admin</span></h2>
+    <p class="sub">Pipelines <b>personalizables</b> que encadenan IAs paso a paso (estilo ElevenLabs Flows):
+    <code>copy → image → animate → tts → subtitles → music → assemble</code>, conectando salidas con
+    <code>$paso.salida</code>. Incluye presets <b>"Reel: imagen IA animada"</b> y <b>"Personaje presentador"</b>
+    (la IA crea un personaje, le pone tu guion con voz y lo anima hablando con OmniHuman). Se eligen como
+    formato al Generar y se editan como JSON aquí mismo.</p>
+    <table><thead><tr><th>Workflow</th><th>Descripción</th><th></th></tr></thead><tbody>
+      <tr><td style="white-space:nowrap;font-weight:600">Reel: imagen IA animada</td>
+        <td style="color:var(--mut);font-size:12px">Imagen premium → image-to-video → voz + subtítulos → música → logo</td>
+        <td style="text-align:right"><button class="btn-ghost sm" onclick="toast('Simulación · en el bot real se edita el JSON de pasos aquí')">Editar</button></td></tr>
+      <tr><td style="white-space:nowrap;font-weight:600">Personaje presentador</td>
+        <td style="color:var(--mut);font-size:12px">Retrato IA + guion con voz → personaje hablando (OmniHuman) → subtítulos + marca</td>
+        <td style="text-align:right"><button class="btn-ghost sm" onclick="toast('Simulación · en el bot real se edita el JSON de pasos aquí')">Editar</button></td></tr>
+    </tbody></table>
+    <div class="filebar mt">
+      <input placeholder="nombre-del-workflow" style="width:200px">
+      <button class="btn-primary sm" onclick="toast('Simulación · crea un workflow desde plantilla y edítalo en JSON')">✓ Crear desde plantilla</button>
+    </div>
+  </section>
+
+  <section class="scard">
+    <h2>🎵 Música de fondo <span class="role">admin</span></h2>
+    <p class="sub"><b>Automático:</b> si la biblioteca está vacía, la IA <b>busca y descarga sola</b> una pista
+    <b>CC0 (sin copyright)</b> de Openverse acorde al tema, con créditos guardados. También puedes subir pistas
+    o <b>pegar la URL de una canción</b> al generar/editar una pieza — y quitar o cambiar la música al editar.</p>
+    <div class="filebar">
+      <input type="file" style="flex:1;min-width:200px;padding:9px" onclick="event.preventDefault();toast('Simulación · sube mp3/wav/m4a/ogg (máx 15 MB) — la IA elige por el nombre del archivo')">
+      <button class="btn-primary sm" onclick="toast('Simulación · pista subida — la IA ya puede elegirla para los videos')">✓ Subir pista</button>
+    </div>
+  </section>
+
+  <section class="scard">
+    <h2>🎨 Estilos de diseño y skills <span class="role">admin</span></h2>
+    <p class="sub">El <b>prompt de dirección de arte</b> de las imágenes es personalizable (texturas, luz,
+    tipografía — la paleta de marca se aplica siempre), y puedes <b>subir tus propias skills</b> (.md con tu
+    playbook) y activar/desactivar cuáles usa la IA al escribir.</p>
+    <textarea rows="4" spellcheck="false" placeholder="(vacío = estilo premium por defecto del bot)"></textarea>
+    <div class="filebar mt">
+      <button class="btn-primary sm" onclick="toast('Simulación · estilos guardados — aplican desde la próxima generación')">✓ Guardar estilos</button>
+      <button class="btn-ghost sm" onclick="toast('Simulación · sube un .md con tu playbook y la IA lo usa en cada generación')">⬆ Subir skill</button>
+    </div>
+  </section>
+
+  <section class="scard">
+    <h2>🔗 Conexiones — redes y proveedores <span class="role">admin</span></h2>
+    <p class="sub">Tokens para publicar (Instagram/Facebook/LinkedIn/TikTok/X) y keys de proveedores de medios
+    (fal, ElevenLabs, HeyGen) se configuran desde el panel: <b>cifradas</b> (AES-256-GCM) y de <b>solo
+    escritura</b> — nunca se muestran. Si una variable ya está en el .env del servidor, esa manda.</p>
+    <div class="filebar">
+      <input type="password" placeholder="INSTAGRAM_ACCESS_TOKEN — pegar valor…" style="flex:1;min-width:220px">
+      <button class="btn-primary sm" onclick="toast('Simulación · credencial guardada cifrada — ya está activa para publicar')">✓ Guardar</button>
     </div>
   </section>
 
