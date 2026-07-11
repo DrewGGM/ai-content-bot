@@ -565,7 +565,7 @@ async function page(user: User): Promise<string> {
   <style>${baseCss()}
     header{position:sticky;top:0;z-index:var(--z-header);backdrop-filter:blur(14px);
       background:color-mix(in srgb,var(--bg) 82%,transparent);border-bottom:1px solid var(--line)}
-    .hbar{max-width:1560px;margin:0 auto;padding:14px 26px;display:flex;align-items:center;gap:14px}
+    .hbar{max-width:1560px;margin:0 auto;padding:14px 26px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
     .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px}
     .brand .badge{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
       background:linear-gradient(135deg,var(--violet),var(--mint));color:#fff}
@@ -636,7 +636,7 @@ async function page(user: User): Promise<string> {
     .hbtn{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border:1px solid var(--line);border-radius:10px;cursor:pointer;
       font-family:inherit;font-size:13px;font-weight:600;color:var(--txt);background:transparent;transition:border-color .2s,color .2s}
     .hbtn:hover{border-color:var(--violet2);color:#fff}
-    @media (max-width:640px){.hbtn span{display:none}}
+    @media (max-width:900px){.hbtn span,.gen-btn span,.logout span{display:none}.gen-btn,.logout{padding:9px 11px}.hbtn{padding:9px 10px}}
     .del-btn{flex:none!important;width:46px;background:#1a1d33;border:1px solid var(--line);color:var(--mut)}
     .del-btn:hover{border-color:#c0392b;color:#e05252}
     .modal{position:fixed;inset:0;background:#000b;display:none;align-items:flex-start;justify-content:center;z-index:var(--z-lb);padding:8vh 16px;backdrop-filter:blur(4px)}

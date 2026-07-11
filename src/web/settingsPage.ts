@@ -141,6 +141,8 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     .basset .bname{font-size:11px;color:var(--mut);font-family:'Fira Code',monospace;word-break:break-all;text-align:center}
     .basset .cur-tag{font-size:10.5px;font-weight:800;color:var(--mint)}
     table{width:100%;border-collapse:collapse;font-size:13.5px}
+    .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .tw table{min-width:480px}
     th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
     th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5px}
     .role{font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;background:#ffffff12}
@@ -155,7 +157,8 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     .cf-body{color:var(--mut);font-size:13.5px;line-height:1.6;margin:0 0 14px}
     .cf-body b{color:var(--txt)}
     .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
-    @media (max-width:640px){main{padding:14px}.card{padding:16px}.model-row{flex-wrap:wrap}}
+    @media (max-width:640px){main{padding:14px}.card{padding:16px}.model-row{flex-wrap:wrap}
+      .hbar{padding:12px 14px;gap:9px}.who{display:none}.brand{font-size:15px}}
   </style></head><body>
   <header><div class="hbar">
     <a class="back" href="/">${icon("back")}<span>Panel</span></a>
@@ -273,7 +276,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     créditos. También puedes subir pistas propias — la IA elige por el <b>nombre del archivo</b>
     (<code>energetico-tech.mp3</code>, <code>calmado-acustico.mp3</code>). Se usan en los modos
     "Voz + música de fondo" y "Solo música" de los videos.</p>
-    <table><thead><tr><th>Pista</th><th>Tamaño</th><th></th></tr></thead><tbody id="mRows"></tbody></table>
+    <div class="tw"><table><thead><tr><th>Pista</th><th>Tamaño</th><th></th></tr></thead><tbody id="mRows"></tbody></table></div>
     <div class="filebar mt">
       <input type="file" id="musicFile" accept=".mp3,.wav,.m4a,.ogg,.aac" style="flex:1;min-width:220px;padding:9px">
       <button class="btn-primary sm" onclick="uploadMusic(this)">${icon("check")} Subir pista</button>
@@ -302,7 +305,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     <p class="sub">Conocimiento que la IA usa al escribir y planear (playbooks de community manager, guías de diseño,
     tácticas propias). <b>Activa/desactiva</b> cuáles usa, o <b>sube las tuyas</b>: un archivo <code>.md</code> con el
     playbook (se inyecta en cada generación mientras esté activa). Las preinstaladas no se pueden eliminar, solo desactivar.</p>
-    <table><thead><tr><th></th><th>Skill</th><th>Descripción</th><th></th></tr></thead><tbody id="skRows"></tbody></table>
+    <div class="tw"><table><thead><tr><th></th><th>Skill</th><th>Descripción</th><th></th></tr></thead><tbody id="skRows"></tbody></table></div>
     <div class="filebar mt">
       <input id="skSlug" placeholder="nombre-de-la-skill" style="width:200px" autocomplete="off">
       <input type="file" id="skFile" accept=".md,.txt" style="flex:1;min-width:220px;padding:9px">
@@ -318,7 +321,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     <b>personaje IA</b> que presenta tu producto. Se eligen como formato al Generar. Pasos disponibles:
     <code>copy</code>, <code>image</code>, <code>animate</code>, <code>tts</code>, <code>subtitles</code>,
     <code>music</code>, <code>avatar</code>, <code>assemble</code> — conecta salidas con <code>$paso.salida</code>.</p>
-    <table><thead><tr><th>Workflow</th><th>Descripción</th><th></th></tr></thead><tbody id="wfRows"></tbody></table>
+    <div class="tw"><table><thead><tr><th>Workflow</th><th>Descripción</th><th></th></tr></thead><tbody id="wfRows"></tbody></table></div>
     <div class="filebar mt">
       <input id="wfName" placeholder="nombre-del-workflow" style="width:220px" autocomplete="off">
       <button class="btn-primary sm" onclick="newWf()">${icon("check")} Crear desde plantilla</button>
@@ -339,7 +342,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     <p class="sub">Tokens para <b>publicar</b> (Instagram/Facebook/LinkedIn/TikTok/X) y keys de los <b>proveedores de
     medios</b> (fal, ElevenLabs, HeyGen). Se guardan <b>cifradas</b> en el servidor y son de solo escritura (nunca se
     muestran). Si una variable ya está en el <code>.env</code> del servidor, esa manda.</p>
-    <table><thead><tr><th>Credencial</th><th>Estado</th><th style="min-width:260px"></th><th></th></tr></thead><tbody id="snRows"></tbody></table>
+    <div class="tw"><table><thead><tr><th>Credencial</th><th>Estado</th><th style="min-width:260px"></th><th></th></tr></thead><tbody id="snRows"></tbody></table></div>
     <div class="msg" id="snMsg"></div>
   </section>
 
@@ -347,7 +350,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     <h2>${icon("users")} Usuarios del panel</h2>
     <p class="sub">Cada usuario entra con su contraseña y configura su propio agente/cuenta de IA.
     Los admin además gestionan usuarios y el contexto de empresa.</p>
-    <table><thead><tr><th>Usuario</th><th>Rol</th><th>Creado</th><th></th></tr></thead><tbody id="uRows"></tbody></table>
+    <div class="tw"><table><thead><tr><th>Usuario</th><th>Rol</th><th>Creado</th><th></th></tr></thead><tbody id="uRows"></tbody></table></div>
     <div class="row mt">
       <div><label>Nombre</label><input id="uName" autocomplete="off"></div>
       <div><label>Contraseña</label><input id="uPass" type="password" autocomplete="new-password"></div>
@@ -362,7 +365,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     <p class="sub">Registro de acciones del panel y del cron (generaciones, aprobaciones, publicaciones, credenciales,
     usuarios, contexto…). Se guarda en <code>data/audit.jsonl</code>; nunca registra valores de credenciales.</p>
     <div class="filebar"><button class="btn-ghost sm" onclick="loadAudit()">${icon("loader")} Actualizar</button></div>
-    <div style="max-height:420px;overflow:auto">
+    <div class="tw" style="max-height:420px;overflow:auto">
     <table><thead><tr><th style="white-space:nowrap">Cuándo</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
     <tbody id="auditRows"></tbody></table></div>
   </section>` : ""}
@@ -429,6 +432,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     var ENV_FIELD_KEYS=['ANTHROPIC_BASE_URL','LLM_BASE_URL','AGENT_CMD'];
     var modelsLoadedFor=null;
 
+    var claudeConn=false; // cuenta de Claude ya conectada (token guardado)
     function applyProviderUI(byUser){
       var p=document.getElementById('pProvider').value;
       var ui=PUI[p]||PUI[''];
@@ -436,7 +440,11 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       document.getElementById('wizard').style.display=ui.wizard?'':'none';
       document.getElementById('isolateWrap').style.display=ui.isolate?'':'none';
       document.querySelectorAll('.secret').forEach(function(el){
-        el.style.display=ui.secrets.indexOf(el.dataset.key)>=0?'':'none';
+        var show=ui.secrets.indexOf(el.dataset.key)>=0;
+        // Con la cuenta conectada por el asistente, el campo manual del token sobra
+        // (el wizard ya muestra "conectada" y permite reconectar/reemplazar).
+        if(show&&el.dataset.key==='CLAUDE_CODE_OAUTH_TOKEN'&&ui.wizard&&claudeConn)show=false;
+        el.style.display=show?'':'none';
       });
       ENV_FIELD_KEYS.forEach(function(k){
         document.getElementById('ef-'+k).style.display=ui.fields.indexOf(k)>=0?'':'none';
@@ -479,6 +487,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       });
       // Estado del wizard: si ya hay token, se muestra "cuenta conectada" y el botón pasa a "reconectar".
       var conn=!!(p.secrets&&p.secrets.CLAUDE_CODE_OAUTH_TOKEN);
+      claudeConn=conn;
       var cm=document.getElementById('wzConnMsg'),cn=document.getElementById('wzConnNo'),sb=document.getElementById('wzStartBtn');
       if(cm)cm.style.display=conn?'':'none';
       if(cn)cn.style.display=conn?'none':'';
