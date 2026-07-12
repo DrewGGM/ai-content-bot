@@ -38,7 +38,10 @@ npm run schedule            # scheduler diario (usa el planner)
   **Nano Banana Pro (Gemini 3 Pro) en modo edit** con el logo real + imágenes de referencia
   (`assets/brand/references/`) como ancla de estilo — ese modelo escribe texto y reproduce el
   logo con calidad. Prompt maestro en `artDirection.brandPosterPrompt`; pipeline
-  `generateBrandPost.ts`; referencias `src/lib/brandReferences.ts`. Solo funciona con `IMAGE_PROVIDER=fal`.
+  `generateBrandPost.ts`; referencias `src/lib/brandReferences.ts`. Multi-proveedor por
+  `IMAGE_PROVIDER`: `fal` (Nano Banana Pro edit, mejor texto/logo), `openai` (gpt-image-1
+  `/images/edits`), `leonardo` (init-image + controlnets Style Reference — buena estética pero
+  texto/logo pobres). `generateImage()` pasa `referenceImages` al proveedor; `gemini` aún no.
 - El **copy/planner/edición/QA** pasan SIEMPRE por `askLLM/askLLMJson` de `src/providers/llm.ts`
   (enruta por `COPY_PROVIDER`). No llamar CLIs ni APIs de LLM directamente desde los pipelines.
   Default: Claude Code (`claude -p`) con la suscripción, sin API key.

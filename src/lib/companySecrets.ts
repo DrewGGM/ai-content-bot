@@ -32,6 +32,8 @@ export const COMPANY_KEYS: CompanyKeyDef[] = [
   { key: "X_API_KEY", label: "API key", group: "X (Twitter)" },
   { key: "X_ACCESS_TOKEN", label: "Access token", group: "X (Twitter)" },
   { key: "FAL_KEY", label: "fal.ai key (imagen/video)", group: "Proveedores de medios" },
+  { key: "OPENAI_API_KEY", label: "OpenAI (gpt-image-1)", group: "Proveedores de medios" },
+  { key: "LEONARDO_API_KEY", label: "Leonardo.Ai (imagen)", group: "Proveedores de medios" },
   { key: "ELEVENLABS_API_KEY", label: "ElevenLabs (voz/música)", group: "Proveedores de medios" },
   { key: "HEYGEN_API_KEY", label: "HeyGen (avatares)", group: "Proveedores de medios" },
 ];

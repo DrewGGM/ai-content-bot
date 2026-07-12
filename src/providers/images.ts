@@ -7,8 +7,9 @@ import { withArtDirection } from "../lib/artDirection.js";
 import { falImage } from "./fal.js";
 import { openaiImage } from "./openaiImage.js";
 import { geminiImage } from "./geminiImage.js";
+import { leonardoImage } from "./leonardoImage.js";
 
-export type ImageProvider = "fal" | "openai" | "gemini";
+export type ImageProvider = "fal" | "openai" | "gemini" | "leonardo";
 
 export interface ImageOpts {
   prompt: string;
@@ -31,6 +32,8 @@ export async function generateImage(opts: ImageOpts): Promise<string> {
       return openaiImage(base);
     case "gemini":
       return geminiImage(base);
+    case "leonardo":
+      return leonardoImage(base);
     case "fal":
     default:
       return falImage(base);

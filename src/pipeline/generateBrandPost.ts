@@ -44,7 +44,9 @@ export async function generateBrandPost(copy: BrandPostCopy, platform: string, c
     iconLabels: copy.iconLabels,
   });
 
-  console.log(`  → post de marca (Nano Banana Pro edit · ${refs.length} referencia(s)) + QA visual...`);
+  const prov = (process.env.IMAGE_PROVIDER ?? "fal").toLowerCase();
+  const provLabel = prov === "openai" ? "gpt-image-1 edit" : prov === "leonardo" ? "Leonardo image guidance" : "Nano Banana Pro edit";
+  console.log(`  → post de marca (${provLabel} · ${refs.length} referencia(s)) + QA visual...`);
   await generateReviewedImage({
     prompt, dest: imagePath, aspect: "1:1", resolution: "2K",
     referenceImages: refs, rawPrompt: true,

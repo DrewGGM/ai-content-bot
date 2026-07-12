@@ -272,12 +272,19 @@ hablando). Aparecen como formatos al Generar, y se regeneran/editan como cualqui
 ## Posts de marca premium (imágenes consistentes con tu logo)
 
 El formato **`brandpost`** produce posts 1:1 estilo agencia (logo, titular, subtítulo, mockup del
-producto, iconos, CTA y web — todo en la imagen) con **Nano Banana Pro (Gemini 3 Pro) en modo edit**.
-La clave de la consistencia: sube **1-4 imágenes de referencia** en Ajustes → *Referencias de estilo*
-(por ejemplo un post que te encantó). El bot les pasa esas referencias + tu **logo real** al modelo,
-que **copia la línea gráfica** en cada pieza nueva — igual que darle referencias a ChatGPT. Requiere
-`IMAGE_PROVIDER=fal`. Las referencias viven en `assets/brand/references/` (contenido de marca, no se
-versiona). El prompt maestro se afina desde Ajustes → *Estilos de diseño*.
+producto, iconos, CTA y web — todo en la imagen). La clave de la consistencia: sube **1-4 imágenes de
+referencia** en Ajustes → *Referencias de estilo* (por ejemplo un post que te encantó). El bot les
+pasa esas referencias + tu **logo real** al modelo, que **copia la línea gráfica** en cada pieza nueva
+— igual que darle referencias a ChatGPT. Las referencias viven en `assets/brand/references/`
+(contenido de marca, no se versiona). El prompt maestro se afina desde Ajustes → *Estilos de diseño*.
+
+Funciona con tres proveedores (`IMAGE_PROVIDER`), con distinta calidad de **texto/logo**:
+
+| Proveedor | Modelo | Texto y logo | Recomendado para |
+|---|---|---|---|
+| `fal` | Nano Banana Pro (Gemini 3 Pro) edit | ✅ excelente | **posts de marca** (default) |
+| `openai` | gpt-image-1 (edits) | ✅ muy bueno | alternativa a fal |
+| `leonardo` | image guidance (controlnets) | ⚠️ estética sí, texto no | fondos/estilo, no texto |
 
 ## Publicación en redes
 
