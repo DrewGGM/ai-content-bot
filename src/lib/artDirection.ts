@@ -106,6 +106,27 @@ export interface BrandPosterFields {
   iconLabels?: string[]; // 2-3 chips/iconos pequeños opcionales
 }
 
+/**
+ * Variante SIN TEXTO para proveedores que no saben escribir (ej. Leonardo): pide solo el VISUAL
+ * premium de marca (fondo, patrones, mockup) dejando espacio limpio a la izquierda y arriba —
+ * el titular, logo, subtítulo, CTA y web se hornean por código encima (overlayBrandPoster).
+ */
+export function brandPosterVisualPrompt(f: BrandPosterFields): string {
+  const b = loadBrandConfig();
+  const c = b.colors;
+  const custom = styleOverride();
+  return [
+    `Design a premium, square 1080x1080 background visual for the software brand "${b.name}" — modern minimal high-end SaaS aesthetic (Stripe, Linear, Vercel, Framer, Apple).`,
+    `Palette: primary purple ${c.primary}, violet ${c.primaryLight}, cyan accent ${c.accent}, on a very light near-white background. Soft smooth gradients, subtle abstract tech patterns, lots of whitespace.`,
+    f.visualIdea
+      ? `Hero visual on the RIGHT half: ${f.visualIdea}. Render it as a realistic, crisp product UI mockup (laptop or phone showing a clean dashboard with charts and KPIs), on-brand colors, believable and detailed.`
+      : `Hero visual on the RIGHT half: a realistic laptop/phone showing a clean on-brand dashboard with charts and KPIs.`,
+    `CRITICAL: leave the LEFT half and the TOP-LEFT corner as CLEAN EMPTY negative space (just the soft background) for text and logo to be added later.`,
+    `Absolutely NO text, NO letters, NO words, NO logo, NO watermark, NO UI labels large enough to read — only the styled scene and the product mockup. Uncluttered, premium, advertising-grade.`,
+    custom ? `\nEXTRA BRAND STYLE GUIDANCE:\n${custom}` : ``,
+  ].filter(Boolean).join("\n");
+}
+
 export function brandPosterPrompt(f: BrandPosterFields): string {
   const b = loadBrandConfig();
   const c = b.colors;

@@ -282,9 +282,13 @@ Funciona con tres proveedores (`IMAGE_PROVIDER`), con distinta calidad de **text
 
 | Proveedor | Modelo | Texto y logo | Recomendado para |
 |---|---|---|---|
-| `fal` | Nano Banana Pro (Gemini 3 Pro) edit | ✅ excelente | **posts de marca** (default) |
-| `openai` | gpt-image-1 (edits) | ✅ muy bueno | alternativa a fal |
-| `leonardo` | image guidance (controlnets) | ⚠️ estética sí, texto no | fondos/estilo, no texto |
+| `fal` | Nano Banana Pro (Gemini 3 Pro) edit | ✅ texto+logo horneados por la IA | **posts de marca** (default) |
+| `openai` | gpt-image-1 (edits) | ✅ texto+logo horneados por la IA | alternativa a fal |
+| `leonardo` | image guidance (controlnets) | estética fotográfica; **texto+logo por código encima** | look fotográfico |
+
+Como Leonardo no sabe escribir texto ni reproducir logos, con `IMAGE_PROVIDER=leonardo` el bot le
+pide **solo el visual sin texto** y luego **hornea el titular, subtítulo, CTA, logo y web por código**
+(SVG + sharp, nítido) — `overlayBrandPoster()`.
 
 ## Publicación en redes
 
