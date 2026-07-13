@@ -79,6 +79,9 @@ npm run schedule            # scheduler diario (usa el planner)
   devuelve 0), descarga por URL del usuario (`downloadMusicFromUrl`), créditos en `credits.json`.
 - **Credenciales de empresa** (tokens de redes + keys de proveedores): `src/lib/companySecrets.ts`,
   cifradas y aplicadas a process.env al arrancar server/scheduler; el `.env` del servidor manda.
+- **Ajustes no-secretos** (ej. `IMAGE_PROVIDER`): `src/lib/appSettings.ts` — configurables desde el
+  panel (Ajustes → Conexiones), `data/app-settings.json` sin cifrar, aplicados a process.env con la
+  misma prioridad del `.env`. Endpoints `/api/settings`.
 - **Estilos**: `config/art-direction.md` (si existe) reemplaza la dirección de arte por defecto —
   editable en el panel. Skills activables/subibles desde el panel (`config/skills.json`).
 - **Deploy**: Opción A (VPS + cron + Cloudflare Tunnel) documentada en `DEPLOY.md`.

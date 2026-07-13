@@ -14,9 +14,11 @@ import { listUsers, getUserById } from "../lib/users.js";
 import { activeProfileFor } from "../lib/agentProfile.js";
 import { runWithProfile, type ActiveProfile } from "../lib/activeProfile.js";
 import { applyCompanySecrets } from "../lib/companySecrets.js";
+import { applyAppSettings } from "../lib/appSettings.js";
 
-// Credenciales guardadas desde el panel (proveedores/redes) también aplican al cron.
+// Credenciales + ajustes guardados desde el panel (proveedores/redes, IMAGE_PROVIDER) al cron.
 applyCompanySecrets();
+applyAppSettings();
 
 /**
  * SCHEDULE_USER (env, opcional): nombre o id de un usuario del panel — la pieza diaria del

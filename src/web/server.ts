@@ -44,6 +44,7 @@ import { readStyleOverride, saveStyleOverride, defaultArtDirection } from "../li
 import { listBrandReferences, saveBrandReference, deleteBrandReference, readBrandReference, listBrandProducts, saveBrandProduct, deleteBrandProduct, readBrandProduct } from "../lib/brandReferences.js";
 import { listInstalledSkills, setSkillEnabled, uploadSkill, deleteSkill } from "../lib/skills.js";
 import { listCompanySecrets, setCompanySecret, deleteCompanySecret, applyCompanySecrets } from "../lib/companySecrets.js";
+import { listAppSettings, setAppSetting, applyAppSettings } from "../lib/appSettings.js";
 import { listWorkflows, readWorkflow, saveWorkflow, deleteWorkflow, workflowTemplate } from "../workflows/engine.js";
 
 const brand = loadBrandConfig();
@@ -1466,6 +1467,23 @@ const server = createServer(async (req, res) => {
     sendJson(res, 200, listCompanySecrets());
     return;
   }
+
+  // Ajustes no-secretos (solo admin): IMAGE_PROVIDER, etc.
+  if (url.pathname === "/api/settings" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, listAppSettings());
+    return;
+  }
+  if (url.pathname === "/api/settings" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      setAppSetting(String(b.key ?? ""), String(b.value ?? ""));
+      audit(user.name, "ajuste", `${String(b.key ?? "")} = ${String(b.value ?? "")}`);
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
   if (url.pathname === "/api/social" && req.method === "POST") {
     if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
     try {
@@ -1778,6 +1796,7 @@ const server = createServer(async (req, res) => {
 
 // Credenciales de empresa guardadas desde el panel → process.env (el .env del servidor manda).
 applyCompanySecrets();
+applyAppSettings(); // IMAGE_PROVIDER y demás ajustes no-secretos del panel
 
 server.listen(env.panelPort, () => {
   const auth = hasUsers() ? "(login por usuario activado)" : "(primer arranque: crea el admin en el navegador)";

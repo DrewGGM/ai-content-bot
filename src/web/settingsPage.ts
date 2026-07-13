@@ -389,9 +389,10 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
   <section class="card">
     <h2>${icon("send")} Conexiones — redes sociales y proveedores <span class="role">admin</span></h2>
     <p class="sub">Tokens para <b>publicar</b> (Instagram/Facebook/LinkedIn/TikTok/X) y keys de los <b>proveedores de
-    medios</b> (fal, ElevenLabs, HeyGen). Se guardan <b>cifradas</b> en el servidor y son de solo escritura (nunca se
-    muestran). Si una variable ya está en el <code>.env</code> del servidor, esa manda.</p>
-    <div class="tw"><table><thead><tr><th>Credencial</th><th>Estado</th><th style="min-width:260px"></th><th></th></tr></thead><tbody id="snRows"></tbody></table></div>
+    medios</b> (fal, OpenAI, Leonardo, ElevenLabs, HeyGen). Se guardan <b>cifradas</b> en el servidor y son de solo
+    escritura (nunca se muestran). Si una variable ya está en el <code>.env</code> del servidor, esa manda.</p>
+    <div id="appSettings"></div>
+    <div class="tw" style="margin-top:14px"><table><thead><tr><th>Credencial</th><th>Estado</th><th style="min-width:260px"></th><th></th></tr></thead><tbody id="snRows"></tbody></table></div>
     <div class="msg" id="snMsg"></div>
   </section>
 
@@ -967,6 +968,29 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       });
     }
     loadWf();
+
+    // ---- Ajustes no-secretos (proveedor de imagen) ----
+    function loadAppSettings(){
+      if(!IS_ADMIN)return;
+      j('/api/settings').then(function(list){
+        document.getElementById('appSettings').innerHTML=list.map(function(s){
+          var opts=s.options.map(function(o){return '<option value="'+o+'"'+(o===s.value?' selected':'')+'>'+o+'</option>'}).join('');
+          var envNote=s.source==='env'?' <span style="color:var(--mut);font-size:11.5px">● fijado en el .env del servidor</span>':'';
+          return '<div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px">'+
+            '<label style="display:block;margin-bottom:6px">'+ceHtml(s.label)+envNote+'</label>'+
+            '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
+              '<select data-key="'+s.key+'" onchange="saveAppSetting(this)" style="width:auto;min-width:160px"'+(s.source==='env'?' disabled':'')+'>'+opts+'</select>'+
+              '<span style="color:var(--mut);font-size:12px;flex:1;min-width:200px">'+ceHtml(s.help)+'</span>'+
+            '</div></div>';
+        }).join('');
+      }).catch(function(){});
+    }
+    function saveAppSetting(sel){
+      j('/api/settings',{key:sel.dataset.key,value:sel.value})
+        .then(function(){msg('snMsg','Guardado — aplica desde la próxima generación.',true)})
+        .catch(function(e){msg('snMsg',e.message,false);loadAppSettings()});
+    }
+    loadAppSettings();
 
     // ---- Conexiones: redes sociales y proveedores (admin) ----
     function loadSocial(){
