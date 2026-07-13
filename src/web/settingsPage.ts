@@ -256,6 +256,27 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
   </section>
 
   <section class="card">
+    <h2>${icon("spark")} Identidad y colores de marca <span class="role">admin</span></h2>
+    <p class="sub">Nombre, eslogan, web, rubro y <b>paleta de colores</b> de la marca. El bot los usa en TODAS las
+    piezas (prompts, degradados, subtítulos, posts de marca). Se guarda en <code>config/brand.json</code> y aplica
+    desde la próxima generación.</p>
+    <div class="row">
+      <div><label>Nombre</label><input id="idName" autocomplete="off"></div>
+      <div><label>Rubro (ej. restaurante, software)</label><input id="idIndustry" autocomplete="off"></div>
+    </div>
+    <div class="row mt">
+      <div><label>Eslogan</label><input id="idTagline" autocomplete="off"></div>
+      <div><label>Sitio web (ej. tumarca.com)</label><input id="idWebsite" autocomplete="off"></div>
+    </div>
+    <label style="margin-top:14px">Paleta de colores</label>
+    <div id="idColors" style="display:flex;flex-wrap:wrap;gap:14px"></div>
+    <div class="filebar mt">
+      <button class="btn-primary sm" onclick="saveIdentity(this)">${icon("check")} Guardar identidad</button>
+    </div>
+    <div class="msg" id="idMsg"></div>
+  </section>
+
+  <section class="card">
     <h2>${icon("post")} Marca y logos</h2>
     <p class="sub">Sube tus logos a <code>assets/brand/</code> y elige cuál usa el bot como <b>logo principal</b>
     (se superpone en imágenes y videos). Ideal: <b>SVG o PNG con fondo transparente y texto claro</b> (va sobre
@@ -635,6 +656,38 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     loadCtxList();
 
     // ---- Marca y logos (admin) ----
+    // ---- Identidad y colores (admin) ----
+    var COLOR_DEFS=[['primary','Primario'],['primaryLight','Primario claro'],['accent','Acento'],['dark','Oscuro (fondo)'],['light','Claro']];
+    function loadIdentity(){
+      if(!IS_ADMIN)return;
+      j('/api/brand/identity').then(function(d){
+        document.getElementById('idName').value=d.name||'';
+        document.getElementById('idTagline').value=d.tagline||'';
+        document.getElementById('idWebsite').value=d.website||'';
+        document.getElementById('idIndustry').value=d.industry||'';
+        var cols=d.colors||{};
+        document.getElementById('idColors').innerHTML=COLOR_DEFS.filter(function(cd){return cols[cd[0]]!==undefined||cd[0]!=='light'}).map(function(cd){
+          var val=cols[cd[0]]||'#5b2dc4';
+          return '<div style="text-align:center"><label style="font-size:11px">'+cd[1]+'</label>'+
+            '<input type="color" data-k="'+cd[0]+'" value="'+ceHtml(val)+'" style="width:52px;height:38px;padding:2px;border-radius:8px;cursor:pointer">'+
+            '<div style="font-family:monospace;font-size:10px;color:var(--mut)">'+ceHtml(val)+'</div></div>';
+        }).join('');
+        document.querySelectorAll('#idColors input[type=color]').forEach(function(inp){
+          inp.oninput=function(){inp.nextElementSibling.textContent=inp.value};
+        });
+      }).catch(function(){});
+    }
+    function saveIdentity(btn){
+      var colors={};
+      document.querySelectorAll('#idColors input[type=color]').forEach(function(inp){colors[inp.dataset.k]=inp.value});
+      btn.disabled=true;
+      j('/api/brand/identity',{name:document.getElementById('idName').value,tagline:document.getElementById('idTagline').value,
+        website:document.getElementById('idWebsite').value,industry:document.getElementById('idIndustry').value,colors:colors})
+        .then(function(){btn.disabled=false;msg('idMsg','Identidad guardada — aplica desde la próxima generación.',true)})
+        .catch(function(e){btn.disabled=false;msg('idMsg',e.message,false)});
+    }
+    loadIdentity();
+
     function loadBrand(){
       if(!IS_ADMIN)return;
       j('/api/brand/assets').then(function(assets){

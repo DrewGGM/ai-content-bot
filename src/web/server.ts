@@ -35,6 +35,7 @@ import { ptySupported, startLogin, submitCode, loginStatus, cancelLogin } from "
 import {
   listContextFiles, readContextFile, writeContextFile, createContextFile, deleteContextFile,
   listBrandAssets, readBrandAsset, saveBrandAsset, setBrandLogo,
+  readBrandIdentity, saveBrandIdentity,
 } from "../lib/contextFiles.js";
 import { listModels } from "../lib/modelCatalog.js";
 import { listMusic, saveMusic, deleteMusic } from "../lib/musicLibrary.js";
@@ -1246,6 +1247,26 @@ const server = createServer(async (req, res) => {
       const b = await jsonBody(req);
       deleteContextFile(String(b.path ?? ""));
       audit(user.name, "contexto eliminado", String(b.path ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // Identidad de marca + paleta de colores (solo admin).
+  if (url.pathname === "/api/brand/identity" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, readBrandIdentity());
+    return;
+  }
+  if (url.pathname === "/api/brand/identity" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      saveBrandIdentity({
+        name: b.name, tagline: b.tagline, website: b.website, industry: b.industry, language: b.language,
+        colors: b.colors && typeof b.colors === "object" ? b.colors : undefined,
+      });
+      audit(user.name, "identidad de marca", "nombre/colores actualizados");
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;

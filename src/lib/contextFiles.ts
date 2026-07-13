@@ -144,3 +144,51 @@ export function setBrandLogo(name: string): void {
   cfg.logoFile = n;
   writeFileSync(path, JSON.stringify(cfg, null, 2) + "\n");
 }
+
+// ---------- Identidad de marca (nombre, tagline, web, rubro, colores) ----------
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+const COLOR_KEYS = ["primary", "primaryLight", "accent", "dark", "light"] as const;
+
+export interface BrandIdentity {
+  name: string;
+  tagline: string;
+  website: string;
+  industry: string;
+  language: string;
+  colors: Record<string, string>;
+}
+
+export function readBrandIdentity(): BrandIdentity {
+  let cfg: any = {};
+  try { cfg = JSON.parse(readFileSync(join(ROOT, "config", "brand.json"), "utf8")); } catch { /* defaults */ }
+  return {
+    name: String(cfg.name ?? ""),
+    tagline: String(cfg.tagline ?? ""),
+    website: String(cfg.website ?? ""),
+    industry: String(cfg.industry ?? ""),
+    language: String(cfg.language ?? "es"),
+    colors: cfg.colors ?? {},
+  };
+}
+
+/** Guarda identidad + paleta en config/brand.json (merge; valida hex). */
+export function saveBrandIdentity(patch: Partial<BrandIdentity>): void {
+  const path = join(ROOT, "config", "brand.json");
+  let cfg: any = {};
+  try { cfg = JSON.parse(readFileSync(path, "utf8")); } catch { /* nuevo */ }
+  if (patch.name !== undefined) cfg.name = String(patch.name).slice(0, 80);
+  if (patch.tagline !== undefined) cfg.tagline = String(patch.tagline).slice(0, 200);
+  if (patch.website !== undefined) cfg.website = String(patch.website).slice(0, 120);
+  if (patch.industry !== undefined) cfg.industry = String(patch.industry).slice(0, 60);
+  if (patch.language !== undefined) cfg.language = String(patch.language).slice(0, 8) || "es";
+  if (patch.colors) {
+    cfg.colors = cfg.colors ?? {};
+    for (const k of COLOR_KEYS) {
+      const v = patch.colors[k];
+      if (v === undefined) continue;
+      if (!HEX_RE.test(v)) throw new Error(`Color "${k}" inválido (usa #RRGGBB)`);
+      cfg.colors[k] = v.toLowerCase();
+    }
+  }
+  writeFileSync(path, JSON.stringify(cfg, null, 2) + "\n");
+}
