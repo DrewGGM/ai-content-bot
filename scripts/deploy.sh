@@ -4,7 +4,7 @@
 #
 # Variables opcionales (export antes de invocar, o dejar defaults):
 #   BOT_DIR  -> ruta del repo en el server   (default: $HOME/content-claude-bot)
-#   BRANCH   -> rama a desplegar              (default: main)
+#   BRANCH   -> rama a desplegar              (default: lyroo-demo)
 #   SERVICE  -> nombre del servicio systemd   (default: content-bot-panel)
 set -euo pipefail
 
@@ -16,9 +16,36 @@ echo "→ Deploy en $BOT_DIR (rama $BRANCH)"
 cd "$BOT_DIR"
 
 # El .env, queue.json, assets/output y logs son untracked: git reset --hard NO los toca.
+#
+# CONTENIDO DE MARCA EDITABLE DESDE EL PANEL (contexto, colores/identidad, logos, workflows,
+# skills): estos archivos SÍ están versionados, pero el panel los edita en el server. Para que
+# esas ediciones NO se pierdan con `git reset --hard`, se snapshotean antes y se restauran
+# después con OVERLAY: lo editado en el server manda, y git solo SIEMBRA los archivos que falten
+# (p. ej. una marca nueva o un preset nuevo). git deja de poder pisar/borrar contenido ya editado.
+PRESERVE=(knowledge config/brand.json config/brand.md config/content-strategy.md \
+          config/calendar.json config/platforms.json config/skills.json config/workflows assets/brand)
+SNAP="$(mktemp -d)"
+for p in "${PRESERVE[@]}"; do
+  if [ -e "$p" ]; then
+    mkdir -p "$SNAP/$(dirname "$p")"
+    cp -a "$p" "$SNAP/$p" 2>/dev/null || true
+  fi
+done
+
 git fetch --all --prune
 git checkout "$BRANCH"
 git reset --hard "origin/$BRANCH"
+
+# Restaura lo del panel por encima de la versión de git (overlay: no borra lo que git trae nuevo).
+for p in "${PRESERVE[@]}"; do
+  if [ -d "$SNAP/$p" ]; then
+    mkdir -p "$p"
+    cp -a "$SNAP/$p/." "$p/" 2>/dev/null || true
+  elif [ -e "$SNAP/$p" ]; then
+    cp -a "$SNAP/$p" "$p" 2>/dev/null || true
+  fi
+done
+rm -rf "$SNAP"
 
 echo "→ Instalando dependencias (npm ci)"
 npm ci --no-audit --no-fund

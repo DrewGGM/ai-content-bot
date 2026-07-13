@@ -173,8 +173,17 @@ Para S3 de AWS: usa el endpoint/región de AWS y un bucket con acceso público o
 
 El repo trae `.github/workflows/deploy.yml` + `scripts/deploy.sh`. Al hacer **push a
 `lyroo-demo`**, GitHub entra por SSH al VPS, hace `git reset --hard origin/lyroo-demo`,
-`npm ci` y reinicia el panel. El `.env`, `queue.json`, `assets/` y `logs/` son untracked →
+`npm ci` y reinicia el panel. El `.env`, `queue.json`, `assets/output` y `logs/` son untracked →
 **no se tocan** en el deploy.
+
+**Contenido de marca editado desde el panel** (contexto de empresa `knowledge/`, identidad y
+colores `config/brand.json`, tono `config/brand.md`, estrategia, logos `assets/brand/`, workflows,
+skills): aunque están versionados, `deploy.sh` los **snapshotea antes del reset y los restaura
+después con overlay** → lo que editaste en el panel **manda y sobrevive a los deploys**; git solo
+**siembra** los archivos que falten (una marca nueva, un preset nuevo). Consecuencia: en un server
+ya desplegado, editar esos archivos por **git deja de pisar** lo del panel — el contenido de marca
+se gestiona **desde el panel**. (El prompt de estilos `config/art-direction.md`, referencias,
+productos, música, credenciales y `app-settings.json` son untracked y ya sobrevivían.)
 
 ### 9.1 Llave SSH dedicada para el CI (en el VPS)
 ```bash
