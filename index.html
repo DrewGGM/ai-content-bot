@@ -155,9 +155,10 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
   <b>Demo estática.</b> Las piezas son <b>reales</b> (generadas por el bot para la marca de ejemplo <b>Lyroo</b>);
   los botones simulan el panel real. Novedades: <b>workflows personalizables</b> que encadenan IAs
   (imagen → animarla → voz → subtítulos → música → marca, o un <b>personaje IA</b> que presenta tu producto),
-  <b>música de fondo</b> que la IA descarga sola (CC0, sin copyright) o desde una URL tuya, <b>estilos de diseño
-  y skills</b> configurables, credenciales de redes cifradas desde el panel, y <b>panel multi-usuario</b> — cada
-  miembro conecta <b>su propio agente de IA</b>. Toda acción pide <b>confirmación</b>.
+  <b>posts de marca premium</b> (tu logo + fotos de tus productos reales horneados en la imagen, como el ejemplo de
+  agencia), <b>música de fondo</b> que la IA descarga sola (CC0, sin copyright), <b>identidad, paleta, estilos, skills
+  y credenciales</b> 100% configurables desde el panel, y <b>multi-usuario</b> — cada miembro conecta <b>su propio
+  agente de IA</b>. Toda acción pide <b>confirmación</b>.
   Explora <b>⚙ Ajustes</b> arriba. Código: <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">github.com/DrewGGM/ai-content-bot</a>.
 </div></div>
 
@@ -237,6 +238,51 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
       <button class="btn-ghost sm" onclick="createCtx()">✓ Crear archivo</button>
     </div>
     <div class="msg" id="ctxMsg"></div>
+  </section>
+
+  <section class="scard">
+    <h2>🎨 Identidad y colores de marca <span class="role">admin</span></h2>
+    <p class="sub">Nombre, eslogan, web, rubro y <b>paleta de colores</b>, todo desde el panel. El bot los usa en
+    TODAS las piezas (prompts, degradados, subtítulos, posts de marca). Se guarda en <code>config/brand.json</code>.</p>
+    <div class="row">
+      <div><label>Nombre</label><input value="Lyroo"></div>
+      <div><label>Rubro</label><input value="software" placeholder="restaurante, tienda, gym…"></div>
+    </div>
+    <div class="row mt">
+      <div><label>Eslogan</label><input value="Software a tu medida"></div>
+      <div><label>Sitio web</label><input value="lyroo.com.co"></div>
+    </div>
+    <label style="margin-top:14px">Paleta de colores</label>
+    <div style="display:flex;flex-wrap:wrap;gap:14px">
+      <div style="text-align:center"><label style="font-size:11px">Primario</label><input type="color" value="#5b2dc4" style="width:52px;height:38px;padding:2px;border-radius:8px;cursor:pointer"><div style="font-family:monospace;font-size:10px;color:var(--mut)">#5b2dc4</div></div>
+      <div style="text-align:center"><label style="font-size:11px">Primario claro</label><input type="color" value="#7b4ddb" style="width:52px;height:38px;padding:2px;border-radius:8px;cursor:pointer"><div style="font-family:monospace;font-size:10px;color:var(--mut)">#7b4ddb</div></div>
+      <div style="text-align:center"><label style="font-size:11px">Acento</label><input type="color" value="#00d4aa" style="width:52px;height:38px;padding:2px;border-radius:8px;cursor:pointer"><div style="font-family:monospace;font-size:10px;color:var(--mut)">#00d4aa</div></div>
+      <div style="text-align:center"><label style="font-size:11px">Oscuro</label><input type="color" value="#0f0f1a" style="width:52px;height:38px;padding:2px;border-radius:8px;cursor:pointer"><div style="font-family:monospace;font-size:10px;color:var(--mut)">#0f0f1a</div></div>
+    </div>
+    <div class="filebar mt"><button class="btn-primary sm" onclick="toast('Simulación · identidad y paleta guardadas — aplican desde la próxima generación')">✓ Guardar identidad</button></div>
+  </section>
+
+  <section class="scard">
+    <h2>🖼 Referencias de estilo (posts de marca) <span class="role">admin</span></h2>
+    <p class="sub">El secreto de la calidad "agencia": sube 1-4 <b>imágenes de ejemplo</b> del estilo que quieres. El
+    formato <b>"Post de marca premium"</b> se las pasa a Nano Banana Pro (o gpt-image-1) con tu logo y <b>copia esa
+    línea gráfica</b> en cada pieza — igual que darle referencias a ChatGPT. Logo, colores, tipografía y composición
+    consistentes en todo el feed.</p>
+    <div class="filebar">
+      <input type="file" style="flex:1;min-width:200px;padding:9px" onclick="event.preventDefault();toast('Simulación · sube 1-4 imágenes de estilo (un post que te encantó) a assets/brand/references/')">
+      <button class="btn-primary sm" onclick="toast('Simulación · referencia subida — el post de marca ya la usa como ancla de estilo')">✓ Subir referencia</button>
+    </div>
+  </section>
+
+  <section class="scard">
+    <h2>🍽 Fotos de producto <span class="role">admin</span></h2>
+    <p class="sub">Sube fotos de tus <b>productos, platos o artículos reales</b> (hasta 8) y el modelo los usa como
+    <b>protagonistas</b> de la imagen. Ej. un <b>restaurante</b> sube fotos de sus platos y el bot genera los posts
+    <b>con esos platos reales</b>, junto a tu logo y el texto. Sirve para cualquier rubro (fal / OpenAI).</p>
+    <div class="filebar">
+      <input type="file" style="flex:1;min-width:200px;padding:9px" onclick="event.preventDefault();toast('Simulación · sube fotos de tus platos/productos a assets/brand/products/')">
+      <button class="btn-primary sm" onclick="toast('Simulación · foto subida — el post de marca usará este producto real en la imagen')">✓ Subir foto</button>
+    </div>
   </section>
 
   <section class="scard">
