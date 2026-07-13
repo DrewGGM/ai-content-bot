@@ -12,6 +12,7 @@ export interface BrandConfig {
   ctaDefault: string;
   logoFile: string;
   website?: string; // opcional: se muestra al pie de los posts de marca (ej. "lyroo.com.co")
+  industry?: string; // opcional: rubro del negocio (ej. "restaurante", "software", "gimnasio")
   colors: { primary: string; primaryLight: string; accent: string; dark: string };
 }
 

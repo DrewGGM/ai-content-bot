@@ -40,7 +40,7 @@ import { listModels } from "../lib/modelCatalog.js";
 import { listMusic, saveMusic, deleteMusic } from "../lib/musicLibrary.js";
 import { audit, readAudit } from "../lib/auditLog.js";
 import { readStyleOverride, saveStyleOverride, defaultArtDirection } from "../lib/artDirection.js";
-import { listBrandReferences, saveBrandReference, deleteBrandReference, readBrandReference } from "../lib/brandReferences.js";
+import { listBrandReferences, saveBrandReference, deleteBrandReference, readBrandReference, listBrandProducts, saveBrandProduct, deleteBrandProduct, readBrandProduct } from "../lib/brandReferences.js";
 import { listInstalledSkills, setSkillEnabled, uploadSkill, deleteSkill } from "../lib/skills.js";
 import { listCompanySecrets, setCompanySecret, deleteCompanySecret, applyCompanySecrets } from "../lib/companySecrets.js";
 import { listWorkflows, readWorkflow, saveWorkflow, deleteWorkflow, workflowTemplate } from "../workflows/engine.js";
@@ -1344,6 +1344,41 @@ const server = createServer(async (req, res) => {
       const b = await jsonBody(req);
       deleteBrandReference(String(b.name ?? ""));
       audit(user.name, "referencia de marca eliminada", String(b.name ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // Fotos de producto (solo admin): platos/productos reales que el modelo usa como protagonistas.
+  if (url.pathname === "/api/products" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, listBrandProducts());
+    return;
+  }
+  if (url.pathname === "/api/products/file" && req.method === "GET") {
+    if (!isAdmin) { res.writeHead(403).end(); return; }
+    try {
+      const { buffer, mime } = readBrandProduct(url.searchParams.get("name") ?? "");
+      res.writeHead(200, { "Content-Type": mime, "Cache-Control": "no-cache" }).end(buffer);
+    } catch { res.writeHead(404).end("not found"); }
+    return;
+  }
+  if (url.pathname === "/api/products/upload" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req, 9 * 1024 * 1024);
+      saveBrandProduct(String(b.name ?? ""), String(b.dataBase64 ?? ""));
+      audit(user.name, "foto de producto subida", String(b.name ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/products/delete" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      deleteBrandProduct(String(b.name ?? ""));
+      audit(user.name, "foto de producto eliminada", String(b.name ?? ""));
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;

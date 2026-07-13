@@ -425,8 +425,8 @@ export interface BrandPostCopy {
 
 export async function generateBrandPostCopy(topic: string, instruction?: string): Promise<BrandPostCopy> {
   const data = await ask(
-    `Eres el director creativo de ${brand().name}. Crea el contenido de un POST DE MARCA premium (cuadrado 1:1, estilo SaaS moderno tipo Stripe/Linear) sobre: "${topic}".
-La imagen se diseña con IA a partir de referencias de marca; tú defines SOLO los textos (en el idioma de la marca) y qué mostrar como visual.
+    `Eres el director creativo de ${brand().name}. Crea el contenido de un POST DE MARCA premium (cuadrado 1:1, estilo publicitario de alta gama) sobre: "${topic}".
+La imagen se diseña con IA a partir de las referencias e imágenes de la marca; tú defines SOLO los textos (en el idioma de la marca) y qué mostrar como visual, ACORDE AL RUBRO del negocio (usa el contexto de marca).
 Devuelve ÚNICAMENTE un JSON válido (sin markdown):
 {
   "slug": "kebab-case-corto",
@@ -434,8 +434,8 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
   "headline": "titular principal potente y corto (4-8 palabras), en el idioma de la marca",
   "subline": "subtítulo de apoyo de 1 frase corta",
   "cta": "llamada a la acción corta y discreta (2-4 palabras)",
-  "visualIdea": "EN INGLÉS: qué mockup/visual de producto mostrar acorde al tema (ej. 'a laptop showing an electronic invoicing dashboard with DIAN status', 'a phone with a POS checkout screen', 'a sales analytics dashboard with charts')",
-  "iconLabels": ["2-3 etiquetas MUY cortas para chips con icono, en el idioma de la marca (ej. 'Facturación DIAN', 'POS', 'A medida')"],
+  "visualIdea": "EN INGLÉS: qué mostrar como PROTAGONISTA de la imagen, acorde al rubro (ej. restaurante: 'a beautifully plated gourmet dish on a rustic table'; tienda de ropa: 'a model wearing the featured jacket'; software: 'a laptop showing a clean dashboard'; gimnasio: 'an athlete training with equipment'). Si la marca subió fotos de producto, se usarán esas reales.",
+  "iconLabels": ["2-3 etiquetas MUY cortas para chips con icono, en el idioma de la marca, acordes al rubro (ej. 'Envío gratis', 'Reservas', 'A domicilio')"],
   "caption": "caption en español con gancho, saltos de línea, beneficio y CTA. Emojis moderados",
   "hashtags": ["un hashtag de la marca", "5-8 hashtags relevantes"]
 }`,

@@ -271,12 +271,19 @@ hablando). Aparecen como formatos al Generar, y se regeneran/editan como cualqui
 
 ## Posts de marca premium (imágenes consistentes con tu logo)
 
-El formato **`brandpost`** produce posts 1:1 estilo agencia (logo, titular, subtítulo, mockup del
-producto, iconos, CTA y web — todo en la imagen). La clave de la consistencia: sube **1-4 imágenes de
-referencia** en Ajustes → *Referencias de estilo* (por ejemplo un post que te encantó). El bot les
-pasa esas referencias + tu **logo real** al modelo, que **copia la línea gráfica** en cada pieza nueva
-— igual que darle referencias a ChatGPT. Las referencias viven en `assets/brand/references/`
-(contenido de marca, no se versiona). El prompt maestro se afina desde Ajustes → *Estilos de diseño*.
+El formato **`brandpost`** produce posts 1:1 estilo agencia (logo, titular, subtítulo, visual del
+producto, iconos, CTA y web — todo en la imagen) para **cualquier rubro** (restaurante, tienda, gym,
+software…). Dos tipos de imágenes de marca, gestionadas en Ajustes:
+
+- **Referencias de estilo** (`assets/brand/references/`, 1-4): ejemplos del look que quieres (un post
+  que te encantó). El modelo **copia la línea gráfica** — igual que darle referencias a ChatGPT.
+- **Fotos de producto** (`assets/brand/products/`, hasta 8): platos, productos o artículos **reales**.
+  El modelo los **usa como protagonistas** de la imagen — p. ej. un restaurante sube fotos de sus
+  platos y el bot genera los posts **con esos platos reales**. (Solo fal / OpenAI; Leonardo no
+  reproduce productos con fidelidad.)
+
+Ambas carpetas son contenido de marca privado (no se versiona). El rubro se puede fijar en
+`config/brand.json` (`industry`) y el prompt maestro se afina desde Ajustes → *Estilos de diseño*.
 
 Funciona con tres proveedores (`IMAGE_PROVIDER`), con distinta calidad de **texto/logo**:
 

@@ -12,7 +12,7 @@ import { generateReviewedImage } from "./visualQA.js";
 import { brandPosterPrompt, brandPosterVisualPrompt } from "../lib/artDirection.js";
 import { brandLogoReferenceDataUri, overlayBrandPoster } from "../lib/brand.js";
 import { loadBrandConfig } from "../lib/brandConfig.js";
-import { brandReferenceDataUris } from "../lib/brandReferences.js";
+import { brandReferenceDataUris, brandProductDataUris } from "../lib/brandReferences.js";
 import { generatePost } from "./generatePost.js";
 import { generatePostCopy } from "./generateCopy.js";
 import { addToQueue, type QueueItem } from "../queue/queue.js";
@@ -21,11 +21,21 @@ import type { BrandPostCopy } from "./generateCopy.js";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 export async function generateBrandPost(copy: BrandPostCopy, platform: string, createdAt: string, instruction?: string): Promise<QueueItem> {
-  // Referencias: logo real (rasterizado) + ejemplos de estilo subidos al panel.
+  const prov = (process.env.IMAGE_PROVIDER ?? "fal").toLowerCase();
+  // Leonardo NO sabe escribir texto ni reproducir logos/productos con fidelidad → se le pide SOLO
+  // el visual y el bot hornea titular/subtítulo/CTA/logo/web por código encima (nítido). fal y
+  // openai (Nano Banana Pro / gpt-image-1) sí escriben y reproducen productos → todo horneado.
+  const bakeInImage = prov !== "leonardo";
+
+  // Referencias: logo real + ejemplos de ESTILO. En fal/openai además las FOTOS DE PRODUCTO
+  // (platos/productos reales) para que el modelo las use como protagonistas (Leonardo no las
+  // reproduce fielmente, así que ahí no se pasan).
   const refs: string[] = [];
   const logo = await brandLogoReferenceDataUri();
   if (logo) refs.push(logo);
   refs.push(...brandReferenceDataUris());
+  const productRefs = bakeInImage ? brandProductDataUris() : [];
+  refs.push(...productRefs);
 
   // Sin ninguna referencia el modelo edit no tiene ancla → usar el post clásico (escena + overlay).
   if (!refs.length) {
@@ -37,16 +47,11 @@ export async function generateBrandPost(copy: BrandPostCopy, platform: string, c
   mkdirSync(outDir, { recursive: true });
   const imagePath = join(outDir, "image.png");
 
-  const prov = (process.env.IMAGE_PROVIDER ?? "fal").toLowerCase();
-  // Leonardo NO sabe escribir texto ni reproducir logos → se le pide SOLO el visual y el bot
-  // hornea titular/subtítulo/CTA/logo/web por código encima (nítido). fal y openai (Nano Banana
-  // Pro / gpt-image-1) sí escriben bien, así que ahí se hornea todo en la propia imagen.
-  const bakeInImage = prov !== "leonardo";
-  const fields = { headline: copy.headline, subline: copy.subline, cta: copy.cta, visualIdea: copy.visualIdea, iconLabels: copy.iconLabels };
+  const fields = { headline: copy.headline, subline: copy.subline, cta: copy.cta, visualIdea: copy.visualIdea, iconLabels: copy.iconLabels, hasProducts: productRefs.length > 0 };
   const prompt = bakeInImage ? brandPosterPrompt(fields) : brandPosterVisualPrompt(fields);
 
   const provLabel = prov === "openai" ? "gpt-image-1 edit" : prov === "leonardo" ? "Leonardo (visual) + texto por código" : "Nano Banana Pro edit";
-  console.log(`  → post de marca (${provLabel} · ${refs.length} referencia(s)) + QA visual...`);
+  console.log(`  → post de marca (${provLabel} · ${refs.length} ref: ${brandReferenceDataUris().length} estilo + ${productRefs.length} producto${logo ? " + logo" : ""}) + QA visual...`);
   await generateReviewedImage({
     prompt, dest: imagePath, aspect: "1:1", resolution: "2K",
     referenceImages: refs, rawPrompt: true,

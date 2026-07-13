@@ -23,6 +23,8 @@ assets/music/*
 # referencias de estilo = contenido de marca privado (no se versiona)
 assets/brand/references/*
 !assets/brand/references/.gitkeep
+assets/brand/products/*
+!assets/brand/products/.gitkeep
 
 # artefactos locales de pruebas
 scratch/

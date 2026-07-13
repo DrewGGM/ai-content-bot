@@ -102,8 +102,22 @@ export interface BrandPosterFields {
   headline: string;
   subline?: string;
   cta?: string;
-  visualIdea?: string; // qué mockup/ilustración mostrar (dashboard, POS, factura…)
+  visualIdea?: string; // qué mostrar como protagonista (un plato, un producto, un mockup…)
   iconLabels?: string[]; // 2-3 chips/iconos pequeños opcionales
+  hasProducts?: boolean; // hay fotos de producto reales que se deben USAR en la imagen
+}
+
+/** Contexto de industria para el prompt (del rubro en brand.json, si está). */
+function industryPhrase(): string {
+  const ind = (loadBrandConfig().industry ?? "").trim();
+  return ind ? `, a ${ind} brand,` : "";
+}
+
+/** Instrucción para usar las fotos de producto reales como protagonistas. */
+function productInstruction(hasProducts?: boolean): string {
+  return hasProducts
+    ? `Some of the reference images are REAL PRODUCT PHOTOS (e.g. dishes, products, items). FEATURE those exact real products faithfully as the hero of the composition — reproduce them realistically, do NOT invent different ones.`
+    : ``;
 }
 
 /**
@@ -116,13 +130,14 @@ export function brandPosterVisualPrompt(f: BrandPosterFields): string {
   const c = b.colors;
   const custom = styleOverride();
   return [
-    `Design a premium, square 1080x1080 background visual for the software brand "${b.name}" — modern minimal high-end SaaS aesthetic (Stripe, Linear, Vercel, Framer, Apple).`,
-    `Palette: primary purple ${c.primary}, violet ${c.primaryLight}, cyan accent ${c.accent}, on a very light near-white background. Soft smooth gradients, subtle abstract tech patterns, lots of whitespace.`,
+    `Design a premium, square 1080x1080 background visual for the brand "${b.name}"${industryPhrase()} — modern, clean, high-end, agency-grade advertising quality.`,
+    `Palette: ${c.primary}, ${c.primaryLight}, accent ${c.accent}. Soft smooth gradients, tasteful textures fitting the brand, lots of whitespace.`,
     f.visualIdea
-      ? `Hero visual on the RIGHT half: ${f.visualIdea}. Render it as a realistic, crisp product UI mockup (laptop or phone showing a clean dashboard with charts and KPIs), on-brand colors, believable and detailed.`
-      : `Hero visual on the RIGHT half: a realistic laptop/phone showing a clean on-brand dashboard with charts and KPIs.`,
+      ? `Hero visual on the RIGHT half: ${f.visualIdea}. Render it realistic, crisp, believable and detailed, on-brand — NOT a flat generic illustration.`
+      : `Hero visual on the RIGHT half: a realistic, on-brand hero image fitting the topic.`,
+    productInstruction(f.hasProducts),
     `CRITICAL: leave the LEFT half and the TOP-LEFT corner as CLEAN EMPTY negative space (just the soft background) for text and logo to be added later.`,
-    `Absolutely NO text, NO letters, NO words, NO logo, NO watermark, NO UI labels large enough to read — only the styled scene and the product mockup. Uncluttered, premium, advertising-grade.`,
+    `Absolutely NO text, NO letters, NO words, NO logo, NO watermark — only the styled scene and the hero subject. Uncluttered, premium, advertising-grade.`,
     custom ? `\nEXTRA BRAND STYLE GUIDANCE:\n${custom}` : ``,
   ].filter(Boolean).join("\n");
 }
@@ -135,20 +150,21 @@ export function brandPosterPrompt(f: BrandPosterFields): string {
   const icons = (f.iconLabels ?? []).filter(Boolean).slice(0, 3);
 
   return [
-    `Design a premium, square 1080x1080 Instagram post for the software brand "${b.name}"${b.tagline ? ` (${b.tagline})` : ""}.`,
-    `Modern, minimal, high-end SaaS aesthetic — think Stripe, Linear, Vercel, Notion, Framer, Apple: clean, spacious, tech-forward, agency-grade advertising quality.`,
+    `Design a premium, square 1080x1080 Instagram post for the brand "${b.name}"${industryPhrase()}${b.tagline ? ` (${b.tagline})` : ""}.`,
+    `Modern, clean, high-end, agency-grade advertising quality — the kind of feed post a top branding studio would deliver.`,
     ``,
     `BRAND IDENTITY (use the provided reference images as the SINGLE source of truth for style, layout language and the logo):`,
     `- Reproduce the "${b.name}" logo mark from the reference images faithfully; place the logo at the TOP-LEFT. Do not redraw or restyle the logo.`,
-    `- Palette: primary purple ${c.primary}, violet ${c.primaryLight}, cyan accent ${c.accent}, on a very light near-white background (or deep ${c.dark} if the references are dark). Soft smooth gradients, subtle abstract tech patterns, lots of whitespace.`,
+    `- Palette: ${c.primary}, ${c.primaryLight}, accent ${c.accent} (honor the mood of the reference images — light or dark). Soft smooth gradients, tasteful textures, lots of whitespace.`,
     `- Typography: modern geometric sans-serif — heavy/bold for the headline, light for the subtitle. Impeccable spelling. Rounded corners, soft diffused shadows.`,
     ``,
     `COMPOSITION:`,
-    `- One big headline (left side): "${f.headline}". Emphasize a key word in the cyan→violet gradient.`,
+    `- One big headline (left side): "${f.headline}". Emphasize a key word with the accent color ${c.accent}.`,
     f.subline ? `- Short subtitle below the headline: "${f.subline}".` : ``,
     f.visualIdea
-      ? `- Hero visual on the right or bottom: ${f.visualIdea}. Render it as a realistic, crisp product UI mockup (e.g. a laptop or phone showing a clean ${b.name} dashboard with charts, KPIs and a sidebar), on-brand colors, believable and detailed — NOT a flat generic illustration.`
-      : `- Hero visual on the right: a realistic, crisp product UI mockup (laptop/phone showing a clean ${b.name} dashboard with charts and KPIs), on-brand.`,
+      ? `- Hero visual on the right or bottom: ${f.visualIdea}. Realistic, crisp, believable and detailed, on-brand — NOT a flat generic illustration.`
+      : `- Hero visual on the right: a realistic, on-brand hero image fitting the topic.`,
+    productInstruction(f.hasProducts),
     icons.length ? `- ${icons.length} small rounded icon chips with tiny labels: ${icons.map((i) => `"${i}"`).join(", ")}. Line-style icons only.` : ``,
     f.cta ? `- One discreet call-to-action: "${f.cta}".` : ``,
     website ? `- Small website at the bottom: "${website}".` : ``,

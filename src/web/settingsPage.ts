@@ -299,6 +299,20 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
   </section>
 
   <section class="card">
+    <h2>${icon("post")} Fotos de producto <span class="role">admin</span></h2>
+    <p class="sub">Sube fotos de tus <b>productos, platos o artículos reales</b> (hasta 8). En el formato
+    <b>"Post de marca premium"</b> el modelo (fal / OpenAI) los usa como <b>protagonistas</b> de la imagen —
+    ej. un restaurante sube fotos de sus platos y el bot genera los posts <b>con esos platos reales</b>, junto
+    a tu logo y el texto. (No aplica a Leonardo, que no reproduce productos con fidelidad.)</p>
+    <div id="prodGrid" class="brand-grid"></div>
+    <div class="filebar mt">
+      <input type="file" id="prodFile" accept=".png,.jpg,.jpeg,.webp" style="flex:1;min-width:220px;padding:9px">
+      <button class="btn-primary sm" onclick="uploadProd(this)">${icon("check")} Subir foto</button>
+    </div>
+    <div class="msg" id="prodMsg"></div>
+  </section>
+
+  <section class="card">
     <h2>${icon("edit")} Estilos de diseño (prompt) <span class="role">admin</span></h2>
     <p class="sub">La <b>dirección de arte</b> que la IA aplica a todas las imágenes y posters. Déjalo vacío para usar
     el estilo premium por defecto del bot, o escribe el tuyo (en lenguaje de imagen: texturas, luz, tipografía,
@@ -693,6 +707,41 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       });
     }
     loadRefs();
+
+    // ---- Fotos de producto (admin) ----
+    function loadProds(){
+      if(!IS_ADMIN)return;
+      j('/api/products').then(function(items){
+        document.getElementById('prodGrid').innerHTML=items.map(function(a){
+          return '<div class="basset">'+
+            '<div class="bimg"><img src="/api/products/file?name='+encodeURIComponent(a.name)+'&t='+Date.now()+'" alt=""></div>'+
+            '<div class="bname">'+ceHtml(a.name)+'</div>'+
+            '<button class="btn-ghost sm danger" onclick="delProd(\\''+ceHtml(a.name)+'\\')">Eliminar</button>'+
+            '</div>';
+        }).join('')||'<p class="sub">Sin fotos de producto — sube las de tus platos/productos y el bot los usará en las imágenes.</p>';
+      }).catch(function(){});
+    }
+    function uploadProd(btn){
+      var inp=document.getElementById('prodFile'),f=inp.files&&inp.files[0];
+      if(!f){msg('prodMsg','Elige una imagen primero.',false);return}
+      if(f.size>6*1024*1024){msg('prodMsg','Máximo 6 MB.',false);return}
+      var name=f.name.toLowerCase().replace(/[^a-z0-9._-]/g,'-');
+      btn.disabled=true;
+      var reader=new FileReader();
+      reader.onload=function(){
+        j('/api/products/upload',{name:name,dataBase64:String(reader.result).split(',')[1]||''})
+          .then(function(){btn.disabled=false;inp.value='';msg('prodMsg','Foto subida — el formato "Post de marca premium" ya la usa.',true);loadProds()})
+          .catch(function(e){btn.disabled=false;msg('prodMsg',e.message,false)});
+      };
+      reader.onerror=function(){btn.disabled=false;msg('prodMsg','No se pudo leer la imagen.',false)};
+      reader.readAsDataURL(f);
+    }
+    function delProd(name){
+      askConfirm({title:'Eliminar foto',body:'Se elimina <b>'+name+'</b> de las fotos de producto.',ok:'Eliminar',danger:true},function(){
+        j('/api/products/delete',{name:name}).then(loadProds).catch(function(e){msg('prodMsg',e.message,false)});
+      });
+    }
+    loadProds();
 
     // ---- Usuarios (admin) ----
     function ceHtml(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}

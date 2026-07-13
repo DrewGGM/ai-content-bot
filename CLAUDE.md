@@ -37,8 +37,11 @@ npm run schedule            # scheduler diario (usa el planner)
   EXCEPCIÓN: el formato **`brandpost`** (post de marca premium) SÍ hornea todo, porque usa
   **Nano Banana Pro (Gemini 3 Pro) en modo edit** con el logo real + imágenes de referencia
   (`assets/brand/references/`) como ancla de estilo — ese modelo escribe texto y reproduce el
-  logo con calidad. Prompt maestro en `artDirection.brandPosterPrompt`; pipeline
-  `generateBrandPost.ts`; referencias `src/lib/brandReferences.ts`. Multi-proveedor por
+  logo con calidad. Genérico por rubro (brand.json `industry`); si hay FOTOS DE PRODUCTO
+  (`assets/brand/products/`, `brandProductDataUris`) las pasa al modelo para USARLAS como
+  protagonistas (ej. restaurante con sus platos reales) — solo fal/openai. Prompt maestro en
+  `artDirection.brandPosterPrompt` (+`brandPosterVisualPrompt` para Leonardo); pipeline
+  `generateBrandPost.ts`; referencias/productos `src/lib/brandReferences.ts`. Multi-proveedor por
   `IMAGE_PROVIDER`: `fal` (Nano Banana Pro edit, mejor texto/logo), `openai` (gpt-image-1
   `/images/edits`), `leonardo` (init-image + controlnets Style Reference). `generateImage()` pasa
   `referenceImages` al proveedor; `gemini` aún no. OJO: Leonardo NO escribe texto ni reproduce
