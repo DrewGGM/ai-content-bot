@@ -32,6 +32,14 @@ export const APP_SETTINGS: AppSettingDef[] = [
     help: "Con qué servicio se generan las imágenes (posts, carruseles, posts de marca). fal (Nano Banana Pro) es el recomendado.",
   },
   {
+    key: "MAX_HASHTAGS",
+    label: "Máximo de hashtags por pieza",
+    type: "number",
+    options: [],
+    default: "0",
+    help: "Límite de hashtags en el caption. Instagram rinde mejor con pocos (3-5). 0 = sin límite (los que decida la IA).",
+  },
+  {
     key: "META_AD_ACCOUNT_ID",
     label: "Cuenta publicitaria de Meta (Ad Account ID)",
     type: "text",

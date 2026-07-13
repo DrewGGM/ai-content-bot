@@ -518,6 +518,8 @@ async function page(user: User): Promise<string> {
   const cards = items
     .map((it) => {
       const tags = it.hashtags.map((h) => `<span class="tag">${esc(h)}</span>`).join(" ");
+      // Texto completo para copiar: caption + hashtags (lo que pegas en Instagram/etc.).
+      const fullCopy = it.caption + (it.hashtags.length ? `\n\n${it.hashtags.join(" ")}` : "");
       const done = it.status === "approved" || it.status === "rejected";
       const fmtIcon = P[it.format] ? it.format : "post";
       const label = `${it.format} · ${it.topic ?? it.id}`;
@@ -530,6 +532,9 @@ async function page(user: User): Promise<string> {
           <p class="cap">${esc(it.caption).replace(/\n/g, "<br>")}</p>
           ${tags ? `<div class="tags">${tags}</div>` : ""}
           <div class="act-stack">
+          <div class="actions">
+            <button class="copy-btn" data-copy="${esc(fullCopy)}" onclick="copyCap(this)">${icon("copy")} Copiar descripción</button>
+          </div>
           <div class="actions">
             <button class="ok" ${done ? "disabled" : ""} onclick="askAct(this,'${esc(it.id)}','approved')">${icon("check")} Aprobar</button>
             <button class="no" ${done ? "disabled" : ""} onclick="askAct(this,'${esc(it.id)}','rejected')">${icon("x")} Rechazar</button>
@@ -627,6 +632,7 @@ async function page(user: User): Promise<string> {
       text-decoration:none;transition:filter .2s,transform .12s;white-space:nowrap}
     .ok{background:#00a578} .no{background:#c0392b} .dl{background:#1a1d33;border:1px solid var(--line);color:var(--txt)}
     .edit-btn{background:#1a1d33;border:1px solid var(--line);color:var(--txt)} .edit-btn:hover{border-color:var(--violet2)}
+    .copy-btn{background:#1a1d33;border:1px solid var(--line);color:var(--txt);flex:1} .copy-btn:hover{border-color:var(--mint)}
     .pub-btn{background:linear-gradient(135deg,var(--mint),#00a578);color:#04150f}
     .nets{display:flex;flex-direction:column;gap:6px;margin-top:8px}
     .netopt{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--line);border-radius:11px;cursor:pointer;font-size:13.5px;font-weight:600;transition:border-color .2s}
@@ -911,6 +917,17 @@ async function page(user: User): Promise<string> {
       document.getElementById('editVideoOpts').style.display=show?'flex':'none';
       document.getElementById('editAudio').parentElement.style.display=(editFmt==='motion')?'block':'none';
       document.getElementById('editMusicRow').style.display=(show&&editFmt==='motion')?'block':'none';
+    }
+    function copyCap(btn){
+      var t=btn.dataset.copy||'';
+      var done=function(){var o=btn.innerHTML;btn.innerHTML='${icon("check")} Copiado';btn.disabled=true;setTimeout(function(){btn.innerHTML=o;btn.disabled=false},1500)};
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(t).then(done).catch(function(){fallbackCopy(t);done()});
+      }else{fallbackCopy(t);done()}
+    }
+    function fallbackCopy(t){
+      var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';
+      document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(ta);
     }
     function openEdit(btn,id){
       editId=id;editFmt=(btn.closest('.card')||{dataset:{}}).dataset.format||'';

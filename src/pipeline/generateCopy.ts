@@ -13,6 +13,16 @@ const brand = () => loadBrandConfig();
 /** "violeta #5B2DC4 a menta #00D4AA" → genérico desde config. */
 const palette = () => `${brand().colors.primary} a ${brand().colors.accent}`;
 
+/**
+ * Limita la cantidad de hashtags según MAX_HASHTAGS (Ajustes → Conexiones). 0/sin definir = sin
+ * límite. Útil para plataformas que rinden mejor con pocos (Instagram recomienda 3-5).
+ */
+function limitHashtags(arr: unknown): string[] {
+  const tags = Array.isArray(arr) ? arr.map(String) : [];
+  const max = Number(process.env.MAX_HASHTAGS || "0");
+  return max > 0 ? tags.slice(0, max) : tags;
+}
+
 function slugify(s: string): string {
   return s
     .toLowerCase()
@@ -89,7 +99,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     voiceScript: data.voiceScript,
     cta: data.cta ?? "Escríbenos por WhatsApp",
     caption: data.caption,
-    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    hashtags: limitHashtags(data.hashtags),
     pillar: data.pillar,
   };
 }
@@ -126,7 +136,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     voiceScript: data.voiceScript,
     cta: data.cta ?? "Escríbenos por WhatsApp",
     caption: data.caption,
-    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    hashtags: limitHashtags(data.hashtags),
     pillar: data.pillar,
   };
 }
@@ -170,7 +180,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     cta: data.cta ?? brand().ctaDefault,
     voiceScript: data.voiceScript ?? data.headline ?? topic,
     caption: data.caption ?? "",
-    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    hashtags: limitHashtags(data.hashtags),
     pillar: data.pillar,
   };
 }
@@ -207,7 +217,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     headline: data.headline ?? "",
     cta: data.cta ?? "Escríbenos por WhatsApp",
     caption: data.caption,
-    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    hashtags: limitHashtags(data.hashtags),
     pillar: data.pillar,
   };
 }
@@ -273,7 +283,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown). Incluye SOLO los campos que
     author: data.author,
     cta: data.cta ?? brand().ctaDefault,
     caption: data.caption,
-    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    hashtags: limitHashtags(data.hashtags),
     pillar: data.pillar,
   };
 }
@@ -338,7 +348,7 @@ Devuelve ÚNICAMENTE un JSON válido (incluye SOLO los campos que use la variant
     slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
     slides: slides.length ? slides : [{ variant: "feature", eyebrow: brand().name, headline: topic, cta: brand().ctaDefault }],
     caption: data.caption ?? "",
-    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    hashtags: limitHashtags(data.hashtags),
     pillar: data.pillar,
   };
 }
@@ -372,7 +382,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
     slides: Array.isArray(data.slides) ? data.slides : [],
     caption: data.caption,
-    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    hashtags: limitHashtags(data.hashtags),
     pillar: data.pillar,
   };
 }
@@ -403,7 +413,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
     imagePrompt: data.imagePrompt,
     caption: data.caption,
-    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    hashtags: limitHashtags(data.hashtags),
     pillar: data.pillar,
   };
 }
@@ -449,7 +459,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     visualIdea: data.visualIdea ?? "",
     iconLabels: Array.isArray(data.iconLabels) ? data.iconLabels.slice(0, 3) : [],
     caption: data.caption ?? "",
-    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    hashtags: limitHashtags(data.hashtags),
     pillar: data.pillar,
   };
 }
@@ -501,7 +511,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
     slides,
     caption: data.caption ?? "",
-    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    hashtags: limitHashtags(data.hashtags),
     pillar: data.pillar,
   };
 }
