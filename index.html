@@ -14,7 +14,9 @@ body{margin:0;font-family:'Fira Sans',Inter,system-ui,Arial,sans-serif;color:var
   background:radial-gradient(1200px 600px at 80% -10%,color-mix(in srgb,var(--violet) 22%,transparent),transparent 60%),
   radial-gradient(1000px 500px at -10% 10%,color-mix(in srgb,var(--mint) 12%,transparent),transparent 55%),var(--bg)}
 a{color:inherit}
-.ic{width:18px;height:18px;flex:none}
+.ic{width:18px;height:18px;flex:none;vertical-align:-3px}.ic.sm{width:14px;height:14px}
+:focus-visible{outline:2px solid var(--violet2);outline-offset:2px;border-radius:8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 header{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);background:color-mix(in srgb,var(--bg) 82%,transparent);border-bottom:1px solid var(--line)}
 .hbar{max-width:1560px;margin:0 auto;padding:14px 26px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px}
@@ -135,6 +137,7 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-spark" viewBox="0 0 24 24"><path d="M9.9 15.5A2 2 0 0 0 8.5 14.1l-6.1-1.6a.5.5 0 0 1 0-1l6.1-1.6A2 2 0 0 0 9.9 8.5l1.6-6.1a.5.5 0 0 1 1 0l1.6 6.1A2 2 0 0 0 15.5 9.9l6.1 1.6a.5.5 0 0 1 0 1l-6.1 1.6a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z"/></symbol><symbol id="i-gear" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></symbol><symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol><symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M12 5v13"/></symbol><symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></symbol><symbol id="i-droplet" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></symbol><symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol><symbol id="i-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="m7.5 4.27 9 5.15"/></symbol><symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></symbol><symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol><symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></symbol><symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></symbol><symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></symbol><symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol><symbol id="i-reel" viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></symbol><symbol id="i-carousel" viewBox="0 0 24 24"><rect width="18" height="14" x="3" y="5" rx="2"/><path d="m3 15 4-4 5 5"/><circle cx="9" cy="9" r="1"/></symbol><symbol id="i-back" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol><symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol><symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol><symbol id="i-wand" viewBox="0 0 24 24"><path d="m3 21 6-6M14 4l6 6M12.5 5.5 5 13l6 6 7.5-7.5"/></symbol><symbol id="i-motion" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></symbol></defs></svg>
 <header>
   <div class="hbar">
     <span class="brand"><span class="badge"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg></span>
@@ -143,10 +146,10 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
     <button class="hbtn" onclick="askConfirm({title:'Plan con IA',body:'La IA revisará tu historial (formatos, temas, aprobados y rechazados) y decidirá <b>qué pieza generar hoy</b> con tu agente configurado.',ok:'Generar plan'},function(){toast('Simulación · en el bot real la IA decide formato + tema según tu historial y genera la pieza')})">Plan</button>
     <button class="hbtn" onclick="askConfirm({title:'Set completo',body:'Se generará <b>una pieza de cada formato disponible</b>. Es la acción más pesada (varios minutos, consumo de APIs).',ok:'Generar set'},function(){toast('Simulación · en el bot real genera una pieza de cada formato disponible')})">Set</button>
     <button class="hbtn" onclick="toast('Simulación · programa 1 pieza automática al día; corre con el agente/cuenta de quien la programa')">Auto</button>
-    <button class="gen-btn" onclick="openGen()">✦ Generar</button>
-    <button class="hbtn" id="navBtn" onclick="toggleScreen()">⚙ Ajustes</button>
-    <span class="who">👤 drew <span class="role">admin</span></span>
-    <a class="gh" href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">GitHub ↗</a>
+    <button class="gen-btn" onclick="openGen()"><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-spark"/></svg> Generar</button>
+    <button class="hbtn" id="navBtn" onclick="toggleScreen()"><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-gear"/></svg> Ajustes</button>
+    <span class="who"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-user"/></svg> drew <span class="role">admin</span></span>
+    <a class="gh" href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">GitHub <svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-external"/></svg></a>
   </div>
   <div class="tabs" role="tablist" id="tabs"></div>
 </header>
@@ -159,7 +162,7 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
   agencia), <b>música de fondo</b> que la IA descarga sola (CC0, sin copyright), <b>identidad, paleta, estilos, skills
   y credenciales</b> 100% configurables desde el panel, y <b>multi-usuario</b> — cada miembro conecta <b>su propio
   agente de IA</b>. Toda acción pide <b>confirmación</b>.
-  Explora <b>⚙ Ajustes</b> arriba. Código: <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">github.com/DrewGGM/ai-content-bot</a>.
+  Explora <b>Ajustes</b> arriba. Código: <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">github.com/DrewGGM/ai-content-bot</a>.
 </div></div>
 
 <main class="grid" id="grid"></main>
@@ -168,7 +171,7 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
 <div class="screen" id="settings">
 
   <section class="scard">
-    <h2>🧠 Tu agente de IA <span style="color:var(--mut);font-weight:500;font-size:12px">— por usuario</span></h2>
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-brain"/></svg> Tu agente de IA <span style="color:var(--mut);font-weight:500;font-size:12px">— por usuario</span></h2>
     <p class="sub">En el bot real, <b>cada usuario del panel</b> configura su propio agente: el copy, el planner y el QA
     visual de SUS generaciones corren con SU cuenta (multi-cuenta de Claude Code o API keys en un mismo servidor,
     credenciales cifradas con AES-256-GCM). El formulario muestra solo lo que cada proveedor necesita.</p>
@@ -185,30 +188,30 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
       <div style="flex:1.4"><label>Modelo (escribe o elige)</label>
         <div class="model-row">
           <div><input id="pModel" list="modelList" placeholder="default del proveedor"><datalist id="modelList"></datalist></div>
-          <button class="btn-ghost sm" onclick="loadModels()">⟳ Modelos</button>
+          <button class="btn-ghost sm" onclick="loadModels()"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-refresh"/></svg> Modelos</button>
         </div></div>
       <div><label>QA visual (visión)</label><select><option>Auto (según proveedor)</option><option>Forzar sí</option><option>Forzar no</option></select></div>
     </div>
     <div class="prov-note" id="provNote"></div>
 
     <div class="wizard" id="wizard">
-      <b>🔗 Conectar Claude Code con TU cuenta</b>
+      <b><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-link"/></svg> Conectar Claude Code con TU cuenta</b>
       <div class="wz on" id="wz0">
         <p class="sub" style="margin:8px 0 10px" id="wzIntro">El asistente corre <code>claude setup-token</code> en el servidor:
         te da un link de autorización OAuth, entras con TU cuenta de Claude (Pro/Max/Team), pegas el código y el
         token de 1 año queda cifrado en tu perfil.</p>
-        <button class="btn-primary sm" id="wzStartBtn" onclick="wzStart()">🔗 Iniciar login con Claude</button>
+        <button class="btn-primary sm" id="wzStartBtn" onclick="wzStart()"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-link"/></svg> Iniciar login con Claude</button>
       </div>
       <div class="wz" id="wz1">
         <p class="sub" style="margin:8px 0 6px">1 · Abre este enlace y autoriza con tu cuenta de Claude:</p>
         <p><a class="lnk" href="#" onclick="return false">https://claude.com/oauth/authorize?code=true&client_id=…&state=kJ92xF…&code_challenge=Znb4Qp… <span style="color:var(--mut)">(simulado)</span></a></p>
         <p class="sub" style="margin:10px 0 6px">2 · Pega aquí el código que te muestra:</p>
         <div class="s-row"><input id="wzCode" placeholder="Código de autorización (pega cualquier cosa — demo)">
-          <button class="btn-primary sm" onclick="wzCode()">✓ Enviar</button>
-          <button class="btn-ghost sm" onclick="wzShow(0)">✕</button></div>
+          <button class="btn-primary sm" onclick="wzCode()"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Enviar</button>
+          <button class="btn-ghost sm" onclick="wzShow(0)"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg></button></div>
       </div>
       <div class="wz" id="wz2"><p class="sub" style="margin:8px 0">Verificando… <span style="color:var(--mut);font-family:'Fira Code',monospace;font-size:11px">(en el bot real ves aquí la salida del CLI en vivo)</span></p></div>
-      <div class="wz" id="wz3"><p class="sub conn-ok" style="margin:8px 0"><b>✓ Cuenta conectada</b> — token guardado cifrado en tu perfil; tus generaciones ya usan tu suscripción de Claude.</p></div>
+      <div class="wz" id="wz3"><p class="sub conn-ok" style="margin:8px 0"><b><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Cuenta conectada</b> — token guardado cifrado en tu perfil; tus generaciones ya usan tu suscripción de Claude.</p></div>
     </div>
 
     <div id="secretsBox"></div>
@@ -216,32 +219,32 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
     <div class="mt"><label class="check"><input type="checkbox"> <span>Aislar credenciales de CLIs para mí
       (mi propio <code>CLAUDE_CONFIG_DIR</code> y <code>CODEX_HOME</code> en el servidor)</span></label></div>
     <div class="mt" style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn-primary" onclick="toast('Simulación · agente guardado — en el bot real tus próximos jobs ya corren con este proveedor/cuenta')">✓ Guardar agente</button>
-      <button class="btn-ghost" onclick="testAgent(this)">✦ Probar agente</button>
+      <button class="btn-primary" onclick="toast('Simulación · agente guardado — en el bot real tus próximos jobs ya corren con este proveedor/cuenta')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Guardar agente</button>
+      <button class="btn-ghost" onclick="testAgent(this)"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-spark"/></svg> Probar agente</button>
     </div>
     <div class="msg" id="agentMsg"></div>
   </section>
 
   <section class="scard">
-    <h2>📄 Contexto de la empresa <span class="role">admin</span></h2>
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-file"/></svg> Contexto de la empresa <span class="role">admin</span></h2>
     <p class="sub">Todo lo que el bot sabe de tu empresa se edita aquí: qué hace, productos, tono, estrategia…
     y puedes <b>crear archivos .md nuevos</b> (prompts personalizados, guías de estilo, promociones) que el bot
     inyecta automáticamente en cada generación. Los cambios aplican de inmediato, sin tocar código.</p>
     <div class="filebar">
       <select id="ctxFile" onchange="loadCtx()"></select>
-      <button class="btn-primary sm" onclick="toast('Simulación · guardado — aplica desde la próxima generación')">✓ Guardar</button>
-      <button class="btn-ghost sm" style="color:#e05252" onclick="delCtx()">🗑</button>
+      <button class="btn-primary sm" onclick="toast('Simulación · guardado — aplica desde la próxima generación')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Guardar</button>
+      <button class="btn-ghost sm" style="color:#e05252" onclick="delCtx()"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trash"/></svg></button>
     </div>
     <textarea id="ctxBody" rows="9" spellcheck="false"></textarea>
     <div class="filebar mt">
       <input id="ctxNew" placeholder="nuevo-archivo.md (ej. estilo-visual.md, promociones-julio.md)" style="flex:1;min-width:220px">
-      <button class="btn-ghost sm" onclick="createCtx()">✓ Crear archivo</button>
+      <button class="btn-ghost sm" onclick="createCtx()"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Crear archivo</button>
     </div>
     <div class="msg" id="ctxMsg"></div>
   </section>
 
   <section class="scard">
-    <h2>🎨 Identidad y colores de marca <span class="role">admin</span></h2>
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-droplet"/></svg> Identidad y colores de marca <span class="role">admin</span></h2>
     <p class="sub">Nombre, eslogan, web, rubro y <b>paleta de colores</b>, todo desde el panel. El bot los usa en
     TODAS las piezas (prompts, degradados, subtítulos, posts de marca). Se guarda en <code>config/brand.json</code>.</p>
     <div class="row">
@@ -259,46 +262,46 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
       <div style="text-align:center"><label style="font-size:11px">Acento</label><input type="color" value="#00d4aa" style="width:52px;height:38px;padding:2px;border-radius:8px;cursor:pointer"><div style="font-family:monospace;font-size:10px;color:var(--mut)">#00d4aa</div></div>
       <div style="text-align:center"><label style="font-size:11px">Oscuro</label><input type="color" value="#0f0f1a" style="width:52px;height:38px;padding:2px;border-radius:8px;cursor:pointer"><div style="font-family:monospace;font-size:10px;color:var(--mut)">#0f0f1a</div></div>
     </div>
-    <div class="filebar mt"><button class="btn-primary sm" onclick="toast('Simulación · identidad y paleta guardadas — aplican desde la próxima generación')">✓ Guardar identidad</button></div>
+    <div class="filebar mt"><button class="btn-primary sm" onclick="toast('Simulación · identidad y paleta guardadas — aplican desde la próxima generación')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Guardar identidad</button></div>
   </section>
 
   <section class="scard">
-    <h2>🖼 Referencias de estilo (posts de marca) <span class="role">admin</span></h2>
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-image"/></svg> Referencias de estilo (posts de marca) <span class="role">admin</span></h2>
     <p class="sub">El secreto de la calidad "agencia": sube 1-4 <b>imágenes de ejemplo</b> del estilo que quieres. El
     formato <b>"Post de marca premium"</b> se las pasa a Nano Banana Pro (o gpt-image-1) con tu logo y <b>copia esa
     línea gráfica</b> en cada pieza — igual que darle referencias a ChatGPT. Logo, colores, tipografía y composición
     consistentes en todo el feed.</p>
     <div class="filebar">
       <input type="file" style="flex:1;min-width:200px;padding:9px" onclick="event.preventDefault();toast('Simulación · sube 1-4 imágenes de estilo (un post que te encantó) a assets/brand/references/')">
-      <button class="btn-primary sm" onclick="toast('Simulación · referencia subida — el post de marca ya la usa como ancla de estilo')">✓ Subir referencia</button>
+      <button class="btn-primary sm" onclick="toast('Simulación · referencia subida — el post de marca ya la usa como ancla de estilo')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg> Subir referencia</button>
     </div>
   </section>
 
   <section class="scard">
-    <h2>🍽 Fotos de producto <span class="role">admin</span></h2>
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-package"/></svg> Fotos de producto <span class="role">admin</span></h2>
     <p class="sub">Sube fotos de tus <b>productos, platos o artículos reales</b> (hasta 8) y el modelo los usa como
     <b>protagonistas</b> de la imagen. Ej. un <b>restaurante</b> sube fotos de sus platos y el bot genera los posts
     <b>con esos platos reales</b>, junto a tu logo y el texto. Sirve para cualquier rubro (fal / OpenAI).</p>
     <div class="filebar">
       <input type="file" style="flex:1;min-width:200px;padding:9px" onclick="event.preventDefault();toast('Simulación · sube fotos de tus platos/productos a assets/brand/products/')">
-      <button class="btn-primary sm" onclick="toast('Simulación · foto subida — el post de marca usará este producto real en la imagen')">✓ Subir foto</button>
+      <button class="btn-primary sm" onclick="toast('Simulación · foto subida — el post de marca usará este producto real en la imagen')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg> Subir foto</button>
     </div>
   </section>
 
   <section class="scard">
-    <h2>🖼 Marca y logos <span class="role">admin</span></h2>
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-image"/></svg> Marca y logos <span class="role">admin</span></h2>
     <p class="sub">Sube tus logos y elige cuál superpone el bot en imágenes y videos (ideal: SVG/PNG transparente).
     Los colores y datos básicos viven en <code>config/brand.json</code>, editable en la sección de arriba.</p>
     <div class="brand-grid" id="brandGrid"></div>
     <div class="filebar mt">
       <input type="file" style="flex:1;min-width:200px;padding:9px" onclick="event.preventDefault();toast('Simulación · en el bot real sube SVG/PNG/JPG/WebP (máx 3 MB) a assets/brand/')">
       <label class="check" style="white-space:nowrap"><input type="checkbox" checked> <span>usar como logo principal</span></label>
-      <button class="btn-primary sm" onclick="toast('Simulación · logo subido y marcado como principal (config/brand.json → logoFile)')">✓ Subir</button>
+      <button class="btn-primary sm" onclick="toast('Simulación · logo subido y marcado como principal (config/brand.json → logoFile)')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg> Subir</button>
     </div>
   </section>
 
   <section class="scard">
-    <h2>🧩 Workflows de contenido <span class="role">admin</span></h2>
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-layers"/></svg> Workflows de contenido <span class="role">admin</span></h2>
     <p class="sub">Pipelines <b>personalizables</b> que encadenan IAs paso a paso (estilo ElevenLabs Flows):
     <code>copy → image → animate → tts → subtitles → music → assemble</code>, conectando salidas con
     <code>$paso.salida</code>. Incluye presets <b>"Reel: imagen IA animada"</b> y <b>"Personaje presentador"</b>
@@ -314,46 +317,46 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
     </tbody></table></div>
     <div class="filebar mt">
       <input placeholder="nombre-del-workflow" style="width:200px">
-      <button class="btn-primary sm" onclick="toast('Simulación · crea un workflow desde plantilla y edítalo en JSON')">✓ Crear desde plantilla</button>
+      <button class="btn-primary sm" onclick="toast('Simulación · crea un workflow desde plantilla y edítalo en JSON')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Crear desde plantilla</button>
     </div>
   </section>
 
   <section class="scard">
-    <h2>🎵 Música de fondo <span class="role">admin</span></h2>
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-music"/></svg> Música de fondo <span class="role">admin</span></h2>
     <p class="sub"><b>Automático:</b> si la biblioteca está vacía, la IA <b>busca y descarga sola</b> una pista
     <b>CC0 (sin copyright)</b> de Openverse acorde al tema, con créditos guardados. También puedes subir pistas
     o <b>pegar la URL de una canción</b> al generar/editar una pieza — y quitar o cambiar la música al editar.</p>
     <div class="filebar">
       <input type="file" style="flex:1;min-width:200px;padding:9px" onclick="event.preventDefault();toast('Simulación · sube mp3/wav/m4a/ogg (máx 15 MB) — la IA elige por el nombre del archivo')">
-      <button class="btn-primary sm" onclick="toast('Simulación · pista subida — la IA ya puede elegirla para los videos')">✓ Subir pista</button>
+      <button class="btn-primary sm" onclick="toast('Simulación · pista subida — la IA ya puede elegirla para los videos')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg> Subir pista</button>
     </div>
   </section>
 
   <section class="scard">
-    <h2>🎨 Estilos de diseño y skills <span class="role">admin</span></h2>
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-wand"/></svg> Estilos de diseño y skills <span class="role">admin</span></h2>
     <p class="sub">El <b>prompt de dirección de arte</b> de las imágenes es personalizable (texturas, luz,
     tipografía — la paleta de marca se aplica siempre), y puedes <b>subir tus propias skills</b> (.md con tu
     playbook) y activar/desactivar cuáles usa la IA al escribir.</p>
     <textarea rows="4" spellcheck="false" placeholder="(vacío = estilo premium por defecto del bot)"></textarea>
     <div class="filebar mt">
-      <button class="btn-primary sm" onclick="toast('Simulación · estilos guardados — aplican desde la próxima generación')">✓ Guardar estilos</button>
-      <button class="btn-ghost sm" onclick="toast('Simulación · sube un .md con tu playbook y la IA lo usa en cada generación')">⬆ Subir skill</button>
+      <button class="btn-primary sm" onclick="toast('Simulación · estilos guardados — aplican desde la próxima generación')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Guardar estilos</button>
+      <button class="btn-ghost sm" onclick="toast('Simulación · sube un .md con tu playbook y la IA lo usa en cada generación')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg> Subir skill</button>
     </div>
   </section>
 
   <section class="scard">
-    <h2>🔗 Conexiones — redes y proveedores <span class="role">admin</span></h2>
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-link"/></svg> Conexiones — redes y proveedores <span class="role">admin</span></h2>
     <p class="sub">Tokens para publicar (Instagram/Facebook/LinkedIn/TikTok/X) y keys de proveedores de medios
     (fal, ElevenLabs, HeyGen) se configuran desde el panel: <b>cifradas</b> (AES-256-GCM) y de <b>solo
     escritura</b> — nunca se muestran. Si una variable ya está en el .env del servidor, esa manda.</p>
     <div class="filebar">
       <input type="password" placeholder="INSTAGRAM_ACCESS_TOKEN — pegar valor…" style="flex:1;min-width:220px">
-      <button class="btn-primary sm" onclick="toast('Simulación · credencial guardada cifrada — ya está activa para publicar')">✓ Guardar</button>
+      <button class="btn-primary sm" onclick="toast('Simulación · credencial guardada cifrada — ya está activa para publicar')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Guardar</button>
     </div>
   </section>
 
   <section class="scard">
-    <h2>👥 Usuarios del panel <span class="role">admin</span></h2>
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg> Usuarios del panel <span class="role">admin</span></h2>
     <p class="sub">Cada usuario entra con su contraseña y configura su propio agente/cuenta de IA. Los admin además
     gestionan usuarios, contexto y logos. En el bot real: contraseñas con scrypt, rate-limit de login y sesiones con expiración.</p>
     <div class="tw"><table><thead><tr><th>Usuario</th><th>Rol</th><th>Agente</th><th></th></tr></thead><tbody id="uRows"></tbody></table></div>
@@ -361,7 +364,7 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
       <div><label>Nombre</label><input id="uName" placeholder="ej. Maria"></div>
       <div><label>Contraseña</label><input type="password" placeholder="mínimo 6 caracteres"></div>
       <div><label>Rol</label><select id="uRole"><option>member</option><option>admin</option></select></div>
-      <div style="display:flex;align-items:flex-end"><button class="btn-primary" onclick="addUser()">✓ Crear usuario</button></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn-primary" onclick="addUser()"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Crear usuario</button></div>
     </div>
     <div class="msg" id="uMsg"></div>
   </section>
@@ -371,7 +374,7 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
 <!-- Modal generar -->
 <div id="genModal" class="modal" onclick="if(event.target===this)closeGen()">
   <div class="modal-box" role="dialog" aria-modal="true">
-    <div class="modal-head"><span>✦ Generar contenido</span><button class="mh-close" onclick="closeGen()">✕</button></div>
+    <div class="modal-head"><span><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-spark"/></svg> Generar contenido</span><button class="mh-close" onclick="closeGen()"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg></button></div>
     <label>Tema o prompt</label>
     <textarea rows="3" id="genTopic" placeholder="Ej: el principal beneficio de tu producto para el cliente"></textarea>
     <label>Formato</label>
@@ -386,7 +389,7 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
     </select>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeGen()">Cancelar</button>
-      <button class="btn-primary" onclick="fakeGen()">✦ Generar</button>
+      <button class="btn-primary" onclick="fakeGen()"><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-spark"/></svg> Generar</button>
     </div>
   </div>
 </div>
@@ -394,7 +397,7 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
 <!-- Modal de confirmación (nuevo: toda acción confirma antes de ejecutar) -->
 <div id="cfModal" class="modal" onclick="if(event.target===this)closeCf()">
   <div class="modal-box" role="dialog" aria-modal="true">
-    <div class="modal-head"><span id="cfTitle"></span><button class="mh-close" onclick="closeCf()">✕</button></div>
+    <div class="modal-head"><span id="cfTitle"></span><button class="mh-close" onclick="closeCf()"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg></button></div>
     <p class="cf-body" id="cfBody"></p>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeCf()">Cancelar</button>
@@ -415,7 +418,7 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
   agente de quien la pidió. La empresa se configura 100% desde el panel: contexto, prompts propios, logos y colores.
   Escribe el copy con el contexto de tu empresa, genera el visual (IA o código), hace QA visual con visión,
   y te deja aprobar/publicar (con confirmación) desde un panel PWA.<br>
-  → <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">Repositorio y documentación</a>
+  <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">Repositorio y documentación</a>
   · Hecho por <a href="https://andrewgarcia.dev" target="_blank" rel="noopener">Andrew García</a>.
 </footer>
 
@@ -447,8 +450,9 @@ const pieces = [
     tags:"#Lyroo #Backups #DatosSeguros" },
 ];
 const LBL={pending:["Pendiente","#7B4DDB"],approved:["Aprobado","#00B892"],rejected:["Rechazado","#e05252"],published:["Publicado","#5b6472"]};
-const FIC={reel:"🎬",motion:"✨",carousel:"🖼",post:"📷"};
+const FIC={reel:ic("reel"),motion:ic("motion"),carousel:ic("carousel"),post:ic("image")};
 
+function ic(n,c){return '<svg class="ic'+(c?' '+c:'')+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-'+n+'"/></svg>'}
 function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function mediaHtml(p){
   if(p.media.type==="video")return `<video src="${p.media.src}" controls playsinline preload="metadata"></video>`;
@@ -464,18 +468,18 @@ function render(){
     return `<article class="card" data-status="${p.status}">
       <div class="media"><span class="badge" style="background:${color}">${lbl}</span>${mediaHtml(p)}</div>
       <div class="body">
-        <div class="meta"><span>${FIC[p.format]||"📄"} ${p.format}</span><i>·</i><span>${p.platform}</span><i>·</i><span>${p.pillar}</span></div>
+        <div class="meta"><span>${FIC[p.format]||ic("file")} ${p.format}</span><i>·</i><span>${p.platform}</span><i>·</i><span>${p.pillar}</span></div>
         <p class="cap">${esc(p.cap).replace(/\n/g,"<br>")}</p>
         <div class="tags">${p.tags.split(" ").map(t=>`<span class="tag">${t}</span>`).join(" ")}</div>
         <div class="actions">
-          <button class="ok" ${done?"disabled":""} onclick="askAct('${p.id}','approved')">✓ Aprobar</button>
-          <button class="no" ${done?"disabled":""} onclick="askAct('${p.id}','rejected')">✕ Rechazar</button>
+          <button class="ok" ${done?"disabled":""} onclick="askAct('${p.id}','approved')">${ic("check")} Aprobar</button>
+          <button class="no" ${done?"disabled":""} onclick="askAct('${p.id}','rejected')">${ic("x")} Rechazar</button>
         </div>
-        <div class="actions"><button class="pub" onclick="askPub('${p.id}')">➤ Publicar</button></div>
+        <div class="actions"><button class="pub" onclick="askPub('${p.id}')">${ic("send")} Publicar</button></div>
         <div class="actions">
-          <button class="ghost" onclick="toast('Simulación · en el bot real la IA reescribe el caption o regenera el visual con tu instrucción (con tu agente)')">✎ Editar con IA</button>
-          <button class="ghost" onclick="toast('Simulación · en el bot real descargas el mp4/imágenes originales')">↓ Descargar</button>
-          <button class="ghost" style="flex:0 0 46px" onclick="askDel('${p.id}')">🗑</button>
+          <button class="ghost" onclick="toast('Simulación · en el bot real la IA reescribe el caption o regenera el visual con tu instrucción (con tu agente)')">${ic("edit")} Editar con IA</button>
+          <button class="ghost" onclick="toast('Simulación · en el bot real descargas el mp4/imágenes originales')">${ic("download")} Descargar</button>
+          <button class="ghost" style="flex:0 0 46px" onclick="askDel('${p.id}')">${ic("trash")}</button>
         </div>
       </div></article>`;
   }).join("");
@@ -511,22 +515,22 @@ document.getElementById("cfOk").addEventListener("click",()=>{const cb=cfCb;clos
 function pieceLabel(p){return p.format+" · "+p.pillar}
 function askAct(id,st){
   const p=pieces.find(x=>x.id===id);const ok=st==="approved";
-  askConfirm({title:ok?"✓ Aprobar pieza":"✕ Rechazar pieza",
+  askConfirm({title:ok?"Aprobar pieza":"Rechazar pieza",
     body:"<b>"+pieceLabel(p)+"</b><br>"+(ok?"Quedará marcada como aprobada y lista para publicar.":"Quedará rechazada; el planner aprende y evita repetir este ángulo."),
     ok:ok?"Sí, aprobar":"Sí, rechazar",danger:!ok},
-    ()=>{p.status=st;render();toast(ok?"✅ Pieza aprobada":"❌ Pieza rechazada — el planner lo tendrá en cuenta")});
+    ()=>{p.status=st;render();toast(ok?"Pieza aprobada":"Pieza rechazada — el planner lo tendrá en cuenta")});
 }
 function askPub(id){
   const p=pieces.find(x=>x.id===id);
-  const warn=p.status==="pending"?"<br><br>⚠ Esta pieza aún está <b>pendiente</b> (sin aprobar) — se publicará tal cual está.":(p.status==="rejected"?"<br><br>⛔ En el bot real, una pieza <b>rechazada</b> no se puede publicar.":"");
-  askConfirm({title:"➤ Publicar a redes",body:"<b>"+pieceLabel(p)+"</b><br>Se publicará a las redes configuradas (Instagram/Facebook vía Meta Graph API)."+warn,ok:"Publicar"},
-    ()=>{if(p.status==="rejected"){toast("⛔ Simulación · el servidor rechaza publicar piezas rechazadas");return}
-      p.status="published";render();toast("🚀 Simulación · publicado — en el bot real la media se sirve desde R2 con URL firmada")});
+  const warn=p.status==="pending"?"<br><br>Aviso: esta pieza aún está <b>pendiente</b> (sin aprobar) — se publicará tal cual está.":(p.status==="rejected"?"<br><br>En el bot real, una pieza <b>rechazada</b> no se puede publicar.":"");
+  askConfirm({title:"Publicar a redes",body:"<b>"+pieceLabel(p)+"</b><br>Se publicará a las redes configuradas (Instagram/Facebook vía Meta Graph API)."+warn,ok:"Publicar"},
+    ()=>{if(p.status==="rejected"){toast("Simulación · el servidor rechaza publicar piezas rechazadas");return}
+      p.status="published";render();toast("Simulación · publicado — en el bot real la media se sirve desde R2 con URL firmada")});
 }
 function askDel(id){
   const p=pieces.find(x=>x.id===id);
-  askConfirm({title:"🗑 Eliminar pieza",body:"<b>"+pieceLabel(p)+"</b><br>Se eliminará la pieza y <b>todos sus archivos</b> (imágenes, video, voz). No se puede deshacer.",ok:"Eliminar definitivamente",danger:true},
-    ()=>{pieces.splice(pieces.indexOf(p),1);render();toast("🗑 Pieza eliminada (simulación)")});
+  askConfirm({title:"Eliminar pieza",body:"<b>"+pieceLabel(p)+"</b><br>Se eliminará la pieza y <b>todos sus archivos</b> (imágenes, video, voz). No se puede deshacer.",ok:"Eliminar definitivamente",danger:true},
+    ()=>{pieces.splice(pieces.indexOf(p),1);render();toast("Pieza eliminada (simulación)")});
 }
 
 /* ---- Vista Ajustes ---- */
@@ -537,7 +541,7 @@ function toggleScreen(){
   document.getElementById("grid").style.display=onSettings?"none":"";
   document.getElementById("banner").style.display=onSettings?"none":"";
   document.getElementById("tabs").style.display=onSettings?"none":"";
-  document.getElementById("navBtn").textContent=onSettings?"← Panel":"⚙ Ajustes";
+  document.getElementById("navBtn").innerHTML=onSettings?(ic("back")+" Panel"):(ic("gear")+" Ajustes");
   if(onSettings)window.scrollTo({top:0});
 }
 
@@ -561,15 +565,15 @@ function renderSecrets(keys){
       <div class="s-head"><code>${k}</code> <span class="s-state ${secretState[k]?"on":""}">${secretState[k]?"configurado":"no configurado"}</span></div>
       <div class="s-desc">${SECRETS[k]} <b>Write-only:</b> una vez guardado, el panel nunca vuelve a mostrar el valor.</div>
       <div class="s-row"><input type="password" placeholder="Pegar valor…">
-        <button class="btn-primary sm" onclick="saveSecret('${k}',this)">✓ Guardar</button>
-        <button class="btn-ghost sm" onclick="delSecret('${k}')">🗑</button></div>
+        <button class="btn-primary sm" onclick="saveSecret('${k}',this)">${ic("check","ic sm")} Guardar</button>
+        <button class="btn-ghost sm" onclick="delSecret('${k}')">${ic("trash","ic sm")}</button></div>
     </div>`).join("");
 }
 function saveSecret(k,btn){
   const inp=btn.parentElement.querySelector("input");
   if(!inp.value.trim()){toast("Pega un valor primero (demo: cualquier cosa)");return}
   inp.value="";secretState[k]=true;applyProviderUI();
-  toast("🔒 Simulación · "+k+" guardado CIFRADO (AES-256-GCM) en tu perfil del servidor");
+  toast("Simulación · "+k+" guardado CIFRADO (AES-256-GCM) en tu perfil del servidor");
 }
 function delSecret(k){
   askConfirm({title:"Borrar credencial",body:"Se eliminará <b>"+k+"</b> de tu perfil.",ok:"Borrar",danger:true},
@@ -585,7 +589,7 @@ function applyProviderUI(){
 }
 function loadModels(){
   const p=document.getElementById("pProvider").value,ui=PUI[p];
-  toast(ui.models.length?("⟳ "+ui.models.length+" modelos "+(p==="anthropic"||p==="openai"||p==="gemini"?"(en el bot real: consultados EN VIVO a la API con tus credenciales)":"sugeridos")+" — despliega el campo Modelo"):("Este CLI no tiene API de listado — escribe el modelo libremente"));
+  toast(ui.models.length?(ui.models.length+" modelos "+(p==="anthropic"||p==="openai"||p==="gemini"?"(en el bot real: consultados EN VIVO a la API con tus credenciales)":"sugeridos")+" — despliega el campo Modelo"):("Este CLI no tiene API de listado — escribe el modelo libremente"));
 }
 /* Wizard simulado */
 let wzBusy=false;
@@ -595,11 +599,11 @@ function wzCode(){
   if(!document.getElementById("wzCode").value.trim()){toast("Pega un código (demo: cualquier cosa)");return}
   wzShow(2);
   setTimeout(()=>{wzBusy=false;secretState.CLAUDE_CODE_OAUTH_TOKEN=true;applyProviderUI();wzShow(3);
-    toast("✓ Simulación · token sk-ant-oat01-… capturado y cifrado — tus generaciones ya usan TU cuenta")},1400);
+    toast("Simulación · token sk-ant-oat01-… capturado y cifrado — tus generaciones ya usan TU cuenta")},1400);
 }
 function testAgent(btn){
   btn.disabled=true;document.getElementById("agentMsg").textContent="Probando tu agente…";
-  setTimeout(()=>{btn.disabled=false;document.getElementById("agentMsg").textContent="✓ El agente respondió: OK (en el bot real hace una llamada mínima con TUS credenciales)"},1500);
+  setTimeout(()=>{btn.disabled=false;document.getElementById("agentMsg").textContent="El agente respondió: OK (en el bot real hace una llamada mínima con TUS credenciales)"},1500);
 }
 
 /* Contexto simulado */
@@ -624,11 +628,11 @@ function createCtx(){
   ctxFiles[path]="# "+n.replace(/\.md$/,"").replace(/[-_]/g," ")+"\n\n> Contexto adicional: el bot inyecta este archivo en cada generación.\n\nEscribe aquí tus instrucciones, estilo o promociones…";
   document.getElementById("ctxNew").value="";
   loadCtxList(path);
-  document.getElementById("ctxMsg").textContent="✓ Archivo creado — el bot ya lo usa como contexto en cada generación (prompts personalizados sin tocar código).";
+  document.getElementById("ctxMsg").textContent="Archivo creado — el bot ya lo usa como contexto en cada generación (prompts personalizados sin tocar código).";
 }
 function delCtx(){
   const p=document.getElementById("ctxFile").value;
-  if(!p.startsWith("knowledge/")){toast("⛔ Solo se pueden eliminar .md de knowledge/ — config/ está protegido");return}
+  if(!p.startsWith("knowledge/")){toast("Solo se pueden eliminar .md de knowledge/ — config/ está protegido");return}
   askConfirm({title:"Eliminar archivo de contexto",body:"Se eliminará <b>"+p+"</b>. El bot dejará de usarlo en las generaciones.",ok:"Eliminar archivo",danger:true},
     ()=>{delete ctxFiles[p];loadCtxList();document.getElementById("ctxMsg").textContent="Archivo eliminado."});
 }
@@ -640,12 +644,12 @@ function renderBrand(){
     <div class="basset ${a.cur?"cur":""}">
       <div class="bimg"><span style="color:${a.name.includes("dark")?"#0F0F1A":"#fff"};text-shadow:0 0 8px ${a.name.includes("dark")?"#fff8":"#0008"}">${a.label}</span></div>
       <div class="bname">${a.name}</div>
-      ${a.cur?'<span class="cur-tag">✓ logo principal</span>':'<button class="btn-ghost sm" onclick="setLogo(\''+a.name+'\')">Usar como logo</button>'}
+      ${a.cur?'<span class="cur-tag">'+ic("check","ic sm")+' logo principal</span>':'<button class="btn-ghost sm" onclick="setLogo(\''+a.name+'\')">Usar como logo</button>'}
     </div>`).join("");
 }
 function setLogo(name){
   askConfirm({title:"Cambiar logo principal",body:"<b>"+name+"</b> pasará a ser el logo que el bot superpone en imágenes y videos.",ok:"Usar este logo"},
-    ()=>{brandAssets.forEach(a=>a.cur=a.name===name);renderBrand();toast("✓ Logo principal actualizado (config/brand.json → logoFile)")});
+    ()=>{brandAssets.forEach(a=>a.cur=a.name===name);renderBrand();toast("Logo principal actualizado (config/brand.json → logoFile)")});
 }
 
 /* Usuarios simulados */
@@ -661,7 +665,7 @@ function addUser(){
   const n=document.getElementById("uName").value.trim();if(!n){toast("Escribe un nombre");return}
   users.push({name:n,role:document.getElementById("uRole").value,agent:"— sin configurar (elegirá su agente al entrar)"});
   document.getElementById("uName").value="";renderUsers();
-  document.getElementById("uMsg").textContent="✓ Usuario creado — al entrar configurará su propio agente/cuenta de IA en Ajustes.";
+  document.getElementById("uMsg").textContent="Usuario creado — al entrar configurará su propio agente/cuenta de IA en Ajustes.";
 }
 function delUser(i){
   askConfirm({title:"Eliminar usuario",body:"Se eliminará a <b>"+esc(users[i].name)+"</b>. Perderá el acceso y su perfil de agente dejará de usarse.",ok:"Eliminar usuario",danger:true},
@@ -675,9 +679,9 @@ function fakeGen(){
   closeGen();const j=document.getElementById("job"),tx=document.getElementById("jobTxt");
   const topic=document.getElementById("genTopic").value.trim()||"tu tema";
   j.classList.add("show");
-  const steps=["✍️ escribiendo copy con TU agente (contexto de marca)…","🎨 generando el visual…","👁 QA visual: el agente revisa la imagen…","🧩 componiendo logo + overlay…"];
+  const steps=["Escribiendo copy con TU agente (contexto de marca)…","Generando el visual…","QA visual: el agente revisa la imagen…","Componiendo logo + overlay…"];
   let i=0;tx.textContent=steps[0];
-  const iv=setInterval(()=>{i++;if(i<steps.length){tx.textContent=steps[i]}else{clearInterval(iv);j.classList.remove("show");toast(`✅ Simulación completa para "${topic}" — en el bot real la pieza aparecería en la cola como Pendiente, generada con tu cuenta`)}},1400);
+  const iv=setInterval(()=>{i++;if(i<steps.length){tx.textContent=steps[i]}else{clearInterval(iv);j.classList.remove("show");toast(`Simulación completa para "${topic}" — en el bot real la pieza aparecería en la cola como Pendiente, generada con tu cuenta`)}},1400);
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeGen();closeCf()}});
 
