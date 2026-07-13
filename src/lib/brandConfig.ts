@@ -13,7 +13,7 @@ export interface BrandConfig {
   logoFile: string;
   website?: string; // opcional: se muestra al pie de los posts de marca (ej. "lyroo.com.co")
   industry?: string; // opcional: rubro del negocio (ej. "restaurante", "software", "gimnasio")
-  colors: { primary: string; primaryLight: string; accent: string; dark: string };
+  colors: { primary: string; primaryLight: string; accent: string; dark: string; light: string };
 }
 
 const DEFAULTS: BrandConfig = {
@@ -23,7 +23,7 @@ const DEFAULTS: BrandConfig = {
   ctaDefault: "Escríbenos por WhatsApp",
   logoFile: "logo-horizontal-white.svg",
   website: "",
-  colors: { primary: "#5B2DC4", primaryLight: "#7B4DDB", accent: "#00D4AA", dark: "#0F0F1A" },
+  colors: { primary: "#5B2DC4", primaryLight: "#7B4DDB", accent: "#00D4AA", dark: "#0F0F1A", light: "#FFFFFF" },
 };
 
 // Sin caché: el panel permite editar config/brand.json en caliente y cada generación

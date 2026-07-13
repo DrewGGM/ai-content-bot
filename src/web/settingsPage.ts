@@ -193,7 +193,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       <b>${icon("link", "ic sm")} Conectar Claude Code con TU cuenta</b>
       <div class="step on" id="wz0">
         <p class="sub conn-yes" id="wzConnMsg" style="display:none;margin:8px 0 10px;color:#00c893">
-          <b>✓ Tu cuenta ya está conectada</b> — hay un token guardado y tus generaciones lo usan.
+          <b>${icon("check", "ic sm")} Tu cuenta ya está conectada</b> — hay un token guardado y tus generaciones lo usan.
           Solo vuelve a conectar si quieres reemplazarlo (p. ej. otra cuenta o token vencido).</p>
         <p class="sub" id="wzConnNo" style="margin:8px 0 10px">Genera un token de 1 año con tu suscripción de Claude (Pro/Max/Team).
         ${ptyOk
@@ -567,7 +567,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     function testProfile(btn){
       btn.disabled=true;msg('profMsg','Probando tu agente (puede tardar unos segundos)…',true);
       j('/api/profile/test',{}).then(function(r){btn.disabled=false;
-        if(r.ok)msg('profMsg','✓ El agente respondió: '+r.reply,true);else msg('profMsg','Falló: '+r.error,false)})
+        if(r.ok)msg('profMsg','El agente respondió: '+r.reply,true);else msg('profMsg','Falló: '+r.error,false)})
         .catch(function(e){btn.disabled=false;msg('profMsg',e.message,false)});
     }
     function saveSecret(key,btn){
@@ -695,7 +695,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
           return '<div class="basset'+(a.isLogo?' cur':'')+'">'+
             '<div class="bimg"><img src="/api/brand/file?name='+encodeURIComponent(a.name)+'" alt=""></div>'+
             '<div class="bname">'+ceHtml(a.name)+'</div>'+
-            (a.isLogo?'<span class="cur-tag">✓ logo principal</span>'
+            (a.isLogo?'<span class="cur-tag"><svg class="ic sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> logo principal</span>'
               :'<button class="btn-ghost sm" onclick="setLogo(\\''+ceHtml(a.name)+'\\')">Usar como logo</button>')+
             '</div>';
         }).join('')||'<p class="sub">No hay archivos en assets/brand/ — sube tu primer logo abajo.</p>';

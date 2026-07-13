@@ -1,43 +1,53 @@
 /** Composición de marca: superpone el LOGO REAL (config.logoFile) con un scrim suave (sin banda dura). */
 import sharp from "sharp";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadBrandConfig } from "./brandConfig.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+/** Logo de texto oscuro (para fondos claros, ej. el poster `design` con fondo blanco). */
+const LOGO_ON_LIGHT_FILE = "logo-horizontal-dark.png";
+
 // Lectura perezosa (el panel puede editar config/brand.json en caliente); el caché de
-// rasterizado incluye el nombre del logo para invalidarse si la marca cambia de archivo.
+// rasterizado incluye el archivo y la variante para invalidarse si la marca cambia.
 const logoCache = new Map<string, Buffer>();
-async function logoPng(widthPx: number): Promise<Buffer> {
-  const logoFile = loadBrandConfig().logoFile;
-  const cacheKey = `${logoFile}:${widthPx}`;
-  if (logoCache.has(cacheKey)) return logoCache.get(cacheKey)!;
-  const svg = readFileSync(join(ROOT, "assets", "brand", logoFile));
-  const png = await sharp(svg, { density: 400 }).resize({ width: widthPx }).png().toBuffer();
-  logoCache.set(cacheKey, png);
+async function logoPng(widthPx: number, light: boolean): Promise<Buffer> {
+  // Logo de texto claro (fondos oscuros: video, fotos IA) = el histórico "logoFile".
+  // Para fondos claros usa el logo oscuro; si la marca no subió ese archivo, cae al normal.
+  const white = loadBrandConfig().logoFile;
+  let file = light ? LOGO_ON_LIGHT_FILE : white;
+  if (light && !existsSync(join(ROOT, "assets", "brand", file))) file = white;
+  const key = `${file}:${widthPx}`;
+  if (logoCache.has(key)) return logoCache.get(key)!;
+  const src = readFileSync(join(ROOT, "assets", "brand", file));
+  const png = await sharp(src, { density: 400 }).resize({ width: widthPx }).png().toBuffer();
+  logoCache.set(key, png);
   return png;
 }
 
 /**
- * "Plate" del logo: una banda superior de ancho completo con un degradado oscuro suave
+ * "Plate" del logo: una banda superior de ancho completo con un degradado suave
  * (transparente hacia abajo, SIN borde duro) y el logo centrado encima. Ancho = W, alto = plateH.
+ * `light=true` = fondo predominante claro debajo (usa scrim blanco + logo de texto oscuro);
+ * por defecto asume fondo oscuro (scrim oscuro + logo de texto claro).
  * Sirve igual para imágenes (sharp) y para video (ffmpeg overlay en 0,0).
  */
-export async function renderLogoPlate(W: number, plateH: number): Promise<Buffer> {
-  const DARK = loadBrandConfig().colors.dark;
+export async function renderLogoPlate(W: number, plateH: number, light = false): Promise<Buffer> {
+  const colors = loadBrandConfig().colors;
+  const scrimColor = light ? colors.light : colors.dark;
   const scrimSvg = Buffer.from(
     `<svg width="${W}" height="${plateH}" xmlns="http://www.w3.org/2000/svg">
       <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="${DARK}" stop-opacity="0.55"/>
-        <stop offset="0.6" stop-color="${DARK}" stop-opacity="0.18"/>
-        <stop offset="1" stop-color="${DARK}" stop-opacity="0"/>
+        <stop offset="0" stop-color="${scrimColor}" stop-opacity="${light ? 0.85 : 0.55}"/>
+        <stop offset="0.6" stop-color="${scrimColor}" stop-opacity="${light ? 0.35 : 0.18}"/>
+        <stop offset="1" stop-color="${scrimColor}" stop-opacity="0"/>
       </linearGradient></defs>
       <rect width="${W}" height="${plateH}" fill="url(#g)"/>
     </svg>`
   );
   const logoW = Math.round(W * 0.28);
-  const logo = await logoPng(logoW);
+  const logo = await logoPng(logoW, light);
   const lMeta = await sharp(logo).metadata();
   const lH = lMeta.height ?? Math.round(logoW * 0.43);
   const top = Math.max(8, Math.round(plateH * 0.32 - lH / 2));
@@ -59,7 +69,7 @@ export async function brandLogoReferenceDataUri(): Promise<string | null> {
   try {
     const dark = loadBrandConfig().colors.dark;
     const W = 640, H = 400, logoW = Math.round(W * 0.6);
-    const logo = await logoPng(logoW);
+    const logo = await logoPng(logoW, false); // logo de texto claro sobre tarjeta oscura
     const lMeta = await sharp(logo).metadata();
     const lH = lMeta.height ?? Math.round(logoW * 0.43);
     const card = Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="${dark}"/></svg>`);
@@ -107,7 +117,7 @@ export async function overlayBrandPoster(
   const M = Math.round(W * 0.075);
 
   const logoW = Math.round(W * 0.24);
-  const logo = await logoPng(logoW);
+  const logo = await logoPng(logoW, false); // logo de texto claro (va sobre scrim oscuro)
   const lMeta = await sharp(logo).metadata();
   const lH = lMeta.height ?? Math.round(logoW * 0.43);
 
@@ -157,14 +167,14 @@ export async function overlayBrandPoster(
 }
 
 /** Superpone el plate (scrim + logo) en la parte superior de la imagen y sobreescribe el archivo. */
-export async function overlayLogo(imagePath: string): Promise<void> {
+export async function overlayLogo(imagePath: string, light = false): Promise<void> {
   const img = sharp(imagePath);
   const meta = await img.metadata();
   const W = meta.width ?? 1080;
   const H = meta.height ?? 1080;
   const plateH = Math.round(H * 0.16);
 
-  const plate = await renderLogoPlate(W, plateH);
+  const plate = await renderLogoPlate(W, plateH, light);
   const composed = await img.composite([{ input: plate, top: 0, left: 0 }]).png().toBuffer();
   await sharp(composed).toFile(imagePath);
 }

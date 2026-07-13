@@ -30,7 +30,7 @@ export async function generateDesignPost(copy: DesignCopy, platform: string, cre
     author: copy.author,
     cta: copy.cta,
   }));
-  await overlayLogo(imagePath);
+  await overlayLogo(imagePath, true);
 
   writeFileSync(join(outDir, "post.md"), `# ${copy.slug}\n\n${copy.caption}\n\n${copy.hashtags.join(" ")}\n`);
 

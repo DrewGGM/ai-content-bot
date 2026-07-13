@@ -34,7 +34,7 @@ export async function generateDeck(copy: DeckCopy, platform: string, createdAt: 
       author: s.author,
       cta: s.cta ?? "",
     }));
-    await overlayLogo(p);
+    await overlayLogo(p, true);
     images.push(p);
   }
 
