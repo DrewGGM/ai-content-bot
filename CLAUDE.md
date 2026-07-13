@@ -80,9 +80,16 @@ npm run schedule            # scheduler diario (usa el planner)
   devuelve 0), descarga por URL del usuario (`downloadMusicFromUrl`), créditos en `credits.json`.
 - **Credenciales de empresa** (tokens de redes + keys de proveedores): `src/lib/companySecrets.ts`,
   cifradas y aplicadas a process.env al arrancar server/scheduler; el `.env` del servidor manda.
-- **Ajustes no-secretos** (ej. `IMAGE_PROVIDER`): `src/lib/appSettings.ts` — configurables desde el
-  panel (Ajustes → Conexiones), `data/app-settings.json` sin cifrar, aplicados a process.env con la
-  misma prioridad del `.env`. Endpoints `/api/settings`.
+- **Ajustes no-secretos** (ej. `IMAGE_PROVIDER`, `META_AD_ACCOUNT_ID`, `ADS_MAX_DAILY_BUDGET`):
+  `src/lib/appSettings.ts` (tipos enum/text/number) — configurables desde el panel (Ajustes →
+  Conexiones), `data/app-settings.json` sin cifrar, aplicados a process.env con la prioridad del
+  `.env`. Endpoints `/api/settings`.
+- **Ads / campañas de Meta**: `src/lib/metaAds.ts` (Graph Marketing API: campaign→adset→creative→ad
+  + insights + updates) y `src/pipeline/adsCampaign.ts` (la IA PROPONE con `askBrandJson`, luego
+  `launchCampaign` crea en Meta y `optimizeCampaign` ajusta por métricas). Human-in-the-loop:
+  se crea PAUSED por defecto, gasto topado por `ADS_MAX_DAILY_BUDGET`. Registro `src/lib/adsStore.ts`
+  (`data/ads.json`). Panel: card "Campañas de ads" + endpoints `/api/ads/*`. Guía: `ADS.md`.
+  Requiere `META_ADS_TOKEN` (ads_management) + `META_AD_ACCOUNT_ID` + `FACEBOOK_PAGE_ID`.
 - **Estilos**: `config/art-direction.md` (si existe) reemplaza la dirección de arte por defecto —
   editable en el panel. Skills activables/subibles desde el panel (`config/skills.json`).
 - **Deploy**: Opción A (VPS + cron + Cloudflare Tunnel) documentada en `DEPLOY.md`.

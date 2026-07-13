@@ -36,6 +36,7 @@ export const COMPANY_KEYS: CompanyKeyDef[] = [
   { key: "LEONARDO_API_KEY", label: "Leonardo.Ai (imagen)", group: "Proveedores de medios" },
   { key: "ELEVENLABS_API_KEY", label: "ElevenLabs (voz/música)", group: "Proveedores de medios" },
   { key: "HEYGEN_API_KEY", label: "HeyGen (avatares)", group: "Proveedores de medios" },
+  { key: "META_ADS_TOKEN", label: "Token de Meta Ads (ads_management)", group: "Meta Ads" },
 ];
 
 const ALLOWED = new Set(COMPANY_KEYS.map((k) => k.key));

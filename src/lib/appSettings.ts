@@ -15,18 +15,48 @@ const STORE = join(ROOT, "data", "app-settings.json");
 export interface AppSettingDef {
   key: string;
   label: string;
-  options: string[];
+  type: "enum" | "text" | "number";
+  options: string[]; // solo enum
   default: string;
   help: string;
+  group?: string;
 }
 
 export const APP_SETTINGS: AppSettingDef[] = [
   {
     key: "IMAGE_PROVIDER",
     label: "Proveedor de imagen",
+    type: "enum",
     options: ["fal", "openai", "gemini", "leonardo"],
     default: "fal",
     help: "Con qué servicio se generan las imágenes (posts, carruseles, posts de marca). fal (Nano Banana Pro) es el recomendado.",
+  },
+  {
+    key: "META_AD_ACCOUNT_ID",
+    label: "Cuenta publicitaria de Meta (Ad Account ID)",
+    type: "text",
+    options: [],
+    default: "",
+    help: "El id de tu cuenta publicitaria SIN el prefijo act_ (ej. 1234567890). Lo ves en Administrador de Anuncios → Configuración.",
+    group: "Meta Ads",
+  },
+  {
+    key: "META_PIXEL_ID",
+    label: "Píxel de Meta (opcional, para ventas)",
+    type: "text",
+    options: [],
+    default: "",
+    help: "Solo si haces campañas de conversión/ventas. Opcional.",
+    group: "Meta Ads",
+  },
+  {
+    key: "ADS_MAX_DAILY_BUDGET",
+    label: "Tope de gasto diario por conjunto",
+    type: "number",
+    options: [],
+    default: "0",
+    help: "Límite de seguridad: el bot NUNCA crea/optimiza un conjunto con presupuesto diario mayor a este (en la moneda de tu cuenta). 0 = sin tope (no recomendado).",
+    group: "Meta Ads",
   },
 ];
 
@@ -62,13 +92,21 @@ export function listAppSettings(): Array<AppSettingDef & { value: string; source
 export function setAppSetting(key: string, value: string): void {
   const def = ALLOWED.get(key);
   if (!def) throw new Error("Ajuste no permitido");
-  const v = String(value).toLowerCase().trim();
-  if (!def.options.includes(v)) throw new Error(`Valor inválido (opciones: ${def.options.join(", ")})`);
   if (fromServerEnv.has(key)) throw new Error(`"${key}" está fijado en el .env del servidor — cámbialo allí`);
+  let v: string;
+  if (def.type === "enum") {
+    v = String(value).toLowerCase().trim();
+    if (!def.options.includes(v)) throw new Error(`Valor inválido (opciones: ${def.options.join(", ")})`);
+  } else if (def.type === "number") {
+    v = String(value).trim();
+    if (v !== "" && !/^\d+(\.\d+)?$/.test(v)) throw new Error("Debe ser un número (≥ 0)");
+  } else {
+    v = String(value).trim().slice(0, 200);
+  }
   const store = readStore();
-  store[key] = v;
+  if (v === "" && def.type !== "enum") delete store[key]; else store[key] = v;
   writeStore(store);
-  process.env[key] = v;
+  if (v === "" && def.type !== "enum") delete process.env[key]; else process.env[key] = v;
   appliedByPanel.add(key);
 }
 

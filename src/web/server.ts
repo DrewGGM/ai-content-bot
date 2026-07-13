@@ -45,6 +45,9 @@ import { listBrandReferences, saveBrandReference, deleteBrandReference, readBran
 import { listInstalledSkills, setSkillEnabled, uploadSkill, deleteSkill } from "../lib/skills.js";
 import { listCompanySecrets, setCompanySecret, deleteCompanySecret, applyCompanySecrets } from "../lib/companySecrets.js";
 import { listAppSettings, setAppSetting, applyAppSettings } from "../lib/appSettings.js";
+import { adsReady, accountInfo, updateObject, type Objective } from "../lib/metaAds.js";
+import { proposeAdCampaign, launchCampaign, optimizeCampaign, type AdCampaignPlan } from "../pipeline/adsCampaign.js";
+import { listAdCampaigns, addAdCampaign, updateAdCampaignStatus } from "../lib/adsStore.js";
 import { listWorkflows, readWorkflow, saveWorkflow, deleteWorkflow, workflowTemplate } from "../workflows/engine.js";
 
 const brand = loadBrandConfig();
@@ -1501,6 +1504,82 @@ const server = createServer(async (req, res) => {
       const b = await jsonBody(req);
       deleteCompanySecret(String(b.key ?? ""));
       audit(user.name, "credencial de empresa eliminada", String(b.key ?? ""));
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // ---- Ads / Campañas de Meta (solo admin) ----
+  if (url.pathname === "/api/ads/pieces" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    const q = await listQueue();
+    const pieces = q
+      .filter((p: any) => (p.assets?.image || p.assets?.images?.[0]) && p.status !== "rejected")
+      .map((p: any) => ({ id: p.id, label: (p.caption ?? p.topic ?? p.id).split("\n")[0].slice(0, 70), format: p.format, status: p.status }));
+    sendJson(res, 200, pieces);
+    return;
+  }
+  if (url.pathname === "/api/ads/status" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    const ready = adsReady();
+    let account: any = null;
+    if (ready) { try { account = await accountInfo(); } catch (e: any) { account = { error: String(e?.message ?? e) }; } }
+    sendJson(res, 200, { ready, account, campaigns: listAdCampaigns() });
+    return;
+  }
+  if (url.pathname === "/api/ads/propose" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      const ids: string[] = Array.isArray(b.pieceIds) ? b.pieceIds.map(String) : [];
+      const q = await listQueue();
+      const pieces = ids.map((id) => q.find((i) => i.id === id)).filter(Boolean)
+        .map((p: any) => ({ id: p.id, caption: p.caption ?? "", image: p.assets?.image ?? p.assets?.images?.[0] ?? "", format: p.format }))
+        .filter((p) => p.image);
+      if (!pieces.length) { sendJson(res, 400, { error: "Elige al menos una pieza con imagen (los videos aún no se promocionan)" }); return; }
+      const plan = await runWithProfile(activeProfileFor(user), () =>
+        proposeAdCampaign({ pieces, objective: b.objective as Objective, goalText: b.goalText ? String(b.goalText) : undefined }));
+      audit(user.name, "ads: propuesta", `${plan.name} · ${pieces.length} pieza(s)`);
+      sendJson(res, 200, plan);
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/ads/launch" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req, 4 * 1024 * 1024);
+      const plan = b.plan as AdCampaignPlan;
+      const status = b.status === "ACTIVE" ? "ACTIVE" : "PAUSED";
+      if (!plan || !Array.isArray(plan.ads) || !plan.ads.length) { sendJson(res, 400, { error: "Plan inválido" }); return; }
+      const r = await launchCampaign(plan, { status });
+      addAdCampaign({
+        campaignId: r.campaignId, adsetId: r.adsetId, adIds: r.adIds, name: plan.name, objective: plan.objective,
+        status, dailyBudget: plan.dailyBudget, createdAt: new Date().toISOString(), createdBy: user.name,
+        pieceIds: plan.ads.map((a) => a.pieceId ?? "").filter(Boolean),
+      });
+      audit(user.name, "ads: campaña creada", `${plan.name} (${status}) · ${r.adIds.length} anuncio(s)`);
+      sendJson(res, 200, { ok: true, ...r });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/ads/optimize" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      const r = await optimizeCampaign(String(b.campaignId ?? ""), !!b.apply);
+      audit(user.name, "ads: optimizar", `${String(b.campaignId ?? "")}${b.apply ? " (aplicado)" : " (sugerencias)"}`);
+      sendJson(res, 200, r);
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/ads/toggle" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req);
+      const status = b.status === "ACTIVE" ? "ACTIVE" : "PAUSED";
+      await updateObject(String(b.campaignId ?? ""), { status });
+      updateAdCampaignStatus(String(b.campaignId ?? ""), status);
+      audit(user.name, "ads: " + (status === "ACTIVE" ? "activar" : "pausar") + " campaña", String(b.campaignId ?? ""));
       sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;

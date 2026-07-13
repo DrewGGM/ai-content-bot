@@ -397,6 +397,35 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
   </section>
 
   <section class="card">
+    <h2>${icon("send")} Campañas de ads (Meta) <span class="role">admin</span></h2>
+    <p class="sub">La IA <b>propone</b> una campaña (objetivo, público, presupuesto y copies) para las piezas que elijas,
+    la <b>crea</b> en Facebook/Instagram y sugiere <b>optimizaciones</b> según métricas. Nada gasta sin tu OK: se crean
+    <b>en pausa</b> por defecto y el gasto está topado por <code>ADS_MAX_DAILY_BUDGET</code>. Configura arriba el token
+    de Meta Ads, la cuenta publicitaria y el tope.</p>
+    <div id="adsStatus" class="prov-note" style="display:none"></div>
+    <div id="adsSetup" style="display:none">
+      <p class="sub">Faltan credenciales de Meta Ads. Ver la guía <code>ADS.md</code> del repo para crear la cuenta
+      (Business Manager → cuenta publicitaria → token con <code>ads_management</code>).</p>
+    </div>
+    <div id="adsMain" style="display:none">
+      <label>¿Qué quieres lograr? (opcional)</label>
+      <input id="adsGoal" placeholder="Ej: más mensajes de WhatsApp / más ventas / dar a conocer la marca">
+      <div class="row mt">
+        <div><label>Objetivo de Meta (opcional — la IA elige si lo dejas en Auto)</label>
+          <select id="adsObjective"><option value="">Auto</option><option>OUTCOME_AWARENESS</option><option>OUTCOME_TRAFFIC</option><option>OUTCOME_ENGAGEMENT</option><option>OUTCOME_LEADS</option><option>OUTCOME_SALES</option></select></div>
+      </div>
+      <label style="margin-top:12px">Piezas a promocionar (aprobadas/pendientes con imagen)</label>
+      <div id="adsPieces" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-height:260px;overflow:auto"></div>
+      <div class="filebar mt"><button class="btn-primary sm" onclick="adsPropose(this)">${icon("spark")} Proponer campaña</button></div>
+      <div id="adsPlan" style="display:none;border:1px solid var(--violet2);border-radius:13px;padding:15px;margin-top:12px"></div>
+      <div class="msg" id="adsMsg"></div>
+      <h3 style="font-size:14px;margin:18px 0 8px">Campañas creadas</h3>
+      <div class="tw"><table><thead><tr><th>Campaña</th><th>Objetivo</th><th>Estado</th><th></th></tr></thead><tbody id="adsCampaigns"></tbody></table></div>
+      <div class="msg" id="adsOptMsg"></div>
+    </div>
+  </section>
+
+  <section class="card">
     <h2>${icon("users")} Usuarios del panel</h2>
     <p class="sub">Cada usuario entra con su contraseña y configura su propio agente/cuenta de IA.
     Los admin además gestionan usuarios y el contexto de empresa.</p>
@@ -973,21 +1002,30 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     function loadAppSettings(){
       if(!IS_ADMIN)return;
       j('/api/settings').then(function(list){
+        var lastG='';
         document.getElementById('appSettings').innerHTML=list.map(function(s){
-          var opts=s.options.map(function(o){return '<option value="'+o+'"'+(o===s.value?' selected':'')+'>'+o+'</option>'}).join('');
+          var head=(s.group&&s.group!==lastG)?'<div style="font-weight:700;margin:14px 0 6px">'+ceHtml(s.group)+'</div>':'';
+          lastG=s.group||lastG;
           var envNote=s.source==='env'?' <span style="color:var(--mut);font-size:11.5px">● fijado en el .env del servidor</span>':'';
-          return '<div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px">'+
+          var dis=s.source==='env'?' disabled':'';
+          var ctrl;
+          if(s.type==='enum'){
+            ctrl='<select data-key="'+s.key+'" onchange="saveAppSetting(this)" style="width:auto;min-width:160px"'+dis+'>'+
+              s.options.map(function(o){return '<option value="'+o+'"'+(o===s.value?' selected':'')+'>'+o+'</option>'}).join('')+'</select>';
+          }else{
+            ctrl='<input data-key="'+s.key+'" type="'+(s.type==='number'?'number':'text')+'" value="'+ceHtml(s.value||'')+'" onchange="saveAppSetting(this)" style="min-width:200px"'+dis+'>';
+          }
+          return head+'<div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px">'+
             '<label style="display:block;margin-bottom:6px">'+ceHtml(s.label)+envNote+'</label>'+
-            '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
-              '<select data-key="'+s.key+'" onchange="saveAppSetting(this)" style="width:auto;min-width:160px"'+(s.source==='env'?' disabled':'')+'>'+opts+'</select>'+
+            '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+ctrl+
               '<span style="color:var(--mut);font-size:12px;flex:1;min-width:200px">'+ceHtml(s.help)+'</span>'+
             '</div></div>';
         }).join('');
       }).catch(function(){});
     }
-    function saveAppSetting(sel){
-      j('/api/settings',{key:sel.dataset.key,value:sel.value})
-        .then(function(){msg('snMsg','Guardado — aplica desde la próxima generación.',true)})
+    function saveAppSetting(el){
+      j('/api/settings',{key:el.dataset.key,value:el.value})
+        .then(function(){msg('snMsg','Guardado.',true)})
         .catch(function(e){msg('snMsg',e.message,false);loadAppSettings()});
     }
     loadAppSettings();
@@ -1024,6 +1062,87 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       });
     }
     loadSocial();
+
+    // ---- Ads / Campañas de Meta (admin) ----
+    var adsPlanData=null;
+    function loadAds(){
+      if(!IS_ADMIN)return;
+      j('/api/ads/status').then(function(s){
+        document.getElementById('adsSetup').style.display=s.ready?'none':'block';
+        document.getElementById('adsMain').style.display=s.ready?'block':'none';
+        var st=document.getElementById('adsStatus');
+        if(s.ready&&s.account){
+          st.style.display='block';
+          st.innerHTML=s.account.error?('⚠ '+ceHtml(s.account.error)):('Cuenta: <b>'+ceHtml(s.account.name||s.account.id||'')+'</b> · moneda '+ceHtml(s.account.currency||'?')+' · gastado histórico '+ceHtml(s.account.amount_spent||'0'));
+        }else{st.style.display='none';}
+        if(s.ready){loadAdsPieces();renderCampaigns(s.campaigns||[]);}
+      }).catch(function(){});
+    }
+    function loadAdsPieces(){
+      j('/api/ads/pieces').then(function(list){
+        document.getElementById('adsPieces').innerHTML=list.length?list.map(function(p){
+          return '<label class="check" style="border:1px solid var(--line);border-radius:10px;padding:9px;margin:0"><input type="checkbox" value="'+ceHtml(p.id)+'"> <span style="font-size:12px"><b>'+ceHtml(p.format)+'</b> · '+ceHtml(p.status)+'<br>'+ceHtml(p.label)+'</span></label>';
+        }).join(''):'<p class="sub">No hay piezas con imagen todavía. Genera y aprueba alguna primero.</p>';
+      }).catch(function(){});
+    }
+    function adsPropose(btn){
+      var ids=[].slice.call(document.querySelectorAll('#adsPieces input:checked')).map(function(c){return c.value});
+      if(!ids.length){msg('adsMsg','Elige al menos una pieza.',false);return}
+      btn.disabled=true;msg('adsMsg','La IA está armando la propuesta…',true);
+      j('/api/ads/propose',{pieceIds:ids,objective:document.getElementById('adsObjective').value||undefined,goalText:document.getElementById('adsGoal').value||undefined})
+        .then(function(plan){btn.disabled=false;adsPlanData=plan;renderPlan(plan);msg('adsMsg','Propuesta lista — revísala y lánzala.',true)})
+        .catch(function(e){btn.disabled=false;msg('adsMsg',e.message,false)});
+    }
+    function renderPlan(p){
+      var box=document.getElementById('adsPlan');box.style.display='block';
+      var t=p.targeting||{};
+      box.innerHTML='<b>'+ceHtml(p.name)+'</b> · '+ceHtml(p.objective)+
+        '<p class="sub" style="margin:8px 0">'+ceHtml(p.rationale||'')+'</p>'+
+        '<div class="sub" style="margin:6px 0"><b>Público:</b> '+ceHtml((t.countries||[]).join(', '))+' · '+t.ageMin+'-'+t.ageMax+' años · '+
+        ceHtml((t.interests||[]).join(', ')||'amplio')+' · '+ceHtml((t.platforms||[]).join('/'))+'</div>'+
+        '<div class="sub" style="margin:6px 0"><b>Anuncios:</b> '+(p.ads||[]).length+' · '+(p.ads||[]).map(function(a){return '"'+ceHtml(a.headline)+'" ['+ceHtml(a.cta)+']'}).join(' · ')+'</div>'+
+        '<div class="row mt"><div><label>Presupuesto diario</label><input id="adsBudget" type="number" value="'+Number(p.dailyBudget||10)+'"></div>'+
+        '<div><label>Duración (días)</label><input id="adsDays" type="number" value="'+Number(p.durationDays||7)+'"></div></div>'+
+        '<label class="check mt"><input type="checkbox" id="adsActivate"> <span>Activar de inmediato (empieza a gastar). Sin marcar: se crea <b>en pausa</b> y le das play tú.</span></label>'+
+        '<div class="filebar mt"><button class="btn-primary sm" onclick="adsLaunch(this)">${icon("check")} Crear campaña</button></div>';
+    }
+    function adsLaunch(btn){
+      if(!adsPlanData)return;
+      adsPlanData.dailyBudget=Number(document.getElementById('adsBudget').value)||adsPlanData.dailyBudget;
+      adsPlanData.durationDays=Number(document.getElementById('adsDays').value)||adsPlanData.durationDays;
+      var activate=document.getElementById('adsActivate').checked;
+      askConfirm({title:'Crear campaña de ads',body:'Se creará en Meta la campaña <b>'+ceHtml(adsPlanData.name)+'</b> con '+(adsPlanData.ads||[]).length+' anuncio(s), presupuesto <b>'+adsPlanData.dailyBudget+'/día</b>, '+(activate?'<b>ACTIVA (empieza a gastar)</b>':'<b>en pausa</b>')+'.',ok:activate?'Crear y activar':'Crear en pausa',danger:activate},function(){
+        btn.disabled=true;msg('adsMsg','Creando en Meta…',true);
+        j('/api/ads/launch',{plan:adsPlanData,status:activate?'ACTIVE':'PAUSED'})
+          .then(function(r){btn.disabled=false;msg('adsMsg','Campaña creada ('+(activate?'activa':'en pausa')+') con '+r.adIds.length+' anuncio(s).',true);document.getElementById('adsPlan').style.display='none';adsPlanData=null;loadAds()})
+          .catch(function(e){btn.disabled=false;msg('adsMsg',e.message,false)});
+      });
+    }
+    function renderCampaigns(list){
+      document.getElementById('adsCampaigns').innerHTML=list.length?list.map(function(c){
+        var on=c.status==='ACTIVE';
+        return '<tr><td style="white-space:nowrap"><b>'+ceHtml(c.name)+'</b><div style="color:var(--mut);font-size:11px">'+(c.dailyBudget||0)+'/día · '+(c.adIds||[]).length+' anuncio(s)</div></td>'+
+          '<td style="font-size:12px">'+ceHtml(c.objective)+'</td>'+
+          '<td><span style="color:'+(on?'#5dd39e':'var(--mut)')+'">'+(on?'● activa':'⏸ pausa')+'</span></td>'+
+          '<td style="text-align:right;white-space:nowrap"><button class="btn-ghost sm" onclick="adsOptimize(\\''+ceHtml(c.campaignId)+'\\',false)">Optimizar</button> '+
+          '<button class="btn-ghost sm" onclick="adsToggle(\\''+ceHtml(c.campaignId)+'\\',\\''+(on?'PAUSED':'ACTIVE')+'\\')">'+(on?'Pausar':'Activar')+'</button></td></tr>';
+      }).join(''):'<tr><td colspan="4" style="color:var(--mut)">Aún no has creado campañas.</td></tr>';
+    }
+    function adsOptimize(id,apply){
+      msg('adsOptMsg','Analizando métricas…',true);
+      j('/api/ads/optimize',{campaignId:id,apply:apply}).then(function(r){
+        var body=ceHtml(r.report).replace(/\\n/g,'<br>');
+        if(!apply&&r.actions&&r.actions.length){
+          askConfirm({title:'Optimización sugerida',body:body+'<br><br>¿Aplicar los cambios en Meta?',ok:'Aplicar cambios'},function(){adsOptimize(id,true)});
+        }else{msg('adsOptMsg',apply?'Cambios aplicados.':'Sin cambios sugeridos.',true)}
+      }).catch(function(e){msg('adsOptMsg',e.message,false)});
+    }
+    function adsToggle(id,status){
+      askConfirm({title:status==='ACTIVE'?'Activar campaña':'Pausar campaña',body:status==='ACTIVE'?'La campaña empezará a <b>gastar</b>.':'La campaña dejará de gastar.',ok:status==='ACTIVE'?'Activar':'Pausar',danger:status==='ACTIVE'},function(){
+        j('/api/ads/toggle',{campaignId:id,status:status}).then(loadAds).catch(function(e){msg('adsOptMsg',e.message,false)});
+      });
+    }
+    loadAds();
 
     // ---- Actividad (admin) ----
     function loadAudit(){
