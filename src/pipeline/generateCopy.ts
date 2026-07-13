@@ -453,3 +453,55 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
     pillar: data.pillar,
   };
 }
+
+// ---------- CARRUSEL DE MARCA PREMIUM (N slides, imágenes de marca consistentes) ----------
+export interface BrandCarouselSlide {
+  headline: string;
+  subline?: string;
+  cta?: string;
+  visualIdea?: string;
+  iconLabels?: string[];
+}
+export interface BrandCarouselCopy {
+  slug: string;
+  slides: BrandCarouselSlide[];
+  caption: string;
+  hashtags: string[];
+  pillar?: string;
+}
+
+export async function generateBrandCarouselCopy(topic: string, instruction?: string): Promise<BrandCarouselCopy> {
+  const data = await ask(
+    `Eres el director creativo de ${brand().name}. Crea un CARRUSEL DE MARCA premium de 4-5 slides (cuadrados 1:1, estilo publicitario de alta gama, misma línea gráfica en todos) sobre: "${topic}".
+Cada slide se diseña como una pieza de marca (logo + estilo consistente); tú defines SOLO los textos (idioma de la marca) y qué mostrar como visual, acorde al rubro.
+Estructura: slide 1 = PORTADA con gancho potente; slides intermedios = un punto de valor cada uno; último slide = CTA.
+Devuelve ÚNICAMENTE un JSON válido (sin markdown):
+{
+  "slug": "kebab-case-corto",
+  "pillar": "uno de los pilares de contenido",
+  "slides": [
+    { "headline": "titular corto y potente del slide (4-8 palabras)",
+      "subline": "subtítulo de apoyo de 1 frase corta (opcional)",
+      "visualIdea": "EN INGLÉS: qué mostrar como protagonista del slide, acorde al rubro y coherente con los demás slides (ej. 'a plated gourmet dish', 'a laptop showing a dashboard'). Si hay fotos de producto, se usan reales.",
+      "cta": "SOLO en el último slide: llamada a la acción corta (2-4 palabras)" }
+  ],
+  "caption": "caption en español para el post del carrusel: gancho, saltos de línea, valor y CTA. Emojis moderados",
+  "hashtags": ["un hashtag de la marca", "5-8 hashtags relevantes"]
+}`,
+    instruction,
+  );
+  const slides: BrandCarouselSlide[] = (Array.isArray(data.slides) ? data.slides : []).slice(0, 6).map((s: any) => ({
+    headline: String(s.headline ?? ""),
+    subline: s.subline ? String(s.subline) : undefined,
+    cta: s.cta ? String(s.cta) : undefined,
+    visualIdea: s.visualIdea ? String(s.visualIdea) : undefined,
+    iconLabels: Array.isArray(s.iconLabels) ? s.iconLabels.slice(0, 3) : undefined,
+  }));
+  return {
+    slug: slugify(String(data.slug ?? "")) || slugify(topic) || "pieza",
+    slides,
+    caption: data.caption ?? "",
+    hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
+    pillar: data.pillar,
+  };
+}

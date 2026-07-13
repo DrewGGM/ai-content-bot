@@ -23,6 +23,7 @@ npm run ugc -- "tema"       # reel UGC (avatar HeyGen)                          
 npm run carousel -- "tema"  # carrusel 4-6 imágenes                            [fal]
 npm run post -- "tema"      # post imagen única                                [fal]
 npm run brandpost -- "tema" # post de marca premium (Nano Banana Pro edit + logo/referencias) [fal]
+npm run brandcarousel -- "tema" # carrusel de marca premium (slides consistentes, slide 1 = ancla) [fal]
 npm run design -- "tema"    # post de diseño por CÓDIGO (SVG+sharp, sin API de imagen)
 npm run plan                # Claude elige formato+tema según historial
 npm run set                 # una pieza de cada formato

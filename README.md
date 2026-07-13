@@ -200,6 +200,7 @@ npm run deck     -- "tema"    # carrusel por código (varios pósters)   — sie
 npm run motion   -- "tema"    # video animado por código (Remotion)    — siempre disponible
 npm run post     -- "tema"    # post imagen única IA           [fal/openai/gemini]
 npm run brandpost -- "tema"   # post de marca premium: logo + referencias [fal · Nano Banana Pro]
+npm run brandcarousel -- "tema" # carrusel de marca premium (slides consistentes) [fal]
 npm run carousel -- "tema"    # carrusel 4-6 imágenes IA       [fal/openai/gemini]
 npm run reel     -- "tema"    # reel b-roll cinematográfico    [fal + ElevenLabs]
 npm run ugc      -- "tema"    # reel UGC con avatar            [HeyGen]
@@ -284,6 +285,10 @@ software…). Dos tipos de imágenes de marca, gestionadas en Ajustes:
 
 Ambas carpetas son contenido de marca privado (no se versiona). El rubro se puede fijar en
 `config/brand.json` (`industry`) y el prompt maestro se afina desde Ajustes → *Estilos de diseño*.
+
+También existe **`brandcarousel`**: un **carrusel** donde cada slide es una imagen de marca premium
+con la **misma línea gráfica** (el slide 1 se pasa como referencia a los demás para que sean
+consistentes entre sí). Slide 1 = portada/gancho, intermedios = valor, último = CTA.
 
 Funciona con tres proveedores (`IMAGE_PROVIDER`), con distinta calidad de **texto/logo**:
 

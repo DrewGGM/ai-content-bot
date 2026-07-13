@@ -251,6 +251,7 @@ const FORMAT_LABELS: Record<string, string> = {
   deck: "Carrusel (código) — varios pósters, sin fal",
   post: "Post — imagen única (fal)",
   brandpost: "Post de marca premium — logo + referencias (fal)",
+  brandcarousel: "Carrusel de marca premium — slides con logo/referencias (fal)",
   carousel: "Carrusel — imágenes IA (fal)",
   reel: "Reel — video b-roll (fal)",
   motion: "Video (Remotion) — animado por código, sin fal",

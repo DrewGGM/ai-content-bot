@@ -12,7 +12,7 @@ import { copyProviderInfo } from "../providers/llm.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-export type Format = "reel" | "motion" | "ugc" | "carousel" | "post" | "brandpost" | "design" | "deck";
+export type Format = "reel" | "motion" | "ugc" | "carousel" | "post" | "brandpost" | "brandcarousel" | "design" | "deck";
 
 export interface Capabilities {
   copy: boolean; // agente/LLM de copy configurado (COPY_PROVIDER)
@@ -65,10 +65,10 @@ export function detectCapabilities(): Capabilities {
   const formats: Format[] = ["design", "deck", "motion"];
   if (!voice) notes.push("motion: sin ElevenLabs solo modo silencioso (voz/música necesitan la key)");
   if (image) { formats.push("post", "carousel"); } else notes.push(`post/carousel: falta proveedor de imagen (${provider})`);
-  // brandpost (imagen con logo/referencias): fal (Nano Banana Pro edit), openai (gpt-image-1
-  // edits) o leonardo (image guidance). gemini aún no usa referencias aquí.
-  if (image && ["fal", "openai", "leonardo"].includes(provider)) formats.push("brandpost");
-  else if (provider === "gemini") notes.push("brandpost (post de marca premium): con IMAGE_PROVIDER=gemini aún no se pasan referencias — usa fal, openai o leonardo");
+  // brandpost/brandcarousel (imagen con logo/referencias): fal (Nano Banana Pro edit), openai
+  // (gpt-image-1 edits) o leonardo (image guidance + texto por código). gemini aún no usa refs.
+  if (image && ["fal", "openai", "leonardo"].includes(provider)) formats.push("brandpost", "brandcarousel");
+  else if (provider === "gemini") notes.push("brandpost/brandcarousel (marca premium): con IMAGE_PROVIDER=gemini aún no se pasan referencias — usa fal, openai o leonardo");
   if (image && video && voice) formats.push("reel"); else if (!formats.includes("reel")) notes.push("reel: necesita imagen (fal) + video (fal) + voz");
   if (ugc) formats.push("ugc"); else notes.push("ugc: falta HeyGen (HEYGEN_API_KEY + AVATAR_ID + VOICE_ID)");
 

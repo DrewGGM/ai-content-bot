@@ -5,10 +5,11 @@ import { fileURLToPath } from "node:url";
 import { loadBrandContext } from "../knowledge/loader.js";
 import {
   generateReelCopy, generateRemotionCopy, generateUgcScript,
-  generateCarouselCopy, generatePostCopy, generateBrandPostCopy, generateDesignCopy, generateDeckCopy,
+  generateCarouselCopy, generatePostCopy, generateBrandPostCopy, generateBrandCarouselCopy, generateDesignCopy, generateDeckCopy,
 } from "./generateCopy.js";
 import { generateReel } from "./generateReel.js";
 import { generateBrandPost } from "./generateBrandPost.js";
+import { generateBrandCarousel } from "./generateBrandCarousel.js";
 import { generateRemotion, type Aspect, type AudioMode } from "./generateRemotion.js";
 import { generateUgcReel } from "./generateUgcReel.js";
 import { generateCarousel } from "./generateCarousel.js";
@@ -20,9 +21,9 @@ import { runWorkflow, readWorkflow } from "../workflows/engine.js";
 import type { QueueItem } from "../queue/queue.js";
 
 // reel = b-roll · motion = motion-graphics · ugc = avatar HeyGen · design/deck = por código (sin IA)
-// brandpost = post 1:1 premium con Nano Banana Pro edit + logo/referencias de marca.
+// brandpost = post 1:1 premium (Nano Banana Pro edit + logo/referencias) · brandcarousel = carrusel premium de marca.
 // "workflow:<nombre>" = workflow personalizado de config/workflows/ (motor src/workflows/).
-export type Format = "reel" | "motion" | "ugc" | "carousel" | "post" | "brandpost" | "design" | "deck" | `workflow:${string}`;
+export type Format = "reel" | "motion" | "ugc" | "carousel" | "post" | "brandpost" | "brandcarousel" | "design" | "deck" | `workflow:${string}`;
 
 function defaultVoiceId(): string {
   const { voice } = loadBrandContext();
@@ -87,6 +88,10 @@ export async function createContent(opts: {
     case "brandpost": {
       console.log(`  → copy del post de marca premium (Claude Code)...`);
       return generateBrandPost(fixSlug(await generateBrandPostCopy(opts.topic, inst)), platform, createdAt, inst);
+    }
+    case "brandcarousel": {
+      console.log(`  → copy del carrusel de marca premium (Claude Code)...`);
+      return generateBrandCarousel(fixSlug(await generateBrandCarouselCopy(opts.topic, inst)), platform, createdAt, inst);
     }
     case "design": {
       console.log(`  → copy del poster de diseño (Claude Code)...`);
