@@ -80,10 +80,27 @@ npm run schedule            # scheduler diario (usa el planner)
   devuelve 0), descarga por URL del usuario (`downloadMusicFromUrl`), créditos en `credits.json`.
 - **Credenciales de empresa** (tokens de redes + keys de proveedores): `src/lib/companySecrets.ts`,
   cifradas y aplicadas a process.env al arrancar server/scheduler; el `.env` del servidor manda.
-- **Ajustes no-secretos** (ej. `IMAGE_PROVIDER`, `META_AD_ACCOUNT_ID`, `ADS_MAX_DAILY_BUDGET`):
-  `src/lib/appSettings.ts` (tipos enum/text/number) — configurables desde el panel (Ajustes →
-  Conexiones), `data/app-settings.json` sin cifrar, aplicados a process.env con la prioridad del
-  `.env`. Endpoints `/api/settings`.
+- **Ajustes no-secretos** (ej. `IMAGE_PROVIDER`, `ASSET_STORE`, `META_AD_ACCOUNT_ID`,
+  `ADS_MAX_DAILY_BUDGET`): `src/lib/appSettings.ts` (tipos enum/text/number/**bool**) —
+  configurables desde el panel (Ajustes → Conexiones), `data/app-settings.json` sin cifrar,
+  aplicados a process.env con la prioridad del `.env`. Endpoints `/api/settings`. El tipo `bool`
+  se pinta como checkbox.
+- **Almacenamiento local ↔ R2 desde el panel**: `ASSET_STORE` (local|s3) + `S3_BUCKET`/
+  `S3_ENDPOINT`/`S3_REGION`/`S3_PUBLIC_BASE` son ajustes; las llaves (`S3_ACCESS_KEY_ID`,
+  `S3_SECRET_ACCESS_KEY`) van cifradas en `companySecrets.ts`. `setAppSetting` NO deja activar
+  `s3` si falta bucket/endpoint/llaves. Los clientes S3 de `lib/assets.ts` y `web/server.ts` se
+  cachean **por huella de config** para que un cambio en caliente reconstruya el cliente.
+- **Aprendizaje del rechazo** (`src/lib/learnings.ts`): al rechazar en el panel se escribe el
+  MOTIVO → se guarda en `QueueItem.feedback` (+`reviewedBy`/`reviewedAt`; en D1 son columnas con
+  migración incremental). `learningGuidance()` = reglas destiladas (`config/learnings.md`) +
+  motivos crudos recientes, y se inyecta en `generateCopy`, `editCopy` y `planContent`.
+  `refreshLearnings()` destila los motivos en reglas permanentes con el LLM (se dispara sola tras
+  cada rechazo, en segundo plano, serializada). Editable en el panel (`/api/learnings`).
+- **Permiso de autoedición** (`AI_EDIT_CONTEXT`, checkbox, **off** por defecto): si se activa, la
+  IA puede corregir DATOS equivocados en `knowledge/`/`config/` que el feedback demuestre —
+  mediante reemplazos puntuales que deben casar **exactamente una vez**, con respaldo `.bak` y
+  registro en Actividad (`aiWriteContextFile` en `contextFiles.ts`). Nunca reescribe archivos
+  enteros ni toca el estilo.
 - **Ads / campañas de Meta**: `src/lib/metaAds.ts` (Graph Marketing API: campaign→adset→creative→ad
   + insights + updates) y `src/pipeline/adsCampaign.ts` (la IA PROPONE con `askBrandJson`, luego
   `launchCampaign` crea en Meta y `optimizeCampaign` ajusta por métricas). Human-in-the-loop:
@@ -93,6 +110,18 @@ npm run schedule            # scheduler diario (usa el planner)
 - **Estilos**: `config/art-direction.md` (si existe) reemplaza la dirección de arte por defecto —
   editable en el panel. Skills activables/subibles desde el panel (`config/skills.json`).
 - **Deploy**: Opción A (VPS + cron + Cloudflare Tunnel) documentada en `DEPLOY.md`.
+- **Video por código (Remotion)**: `remotion/theme.tsx` (fondo con parallax + grano + viñeta,
+  zona segura del móvil, revelado por máscara), `remotion/scenes.tsx` (librería de escenas:
+  `hook`/`stat`/`list`/`quote`/`compare`/`cta`) y `remotion/Video.tsx` (reparte la duración por
+  peso y aplica la transición entre escenas). **La IA arma la SECUENCIA de escenas**
+  (`generateRemotionCopy` → `scenes[]`, saneado por `normalizeScenes`), no un titular fijo: por
+  eso dos videos del mismo formato ya no se ven iguales. Regla: nada entra con fade plano, todo
+  entra por máscara; el texto vive dentro de la zona segura (la UI de IG/TikTok tapa el ~20%
+  inferior). Si añades una escena: tipo en `scenes.tsx` + peso en `WEIGHT` + rama en
+  `normalizeScenes` + descripción en el prompt.
+- **Subtítulos**: `src/lib/srt.ts` genera ASS **karaoke** (un evento por palabra; la que suena se
+  resalta en el color de acento) para los subtítulos y para el overlay del reel b-roll. El
+  titular del overlay se retira al ~42% del reel para no competir con los subtítulos.
 - **Persistencia**: cola/historial `QUEUE_STORE=local|d1` (`src/queue/queue.ts` async + `d1.ts`);
   assets `ASSET_STORE=local|s3` (`src/lib/assets.ts`). `npm run init-db` crea el esquema D1.
   La API de la cola es **async** — usar `await addToQueue/listQueue/updateStatus`.

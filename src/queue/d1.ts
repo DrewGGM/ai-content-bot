@@ -3,7 +3,7 @@
  * Requiere CF_ACCOUNT_ID, CF_D1_DATABASE_ID, CF_API_TOKEN.
  * Se usa cuando QUEUE_STORE=d1. Mismo contrato que el backend local.
  */
-import type { QueueItem, Status } from "./queue.js";
+import type { QueueItem, Review, Status } from "./queue.js";
 
 function cfg() {
   const account = process.env.CF_ACCOUNT_ID;
@@ -48,6 +48,11 @@ export async function d1InitSchema(): Promise<void> {
     assets TEXT,
     dir TEXT
   )`);
+  // Migración incremental: bases creadas antes del feedback de rechazo no tienen estas columnas.
+  // D1 no soporta ADD COLUMN IF NOT EXISTS, así que se ignora el error de "duplicate column".
+  for (const col of ["feedback TEXT", "reviewed_by TEXT", "reviewed_at TEXT"]) {
+    try { await query(`ALTER TABLE queue ADD COLUMN ${col}`); } catch { /* ya existe */ }
+  }
 }
 
 function rowToItem(r: any): QueueItem {
@@ -63,17 +68,21 @@ function rowToItem(r: any): QueueItem {
     hashtags: r.hashtags ? JSON.parse(r.hashtags) : [],
     assets: r.assets ? JSON.parse(r.assets) : {},
     dir: r.dir ?? "",
+    feedback: r.feedback ?? undefined,
+    reviewedBy: r.reviewed_by ?? undefined,
+    reviewedAt: r.reviewed_at ?? undefined,
   };
 }
 
 export async function d1Add(item: QueueItem): Promise<void> {
   await query(
-    `INSERT OR REPLACE INTO queue (id, created_at, status, platform, format, pillar, topic, caption, hashtags, assets, dir)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT OR REPLACE INTO queue (id, created_at, status, platform, format, pillar, topic, caption, hashtags, assets, dir, feedback, reviewed_by, reviewed_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       item.id, item.createdAt, item.status, item.platform, item.format,
       item.pillar ?? null, item.topic ?? null, item.caption,
       JSON.stringify(item.hashtags ?? []), JSON.stringify(item.assets ?? {}), item.dir,
+      item.feedback ?? null, item.reviewedBy ?? null, item.reviewedAt ?? null,
     ]
   );
 }
@@ -83,8 +92,17 @@ export async function d1List(): Promise<QueueItem[]> {
   return rows.map(rowToItem);
 }
 
-export async function d1UpdateStatus(id: string, status: Status): Promise<QueueItem | null> {
-  await query(`UPDATE queue SET status=? WHERE id=?`, [status, id]);
+export async function d1UpdateStatus(id: string, status: Status, review?: Review): Promise<QueueItem | null> {
+  const note = review?.feedback?.trim();
+  if (review) {
+    // COALESCE: un feedback vacío no pisa la razón de rechazo ya guardada.
+    await query(
+      `UPDATE queue SET status=?, feedback=COALESCE(?, feedback), reviewed_by=?, reviewed_at=? WHERE id=?`,
+      [status, note || null, review.by ?? null, new Date().toISOString(), id]
+    );
+  } else {
+    await query(`UPDATE queue SET status=? WHERE id=?`, [status, id]);
+  }
   const rows = await query(`SELECT * FROM queue WHERE id=? LIMIT 1`, [id]);
   return rows[0] ? rowToItem(rows[0]) : null;
 }

@@ -20,12 +20,15 @@ export const RemotionRoot: React.FC = () => {
       defaultProps={
         {
           format: "reel",
-          headline: "Deja de pelear con la DIAN",
-          accentWord: "DIAN",
-          chips: ["Facturación ilimitada", "Sin costo por folio", "Sin entrar a MUISCA"],
-          cta: "Escríbenos por WhatsApp",
           colors: { primary: "#5B2DC4", accent: "#00D4AA" },
           durationInFrames: 255,
+          seed: 1,
+          scenes: [
+            { kind: "hook", eyebrow: "Facturación", text: "Deja de pelear con la DIAN", accentWord: "DIAN" },
+            { kind: "stat", value: "0", label: "costo por folio", note: "Factura lo que necesites, sin excedentes." },
+            { kind: "list", title: "Todo incluido", items: ["Facturación ilimitada", "Sin entrar a MUISCA", "Soporte en español"] },
+            { kind: "cta", text: "Escríbenos por WhatsApp", sub: "7 días gratis, sin tarjeta" },
+          ],
         } as VideoProps
       }
       calculateMetadata={({ props }: { props: VideoProps }) => {

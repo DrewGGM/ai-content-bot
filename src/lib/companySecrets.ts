@@ -37,6 +37,8 @@ export const COMPANY_KEYS: CompanyKeyDef[] = [
   { key: "ELEVENLABS_API_KEY", label: "ElevenLabs (voz/música)", group: "Proveedores de medios" },
   { key: "HEYGEN_API_KEY", label: "HeyGen (avatares)", group: "Proveedores de medios" },
   { key: "META_ADS_TOKEN", label: "Token de Meta Ads (ads_management)", group: "Meta Ads" },
+  { key: "S3_ACCESS_KEY_ID", label: "Access Key ID (R2/S3)", group: "Almacenamiento (R2 / S3)" },
+  { key: "S3_SECRET_ACCESS_KEY", label: "Secret Access Key (R2/S3)", group: "Almacenamiento (R2 / S3)" },
 ];
 
 const ALLOWED = new Set(COMPANY_KEYS.map((k) => k.key));

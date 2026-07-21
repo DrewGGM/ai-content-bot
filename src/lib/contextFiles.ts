@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
+import { aiMayEditContext } from "./appSettings.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DIRS = ["knowledge", "config"] as const;
@@ -66,6 +67,22 @@ export function writeContextFile(rel: string, content: string): void {
     }
   }
   writeFileSync(abs, content);
+}
+
+/**
+ * Escritura hecha por la IA (no por un humano en el panel). Está PROHIBIDA salvo que el
+ * admin active el permiso "Dejar que la IA corrija el contexto" (AI_EDIT_CONTEXT).
+ * Siempre deja una copia `<archivo>.bak` de la versión anterior para poder revertir.
+ * Devuelve true si escribió, false si el permiso está desactivado.
+ */
+export function aiWriteContextFile(rel: string, content: string): boolean {
+  if (!aiMayEditContext()) return false;
+  const abs = resolveAllowed(rel);
+  if (existsSync(abs)) {
+    try { writeFileSync(abs + ".bak", readFileSync(abs)); } catch { /* el respaldo es best-effort */ }
+  }
+  writeContextFile(rel, content);
+  return true;
 }
 
 /**

@@ -15,7 +15,7 @@ const STORE = join(ROOT, "data", "app-settings.json");
 export interface AppSettingDef {
   key: string;
   label: string;
-  type: "enum" | "text" | "number";
+  type: "enum" | "text" | "number" | "bool";
   options: string[]; // solo enum
   default: string;
   help: string;
@@ -36,8 +36,62 @@ export const APP_SETTINGS: AppSettingDef[] = [
     label: "Máximo de hashtags por pieza",
     type: "number",
     options: [],
-    default: "0",
-    help: "Límite de hashtags en el caption. Instagram rinde mejor con pocos (3-5). 0 = sin límite (los que decida la IA).",
+    default: "5",
+    help: "Límite de hashtags en el caption. Instagram TOPA en 5 por publicación desde diciembre de 2025 (y su recomendación es usar pocos y específicos); poner más no da alcance. 0 = sin límite (los que decida la IA).",
+  },
+  {
+    key: "AI_EDIT_CONTEXT",
+    label: "Dejar que la IA corrija el contexto de la empresa",
+    type: "bool",
+    options: [],
+    default: "false",
+    help: "Si lo activas, cuando rechaces una pieza por un DATO INCORRECTO la IA podrá corregir ese dato en los archivos de knowledge/ y config/ que tú subiste. Guarda una copia .bak de cada archivo antes de tocarlo y queda registrado en Actividad. Desactivado, la IA solo aprende reglas de estilo y NUNCA modifica tu contexto.",
+    group: "Aprendizaje",
+  },
+  {
+    key: "ASSET_STORE",
+    label: "Dónde se guardan los archivos generados",
+    type: "enum",
+    options: ["local", "s3"],
+    default: "local",
+    help: "local = en el disco del servidor (assets/output/). s3 = Cloudflare R2 o cualquier S3 (necesario para PUBLICAR en redes, porque Meta debe poder descargar el archivo). Rellena abajo el bucket y las llaves antes de cambiar a s3.",
+    group: "Almacenamiento (R2 / S3)",
+  },
+  {
+    key: "S3_BUCKET",
+    label: "Bucket",
+    type: "text",
+    options: [],
+    default: "",
+    help: "Nombre del bucket de R2/S3 donde se suben imágenes y videos.",
+    group: "Almacenamiento (R2 / S3)",
+  },
+  {
+    key: "S3_ENDPOINT",
+    label: "Endpoint",
+    type: "text",
+    options: [],
+    default: "",
+    help: "En Cloudflare R2: https://<ID_DE_CUENTA>.r2.cloudflarestorage.com (lo ves en R2 → Manage API tokens).",
+    group: "Almacenamiento (R2 / S3)",
+  },
+  {
+    key: "S3_REGION",
+    label: "Región",
+    type: "text",
+    options: [],
+    default: "auto",
+    help: "En R2 déjalo en auto. En AWS S3 pon la región real (ej. us-east-1).",
+    group: "Almacenamiento (R2 / S3)",
+  },
+  {
+    key: "S3_PUBLIC_BASE",
+    label: "URL pública del bucket (opcional)",
+    type: "text",
+    options: [],
+    default: "",
+    help: "Solo si el bucket es público (dominio de R2 o tu CDN). Si lo dejas vacío el bucket queda PRIVADO y el panel sirve los archivos por proxy autenticado — es lo recomendado.",
+    group: "Almacenamiento (R2 / S3)",
   },
   {
     key: "META_AD_ACCOUNT_ID",
@@ -102,7 +156,9 @@ export function setAppSetting(key: string, value: string): void {
   if (!def) throw new Error("Ajuste no permitido");
   if (fromServerEnv.has(key)) throw new Error(`"${key}" está fijado en el .env del servidor — cámbialo allí`);
   let v: string;
-  if (def.type === "enum") {
+  if (def.type === "bool") {
+    v = String(value) === "true" || String(value) === "1" ? "true" : "false";
+  } else if (def.type === "enum") {
     v = String(value).toLowerCase().trim();
     if (!def.options.includes(v)) throw new Error(`Valor inválido (opciones: ${def.options.join(", ")})`);
   } else if (def.type === "number") {
@@ -111,11 +167,27 @@ export function setAppSetting(key: string, value: string): void {
   } else {
     v = String(value).trim().slice(0, 200);
   }
+  // Cambiar a s3 sin configurar el bucket dejaría el bot roto (cada generación fallaría al
+  // subir): se valida ANTES de guardar y el panel muestra qué falta.
+  if (key === "ASSET_STORE" && v === "s3") {
+    const missing = ["S3_BUCKET", "S3_ENDPOINT", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"].filter(
+      (k) => !process.env[k]?.trim() && !readStore()[k]
+    );
+    if (missing.length) throw new Error(`Antes de activar S3/R2 configura: ${missing.join(", ")}`);
+  }
   const store = readStore();
   if (v === "" && def.type !== "enum") delete store[key]; else store[key] = v;
   writeStore(store);
   if (v === "" && def.type !== "enum") delete process.env[key]; else process.env[key] = v;
   appliedByPanel.add(key);
+}
+
+/**
+ * ¿La IA tiene permiso para corregir los archivos de contexto de la empresa?
+ * Desactivado por defecto: el contexto lo escribe el humano y la IA solo aprende reglas.
+ */
+export function aiMayEditContext(): boolean {
+  return (process.env.AI_EDIT_CONTEXT ?? "false").toLowerCase() === "true";
 }
 
 /** Aplica los ajustes guardados a process.env. Llamar al arrancar (tras cargar .env) y en cada cambio. */

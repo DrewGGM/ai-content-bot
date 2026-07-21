@@ -364,6 +364,19 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
   </section>
 
   <section class="card">
+    <h2>${icon("brain")} Lo que la IA ha aprendido <span class="role">admin</span></h2>
+    <p class="sub">Cada vez que <b>rechazas</b> una pieza en el panel escribes el motivo. El bot destila esos motivos
+    en <b>reglas permanentes</b> que aplica al escribir y planear las siguientes piezas (se guardan en
+    <code>config/learnings.md</code>). Puedes editarlas a mano o pedirle que las regenere con todo el historial.</p>
+    <textarea id="lrnText" rows="10" spellcheck="false" placeholder="(todavía sin reglas — rechaza una pieza con su motivo y aparecerán aquí)"></textarea>
+    <div class="filebar mt">
+      <button class="btn-primary sm" onclick="saveLearn(this)">${icon("check")} Guardar reglas</button>
+      <button class="btn-ghost sm" onclick="refreshLearn(this)" title="Relee todos los motivos de rechazo y reescribe las reglas">${icon("spark")} Regenerar con la IA</button>
+    </div>
+    <div class="msg" id="lrnMsg"></div>
+  </section>
+
+  <section class="card">
     <h2>${icon("motion")} Workflows de contenido <span class="role">admin</span></h2>
     <p class="sub">Pipelines <b>personalizables</b> que encadenan IAs paso a paso (estilo ElevenLabs Flows):
     imagen IA → animarla (image-to-video) → voz → subtítulos → música → ensamblado con tu marca; o un
@@ -998,6 +1011,27 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     }
     loadWf();
 
+    // ---- Reglas aprendidas de los rechazos (admin) ----
+    function loadLearn(){
+      if(!IS_ADMIN)return;
+      j('/api/learnings').then(function(d){document.getElementById('lrnText').value=d.rules||''}).catch(function(){});
+    }
+    function saveLearn(btn){
+      btn.disabled=true;
+      j('/api/learnings',{rules:document.getElementById('lrnText').value})
+        .then(function(){btn.disabled=false;msg('lrnMsg','Reglas guardadas — aplican desde la próxima generación.',true)})
+        .catch(function(e){btn.disabled=false;msg('lrnMsg',e.message,false)});
+    }
+    function refreshLearn(btn){
+      btn.disabled=true;msg('lrnMsg','Releyendo los motivos de rechazo con la IA…',true);
+      j('/api/learnings/refresh',{}).then(function(d){
+        btn.disabled=false;
+        document.getElementById('lrnText').value=d.rules||'';
+        msg('lrnMsg',d.rules?'Reglas actualizadas.':'Todavía no hay suficientes rechazos con motivo (hacen falta al menos 2).',true);
+      }).catch(function(e){btn.disabled=false;msg('lrnMsg',e.message,false)});
+    }
+    loadLearn();
+
     // ---- Ajustes no-secretos (proveedor de imagen) ----
     function loadAppSettings(){
       if(!IS_ADMIN)return;
@@ -1009,6 +1043,13 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
           var envNote=s.source==='env'?' <span style="color:var(--mut);font-size:11.5px">● fijado en el .env del servidor</span>':'';
           var dis=s.source==='env'?' disabled':'';
           var ctrl;
+          if(s.type==='bool'){
+            // Permisos (ej. dejar que la IA edite el contexto) van como checkbox real.
+            return head+'<div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px">'+
+              '<label class="check"><input type="checkbox" data-key="'+s.key+'" onchange="saveAppSetting(this)"'+
+                (s.value==='true'?' checked':'')+(s.source==='env'?' disabled':'')+'>'+
+              '<span><b style="color:var(--txt)">'+ceHtml(s.label)+'</b>'+envNote+'<br>'+ceHtml(s.help)+'</span></label></div>';
+          }
           if(s.type==='enum'){
             ctrl='<select data-key="'+s.key+'" onchange="saveAppSetting(this)" style="width:auto;min-width:160px"'+dis+'>'+
               s.options.map(function(o){return '<option value="'+o+'"'+(o===s.value?' selected':'')+'>'+o+'</option>'}).join('')+'</select>';
@@ -1024,7 +1065,8 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       }).catch(function(){});
     }
     function saveAppSetting(el){
-      j('/api/settings',{key:el.dataset.key,value:el.value})
+      var v=el.type==='checkbox'?String(el.checked):el.value;
+      j('/api/settings',{key:el.dataset.key,value:v})
         .then(function(){msg('snMsg','Guardado.',true)})
         .catch(function(e){msg('snMsg',e.message,false);loadAppSettings()});
     }

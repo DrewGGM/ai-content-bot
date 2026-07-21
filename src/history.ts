@@ -37,7 +37,12 @@ export async function historyAnalysis(): Promise<string> {
   const rejected = all.filter((i) => i.status === "rejected");
 
   const recentTopics = all.slice(0, 6).map((i) => i.topic ?? i.id);
-  const rejectedTopics = rejected.slice(0, 6).map((i) => `${i.topic ?? i.id} (${i.format})`);
+  // Con el motivo que escribió el humano al rechazar, cuando lo hay: es mucho más útil para el
+  // planner saber POR QUÉ falló que solo qué tema era.
+  const rejectedTopics = rejected.slice(0, 6).map((i) => {
+    const why = i.feedback?.trim().replace(/\s+/g, " ").slice(0, 120);
+    return `${i.topic ?? i.id} (${i.format})${why ? ` — motivo: ${why}` : ""}`;
+  });
 
   return [
     `Formatos usados (todos): ${fmt(tally(all, (i) => i.format))}`,

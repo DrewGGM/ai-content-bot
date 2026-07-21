@@ -10,6 +10,7 @@ import { loadBrandContext } from "../knowledge/loader.js";
 import { loadSkillGuidance } from "../lib/skills.js";
 import { availableFormats } from "../lib/capabilities.js";
 import { recentHistory, historyAnalysis } from "../history.js";
+import { learningGuidance } from "../lib/learnings.js";
 
 export type PlanFormat = "reel" | "motion" | "ugc" | "carousel" | "post" | "design";
 export interface ContentPlan {
@@ -34,6 +35,7 @@ export async function planNextContent(): Promise<ContentPlan> {
   const guidance = loadSkillGuidance();
   const history = await recentHistory(12);
   const analysis = await historyAnalysis();
+  const learned = await learningGuidance();
 
   // Conciencia de capacidades: solo ofrecer formatos que el bot puede producir AHORA.
   const available = availableFormats() as PlanFormat[];
@@ -62,7 +64,7 @@ Devuelve ÚNICAMENTE un JSON válido (sin markdown):
 }
 
 Reglas: elige el formato SOLO de la lista disponible. VARÍA el formato respecto a las últimas piezas. No repitas el mismo tema de las últimas 5 piezas.
-${guidance ? `\n===== GUÍA DE COMMUNITY MANAGER (úsala para elegir formato y ángulo que mejor funcionen) =====\n${guidance}\n` : ""}
+${learned ? `\n${learned}\n` : ""}${guidance ? `\n===== GUÍA DE COMMUNITY MANAGER (úsala para elegir formato y ángulo que mejor funcionen) =====\n${guidance}\n` : ""}
 ===== ESTRATEGIA Y MARCA =====
 ${raw}`;
 

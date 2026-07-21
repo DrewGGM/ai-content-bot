@@ -15,9 +15,16 @@ const MIME: Record<string, string> = {
 };
 
 let _client: any = null;
+let _clientFor = "";
 async function client() {
-  if (_client) return _client;
+  // La config de R2 se edita EN CALIENTE desde el panel (Ajustes → Conexiones), así que el
+  // cliente se cachea por huella: si cambian endpoint/región/llaves, se reconstruye.
+  const fingerprint = [
+    process.env.S3_REGION, process.env.S3_ENDPOINT, process.env.S3_ACCESS_KEY_ID, process.env.S3_SECRET_ACCESS_KEY,
+  ].join("|");
+  if (_client && _clientFor === fingerprint) return _client;
   const { S3Client } = await import("@aws-sdk/client-s3");
+  _clientFor = fingerprint;
   _client = new S3Client({
     region: process.env.S3_REGION || "auto",
     endpoint: process.env.S3_ENDPOINT, // R2: https://<acc>.r2.cloudflarestorage.com

@@ -18,7 +18,8 @@ import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { env } from "../lib/env.js";
 import { loadBrandConfig } from "../lib/brandConfig.js";
-import { listQueue, updateStatus, updateCopy, deleteItem, type QueueItem } from "../queue/queue.js";
+import { listQueue, updateStatus, updateCopy, deleteItem, STATUSES, type QueueItem } from "../queue/queue.js";
+import { refreshLearnings, loadLearnings, saveLearnings } from "../lib/learnings.js";
 import { createContent, type Format } from "../pipeline/dispatch.js";
 import { editCopy } from "../pipeline/editCopy.js";
 import { planNextContent } from "../pipeline/planContent.js";
@@ -229,9 +230,15 @@ const PWA_HEAD = `<link rel="manifest" href="/manifest.webmanifest">
 
 // ---- Cliente S3/R2 (para servir assets privados por proxy) ----
 let _s3: any = null;
+let _s3For = "";
 async function s3() {
-  if (_s3) return _s3;
+  // Igual que en lib/assets.ts: la config se edita en caliente desde Ajustes, cachear por huella.
+  const fingerprint = [
+    process.env.S3_REGION, process.env.S3_ENDPOINT, process.env.S3_ACCESS_KEY_ID, process.env.S3_SECRET_ACCESS_KEY,
+  ].join("|");
+  if (_s3 && _s3For === fingerprint) return _s3;
   const { S3Client } = await import("@aws-sdk/client-s3");
+  _s3For = fingerprint;
   _s3 = new S3Client({
     region: process.env.S3_REGION || "auto",
     endpoint: process.env.S3_ENDPOINT,
@@ -531,6 +538,7 @@ async function page(user: User): Promise<string> {
           <div class="meta">${icon(fmtIcon, "ic sm")}<span>${esc(it.format)}</span><i>·</i><span>${esc(it.platform)}</span>${it.pillar ? `<i>·</i><span>${esc(it.pillar)}</span>` : ""}</div>
           <p class="cap">${esc(it.caption).replace(/\n/g, "<br>")}</p>
           ${tags ? `<div class="tags">${tags}</div>` : ""}
+          ${it.feedback ? `<p class="why"><b>${it.status === "rejected" ? "Motivo del rechazo" : "Comentario"}${it.reviewedBy ? ` · ${esc(it.reviewedBy)}` : ""}:</b> ${esc(it.feedback)}</p>` : ""}
           <div class="act-stack">
           <div class="actions">
             <button class="copy-btn" data-copy="${esc(fullCopy)}" onclick="copyCap(this)">${icon("copy")} Copiar descripción</button>
@@ -675,6 +683,17 @@ async function page(user: User): Promise<string> {
     .btn-primary.danger{background:linear-gradient(135deg,#a93226,#d0453a)}
     .cf-body{color:var(--mut);font-size:13.5px;line-height:1.6;margin:0 0 6px}
     .cf-body b{color:var(--txt)}
+    .cf-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 8px}
+    .cf-chip{font-size:11.5px;padding:5px 10px;border-radius:99px;cursor:pointer;font-family:inherit;
+      background:transparent;color:var(--mut);border:1px solid var(--line)}
+    .cf-chip:hover{color:var(--txt);border-color:var(--violet2)}
+    .cf-chip.on{background:color-mix(in srgb,var(--violet) 26%,transparent);color:#cdb6ff;border-color:var(--violet2)}
+    .cf-note{width:100%;padding:10px;border-radius:11px;border:1px solid var(--line);background:#0b0d1c;
+      color:var(--txt);font-size:13px;font-family:inherit;resize:vertical}
+    .cf-note:focus{outline:none;border-color:var(--violet2)}
+    .why{margin:8px 0 0;padding:8px 11px;border-radius:10px;font-size:12px;line-height:1.5;color:var(--mut);
+      background:#ffffff08;border-left:2px solid #d0453a}
+    .why b{color:var(--txt)}
     .pub-warn{display:none;margin-top:12px;padding:10px 13px;border-radius:11px;font-size:12.5px;line-height:1.5;
       background:color-mix(in srgb,#e0a52b 14%,transparent);border:1px solid #e0a52b55;color:#f0c974}
     .pub-warn.show{display:block}
@@ -830,6 +849,10 @@ async function page(user: User): Promise<string> {
         <button class="mh-close" onclick="closeCf()" aria-label="Cerrar">${icon("x")}</button>
       </div>
       <p class="cf-body" id="cfBody"></p>
+      <div id="cfNoteWrap" style="display:none">
+        <div id="cfChips" class="cf-chips"></div>
+        <textarea id="cfNote" rows="3" class="cf-note" placeholder="Ej: el titular no se entiende, la foto no es de nuestro producto, el tono suena a robot…"></textarea>
+      </div>
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeCf()">Cancelar</button>
         <button class="btn-primary" id="cfOk">Confirmar</button>
@@ -848,33 +871,54 @@ async function page(user: User): Promise<string> {
     }
     // ---- Modal de confirmación genérico (todas las acciones piden confirmar antes de ejecutar) ----
     var cfCb=null;
+    // o.note = muestra el campo "motivo" (con atajos). El callback recibe su texto.
     function askConfirm(o,cb){
       cfCb=cb;
       document.getElementById('cfTitle').innerHTML=o.title;
       document.getElementById('cfBody').innerHTML=o.body||'';
+      var nw=document.getElementById('cfNoteWrap'),nt=document.getElementById('cfNote');
+      nt.value='';
+      nw.style.display=o.note?'block':'none';
+      if(o.note){
+        document.getElementById('cfChips').innerHTML=(o.chips||[]).map(function(c){
+          return '<button type="button" class="cf-chip" onclick="cfAddChip(this)">'+ce(c)+'</button>';
+        }).join('');
+      }
       var ok=document.getElementById('cfOk');
       ok.innerHTML=o.ok||'Confirmar';
       ok.className='btn-primary'+(o.danger?' danger':'');
       document.getElementById('cfModal').classList.add('show');
-      setTimeout(function(){ok.focus()},50);
+      setTimeout(function(){(o.note?nt:ok).focus()},50);
+    }
+    // Los atajos se ACUMULAN en el textarea (se pueden marcar varios motivos y matizar a mano).
+    function cfAddChip(el){
+      var nt=document.getElementById('cfNote'),t=el.textContent;
+      if(nt.value.indexOf(t)>=0)return;
+      nt.value=(nt.value.trim()?nt.value.trim()+'. ':'')+t;
+      el.classList.add('on');nt.focus();
     }
     function closeCf(){document.getElementById('cfModal').classList.remove('show');cfCb=null}
-    document.getElementById('cfOk').addEventListener('click',function(){var cb=cfCb;closeCf();if(cb)cb()});
+    document.getElementById('cfOk').addEventListener('click',function(){
+      var cb=cfCb,note=document.getElementById('cfNote').value;closeCf();if(cb)cb(note);
+    });
     function cardLabel(el){var c=el.closest('.card');return c?ce(c.dataset.label||''):''}
 
+    var REJECT_CHIPS=['El titular no se entiende','La imagen no representa la marca','El tono no es el nuestro',
+      'Dato incorrecto o inventado','Demasiado texto','Tema poco relevante','El CTA no encaja','Ya publicamos algo así'];
     function askAct(btn,id,status){
       var ok=status==='approved';
       askConfirm({
         title:(ok?CHECK+' Aprobar pieza':XIC+' Rechazar pieza'),
         body:'<b>'+cardLabel(btn)+'</b><br>'+(ok
-          ?'Quedará marcada como aprobada y lista para publicar.'
-          :'Quedará rechazada; el planner evitará repetir este ángulo.'),
-        ok:ok?'Sí, aprobar':'Sí, rechazar',danger:!ok
-      },function(){act(btn,id,status)});
+          ?'Quedará marcada como aprobada y lista para publicar. Si quieres, deja un comentario de qué te gustó — la IA también aprende de los aciertos.'
+          :'<b>Cuéntale a la IA qué falló.</b> Ese motivo se guarda y se convierte en una regla que el bot aplicará en las próximas piezas.'),
+        ok:ok?'Sí, aprobar':'Sí, rechazar',danger:!ok,
+        note:true,chips:ok?['Buen gancho','Imagen muy on-brand','Tono perfecto']:REJECT_CHIPS
+      },function(reason){act(btn,id,status,reason)});
     }
-    function act(btn,id,status){
+    function act(btn,id,status,reason){
       btn.disabled=true;const sib=btn.parentElement.querySelectorAll('button');sib.forEach(b=>b.disabled=true);
-      fetch('/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status})})
+      fetch('/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status,reason:reason||''})})
         .then(r=>{if(r.status===401){location.reload();return}location.reload()})
         .catch(()=>{sib.forEach(b=>b.disabled=false)});
     }
@@ -1132,9 +1176,24 @@ const server = createServer(async (req, res) => {
     req.on("data", (c) => (body += c));
     req.on("end", async () => {
       try {
-        const { id, status } = JSON.parse(body);
-        const updated = await updateStatus(id, status);
-        if (updated) audit(user.name, status === "approved" ? "aprobó pieza" : status === "rejected" ? "rechazó pieza" : `estado → ${status}`, id);
+        const { id, status, reason } = JSON.parse(body);
+        if (!STATUSES.includes(status)) { res.writeHead(400).end(JSON.stringify({ error: "estado inválido" })); return; }
+        const feedback = typeof reason === "string" ? reason.trim().slice(0, 1000) : "";
+        const updated = await updateStatus(id, status, { feedback, by: user.name });
+        if (updated) {
+          audit(user.name, status === "approved" ? "aprobó pieza" : status === "rejected" ? "rechazó pieza" : `estado → ${status}`,
+            feedback ? `${id} · motivo: ${feedback.slice(0, 200)}` : id);
+          // El bot aprende: destila las razones en reglas permanentes (config/learnings.md).
+          // En segundo plano — la respuesta al panel no espera al LLM.
+          if (feedback) {
+            refreshLearnings()
+              .then((fixes) => {
+                // Si la IA corrigió datos del contexto (permiso AI_EDIT_CONTEXT), queda registrado.
+                for (const f of fixes) audit("IA (aprendizaje)", "corrigió contexto", `${f.path} · ${f.why}`);
+              })
+              .catch((e) => console.error("[learnings]", e?.message ?? e));
+          }
+        }
         res.writeHead(updated ? 200 : 404).end(JSON.stringify({ ok: !!updated }));
       } catch { res.writeHead(400).end(); }
     });
@@ -1477,6 +1536,33 @@ const server = createServer(async (req, res) => {
       deleteSkill(String(b.dir ?? ""));
       audit(user.name, "skill eliminada", String(b.dir ?? ""));
       sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+
+  // Aprendizaje (solo admin): las reglas que el bot destiló de los motivos de rechazo.
+  // Se pueden editar a mano y forzar una nueva destilación.
+  if (url.pathname === "/api/learnings" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    sendJson(res, 200, { rules: loadLearnings() });
+    return;
+  }
+  if (url.pathname === "/api/learnings" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req, 64 * 1024);
+      saveLearnings(String(b.rules ?? ""));
+      audit(user.name, "editó reglas aprendidas", "");
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/learnings/refresh" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      await refreshLearnings();
+      audit(user.name, "regeneró reglas aprendidas", "");
+      sendJson(res, 200, { rules: loadLearnings() });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
   }

@@ -6,6 +6,7 @@
 import { askLLMJson } from "../providers/llm.js";
 import { loadBrandConfig } from "../lib/brandConfig.js";
 import { loadSkillGuidance } from "../lib/skills.js";
+import { learningGuidance } from "../lib/learnings.js";
 import type { QueueItem } from "../queue/queue.js";
 
 export async function editCopy(
@@ -14,6 +15,7 @@ export async function editCopy(
 ): Promise<{ caption: string; hashtags: string[] }> {
   const brand = loadBrandConfig();
   const guidance = loadSkillGuidance();
+  const learned = await learningGuidance();
 
   const prompt = `Eres el community manager de ${brand.name}. Vas a EDITAR el copy de una publicación ya generada aplicando la instrucción del usuario.
 
@@ -29,7 +31,7 @@ INSTRUCCIÓN DEL USUARIO (aplícala al pie de la letra):
 "${instruction}"
 
 Reescribe el caption y los hashtags aplicando exactamente ese cambio. Mantén el idioma y el tono de marca. No inventes datos ni promociones productos marcados como no disponibles.
-${guidance ? `\nGuía de marca/CM:\n${guidance}\n` : ""}
+${guidance ? `\nGuía de marca/CM:\n${guidance}\n` : ""}${learned ? `\n${learned}\n` : ""}
 Responde ÚNICAMENTE un JSON válido, sin texto alrededor:
 {"caption": "<nuevo caption>", "hashtags": ["#uno", "#dos", ...]}`;
 

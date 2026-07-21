@@ -15,6 +15,13 @@ const QUEUE_PATH = join(dirname(fileURLToPath(import.meta.url)), "queue.json");
 const backend = (): string => (process.env.QUEUE_STORE ?? "local").toLowerCase();
 
 export type Status = "pending" | "approved" | "rejected" | "published";
+export const STATUSES: Status[] = ["pending", "approved", "rejected", "published"];
+
+/** Comentario del humano al cambiar el estado (sobre todo: por qué se rechazó). */
+export interface Review {
+  feedback?: string;
+  by?: string;
+}
 
 export interface QueueItem {
   id: string;
@@ -28,6 +35,11 @@ export interface QueueItem {
   hashtags: string[];
   assets: { image?: string; video?: string; voice?: string; images?: string[] };
   dir: string;
+  /** Por qué se rechazó (o se aprobó con comentario). Alimenta el aprendizaje: ver src/lib/learnings.ts. */
+  feedback?: string;
+  /** Quién revisó y cuándo (para mostrar en el panel y ordenar el aprendizaje). */
+  reviewedBy?: string;
+  reviewedAt?: string;
 }
 
 // ---------- backend local (queue.json) ----------
@@ -56,12 +68,18 @@ function localAdd(item: QueueItem): Promise<void> {
     writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
   });
 }
-function localUpdate(id: string, status: Status): Promise<QueueItem | null> {
+function localUpdate(id: string, status: Status, review?: Review): Promise<QueueItem | null> {
   return withLocalLock(() => {
     const q = localRead();
     const item = q.items.find((i) => i.id === id);
     if (!item) return null;
     item.status = status;
+    if (review) {
+      // Un feedback vacío NO borra el anterior (ej. al publicar una pieza ya revisada).
+      if (review.feedback?.trim()) item.feedback = review.feedback.trim();
+      item.reviewedBy = review.by;
+      item.reviewedAt = new Date().toISOString();
+    }
     writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
     return item;
   });
@@ -85,12 +103,16 @@ export async function listQueue(): Promise<QueueItem[]> {
   return localRead().items;
 }
 
-export async function updateStatus(id: string, status: Status): Promise<QueueItem | null> {
+/**
+ * Cambia el estado de una pieza. `review` guarda POR QUÉ (la razón del rechazo que escribe
+ * el humano en el panel) — es la materia prima del aprendizaje (src/lib/learnings.ts).
+ */
+export async function updateStatus(id: string, status: Status, review?: Review): Promise<QueueItem | null> {
   if (backend() === "d1") {
     const { d1UpdateStatus } = await import("./d1.js");
-    return d1UpdateStatus(id, status);
+    return d1UpdateStatus(id, status, review);
   }
-  return localUpdate(id, status);
+  return localUpdate(id, status, review);
 }
 
 /** Elimina una pieza de la cola/historial (los assets se borran aparte con deleteAssets). */

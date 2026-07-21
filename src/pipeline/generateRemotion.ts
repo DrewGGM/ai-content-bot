@@ -115,13 +115,13 @@ export async function generateRemotion(
   const serveUrl = await getBundle();
   const inputProps = {
     format: opts.aspect,
-    headline: copy.headline,
-    accentWord: copy.accentWord ?? "",
-    chips: copy.chips ?? [],
-    cta: copy.cta,
+    scenes: copy.scenes,
     colors: { primary: brand.colors.primary, accent: brand.colors.accent },
     durationInFrames: durationFrames,
     logoSrc: logoDataUri(),
+    // Semilla estable por pieza: el fondo se mueve distinto en cada video, pero el mismo
+    // slug siempre se re-renderiza igual (regenerar no cambia el look sin querer).
+    seed: [...copy.slug].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 997,
   };
   const composition = await selectComposition({ serveUrl, id: "Video", inputProps });
   const visuals = join(outDir, "visuals.mp4");
@@ -129,7 +129,7 @@ export async function generateRemotion(
 
   // 3) Audio + ensamblado final con ffmpeg (cwd = outDir para rutas relativas).
   const durSec = durationFrames / FPS;
-  const brief = `${copy.headline}. ${(copy.chips ?? []).join(", ")}. ${copy.caption?.slice(0, 200) ?? ""}`;
+  const brief = `${copy.headline}. ${copy.caption?.slice(0, 200) ?? ""}`;
   const fadeSt = Math.max(0, durSec - 1.2).toFixed(2);
 
   if (opts.audio === "voice_music") {
