@@ -144,5 +144,13 @@ npm run schedule            # scheduler diario (usa el planner)
 - El contexto de la empresa vive en `knowledge/` + `config/`; mantenerlo actualizado si la marca cambia.
 
 ## Skills instaladas (`.agents/skills/`)
-`social-media-generator`, `social-media`, `agentkits-marketing-automation`, `generate-image`.
+Propias (cortas y densas, van primero en `PRIORITY_FILES`): `platform-specs` (límites duros por
+red, con `[OFICIAL]` vs `[PRÁCTICA]`), `hook-writing`, `caption-craft`, `short-form-video`,
+`motion-design`.
+De terceros: `social-media-generator`, `social-media`, `agentkits-marketing-automation`,
+`generate-image`, `high-end-visual-design`, `frontend-design`.
+
+OJO con el presupuesto: `loadSkillGuidance` corta por `PER_FILE` (3500) y `TOTAL_CAP` (26000) y
+**descarta el archivo entero si no cabe** (no lo trunca). Si añades skills, revisa el orden de
+`PRIORITY_FILES` o suben las nuevas nunca llegarán al prompt.
 (El motor del bot ya implementa la generación; las skills son apoyo opcional.)

@@ -112,7 +112,15 @@ export function deleteSkill(dir: string): void {
 
 // Archivos de conocimiento prioritarios para escribir copy (los más útiles primero).
 // La clave inicial identifica la skill (para respetar activar/desactivar).
+// Primero las skills PROPIAS: son cortas, densas y específicas de lo que produce este bot
+// (gancho, caption, video vertical, motion, límites de plataforma). Las de terceros son
+// mucho más largas y genéricas, así que van después y se truncan si no caben.
 const PRIORITY_FILES = [
+  "platform-specs/SKILL.md",
+  "hook-writing/SKILL.md",
+  "caption-craft/SKILL.md",
+  "short-form-video/SKILL.md",
+  "motion-design/SKILL.md",
   "social-media/references/social-media-playbook.md",
   "social-media/references/engagement-tactics.md",
   "social-media/references/viral-mechanics.md",
@@ -122,7 +130,9 @@ const PRIORITY_FILES = [
 ];
 
 const PER_FILE = 3500;
-const TOTAL_CAP = 16000;
+// Subido de 16000: los PRIORITY_FILES de terceros ya consumían casi todo el presupuesto y
+// las skills nuevas nunca habrían llegado al prompt.
+const TOTAL_CAP = 26000;
 
 /**
  * Devuelve un digest de las skills ACTIVAS, listo para inyectar en un prompt (o "" si está off).
