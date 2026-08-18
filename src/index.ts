@@ -35,9 +35,15 @@ async function main() {
       break;
     }
     case "init-db": {
+      // Las credenciales D1 pueden estar en los secretos de empresa del panel (cifradas),
+      // no solo en el .env. Aplícalas igual que el servidor antes de tocar D1.
+      const { applyCompanySecrets } = await import("./lib/companySecrets.js");
+      const { applyAppSettings } = await import("./lib/appSettings.js");
+      applyCompanySecrets();
+      applyAppSettings();
       const { d1InitSchema } = await import("./queue/d1.js");
       await d1InitSchema();
-      console.log("✅ D1: tabla 'queue' lista.");
+      console.log("✅ D1: tabla 'queue' lista (esquema migrado).");
       break;
     }
     case "voices": {

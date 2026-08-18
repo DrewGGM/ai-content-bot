@@ -33,6 +33,19 @@ async function query(sql: string, params: any[] = []): Promise<any[]> {
   return json.result?.[0]?.results ?? [];
 }
 
+// El esquema se asegura UNA vez por proceso (memoizado). Así una base creada antes de agregar
+// el feedback de rechazo se auto-migra al primer uso, sin depender de `npm run init-db`.
+let schemaReady: Promise<void> | null = null;
+function ensureSchema(): Promise<void> {
+  if (!schemaReady) {
+    schemaReady = d1InitSchema().catch((e) => {
+      schemaReady = null; // si falló, reintentar en la próxima operación
+      throw e;
+    });
+  }
+  return schemaReady;
+}
+
 /** Crea la tabla si no existe. */
 export async function d1InitSchema(): Promise<void> {
   await query(`CREATE TABLE IF NOT EXISTS queue (
@@ -75,6 +88,7 @@ function rowToItem(r: any): QueueItem {
 }
 
 export async function d1Add(item: QueueItem): Promise<void> {
+  await ensureSchema();
   await query(
     `INSERT OR REPLACE INTO queue (id, created_at, status, platform, format, pillar, topic, caption, hashtags, assets, dir, feedback, reviewed_by, reviewed_at)
      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -88,11 +102,13 @@ export async function d1Add(item: QueueItem): Promise<void> {
 }
 
 export async function d1List(): Promise<QueueItem[]> {
+  await ensureSchema();
   const rows = await query(`SELECT * FROM queue ORDER BY created_at DESC`);
   return rows.map(rowToItem);
 }
 
 export async function d1UpdateStatus(id: string, status: Status, review?: Review): Promise<QueueItem | null> {
+  await ensureSchema();
   const note = review?.feedback?.trim();
   if (review) {
     // COALESCE: un feedback vacío no pisa la razón de rechazo ya guardada.
@@ -108,6 +124,7 @@ export async function d1UpdateStatus(id: string, status: Status, review?: Review
 }
 
 export async function d1Delete(id: string): Promise<boolean> {
+  await ensureSchema();
   const rows = await query(`SELECT id FROM queue WHERE id=? LIMIT 1`, [id]);
   if (!rows.length) return false;
   await query(`DELETE FROM queue WHERE id=?`, [id]);
@@ -115,6 +132,7 @@ export async function d1Delete(id: string): Promise<boolean> {
 }
 
 export async function d1UpdateCopy(id: string, caption: string, hashtags: string[]): Promise<QueueItem | null> {
+  await ensureSchema();
   await query(`UPDATE queue SET caption=?, hashtags=? WHERE id=?`, [caption, JSON.stringify(hashtags ?? []), id]);
   const rows = await query(`SELECT * FROM queue WHERE id=? LIMIT 1`, [id]);
   return rows[0] ? rowToItem(rows[0]) : null;
