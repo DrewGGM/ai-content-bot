@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI Content Bot · Demo</title>
-<meta name="description" content="Demo estática del AI Content Bot: piezas reales generadas por IA para una marca de ejemplo (Lyroo), con panel de aprobación multi-usuario simulado: cada usuario conecta su propia cuenta de Claude Code o sus API keys.">
+<meta name="description" content="Demo estática del AI Content Bot: piezas reales generadas por IA para una marca de ejemplo (Lyroo), con panel de aprobación multi-usuario simulado. Rechazo con motivo que la IA aprende, almacenamiento R2/local conmutable, motor de video renovado y skills de community manager. Cada usuario conecta su propia cuenta de Claude Code o sus API keys.">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700;800&display=swap');
 :root{--violet:#5B2DC4;--violet2:#7B4DDB;--mint:#00D4AA;--bg:#05060c;--card:#0f1120;--card2:#141733;--line:#20233f;--txt:#f4f5fb;--mut:#9a9cc0}
@@ -156,12 +156,14 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
 
 <div class="banner" id="banner"><div class="banner-in">
   <b>Demo estática.</b> Las piezas son <b>reales</b> (generadas por el bot para la marca de ejemplo <b>Lyroo</b>);
-  los botones simulan el panel real. Novedades: <b>workflows personalizables</b> que encadenan IAs
-  (imagen → animarla → voz → subtítulos → música → marca, o un <b>personaje IA</b> que presenta tu producto),
-  <b>posts de marca premium</b> (tu logo + fotos de tus productos reales horneados en la imagen, como el ejemplo de
-  agencia), <b>música de fondo</b> que la IA descarga sola (CC0, sin copyright), <b>identidad, paleta, estilos, skills
-  y credenciales</b> 100% configurables desde el panel, y <b>multi-usuario</b> — cada miembro conecta <b>su propio
-  agente de IA</b>. Toda acción pide <b>confirmación</b>.
+  los botones simulan el panel real. Novedades: al <b>rechazar</b> una pieza escribes el <b>motivo</b> y el bot
+  <b>aprende</b> (destila reglas que aplica a las próximas), <b>almacenamiento</b> conmutable entre <b>disco local y
+  Cloudflare R2</b> desde el panel, un <b>motor de video renovado</b> (escenas variables + subtítulos karaoke) y
+  <b>skills de community manager</b> (hooks, captions, límites por red). Además: <b>workflows personalizables</b> que
+  encadenan IAs (imagen → animarla → voz → subtítulos → música → marca, o un <b>personaje IA</b> que presenta tu
+  producto), <b>posts de marca premium</b> (tu logo + fotos de tus productos reales horneados en la imagen),
+  <b>música de fondo</b> CC0 que la IA descarga sola, e <b>identidad, paleta, estilos, skills y credenciales</b> 100%
+  configurables — con panel <b>multi-usuario</b> (cada miembro conecta <b>su propio agente de IA</b>).
   Explora <b>Ajustes</b> arriba. Código: <a href="https://github.com/DrewGGM/ai-content-bot" target="_blank" rel="noopener">github.com/DrewGGM/ai-content-bot</a>.
 </div></div>
 
@@ -356,6 +358,48 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
   </section>
 
   <section class="scard">
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-brain"/></svg> Aprendizaje del rechazo <span class="role">admin</span></h2>
+    <p class="sub">Cuando rechazas una pieza y escribes el <b>motivo</b>, el bot lo guarda y —en segundo plano— <b>destila
+    reglas permanentes</b> que inyecta en el copy, la edición y el planner: así deja de repetir lo que no te gustó.
+    Aquí ves y editas esas reglas.</p>
+    <textarea rows="5" spellcheck="false">- Precio de LyrooPOS: usar SIEMPRE el del plan vigente; nunca "desde $X".
+- Tono: cercano y claro, español colombiano; sin promesas infladas.
+- Hooks con un dato o tensión real; evitar "¿Sabías que…?" genérico.
+- No prometer integraciones que el producto no tiene (ej. Rappi, notas crédito/débito desde el POS).</textarea>
+    <label class="check mt"><input type="checkbox"> <span><b>Permitir que la IA corrija el contexto</b> (archivos de
+      <code>knowledge/</code> y <code>config/</code>) cuando el motivo demuestre un dato equivocado — por reemplazos
+      puntuales, con respaldo <code>.bak</code> y registro en Actividad. <b>Apagado por defecto.</b></span></label>
+    <div class="filebar mt">
+      <button class="btn-primary sm" onclick="toast('Simulación · reglas guardadas — el bot las aplica en cada generación')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Guardar reglas</button>
+      <button class="btn-ghost sm" onclick="toast('Simulación · el bot re-destila los motivos recientes en reglas con tu agente')"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-refresh"/></svg> Re-destilar ahora</button>
+    </div>
+  </section>
+
+  <section class="scard">
+    <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-package"/></svg> Almacenamiento de piezas <span class="role">admin</span></h2>
+    <p class="sub">Dónde viven los videos e imágenes generados: en el <b>disco del servidor</b> o en <b>Cloudflare R2 / S3</b>
+    (deploy stateless — reinicias o mueves el server sin perder nada). Se cambia con un <b>switch</b>, sin tocar código.
+    Las llaves van <b>cifradas</b>; el panel no deja activar R2 si falta el bucket, el endpoint o las llaves.</p>
+    <div class="row">
+      <div style="flex:.8"><label>Destino</label>
+        <select id="storeSel" onchange="storeUI()">
+          <option value="local">Disco local (por defecto)</option>
+          <option value="s3">Cloudflare R2 / S3</option>
+        </select></div>
+      <div style="flex:1.4"><label>URL pública del bucket</label><input id="s3base" value="https://assets.tudominio.com" disabled></div>
+    </div>
+    <div class="row mt" id="s3rows" style="display:none">
+      <div><label>S3_BUCKET</label><input value="content-bot-assets"></div>
+      <div><label>S3_ENDPOINT</label><input value="https://&lt;acct&gt;.r2.cloudflarestorage.com"></div>
+    </div>
+    <div class="prov-note mt">Las llaves <code>S3_ACCESS_KEY_ID</code> / <code>S3_SECRET_ACCESS_KEY</code> se guardan en
+      la sección <b>Conexiones</b> (cifradas, write-only). Al activar R2, cada pieza sube su media al bucket y el panel
+      sirve las <b>URLs públicas</b> directamente.</div>
+    <div class="filebar mt"><button class="btn-primary sm" onclick="storeSave()"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Guardar almacenamiento</button></div>
+    <div class="msg" id="storeMsg"></div>
+  </section>
+
+  <section class="scard">
     <h2><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg> Usuarios del panel <span class="role">admin</span></h2>
     <p class="sub">Cada usuario entra con su contraseña y configura su propio agente/cuenta de IA. Los admin además
     gestionan usuarios, contexto y logos. En el bot real: contraseñas con scrypt, rate-limit de login y sesiones con expiración.</p>
@@ -402,6 +446,21 @@ th{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5p
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeCf()">Cancelar</button>
       <button class="btn-primary" id="cfOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de rechazo con motivo (nuevo: la IA aprende del porqué) -->
+<div id="rjModal" class="modal" onclick="if(event.target===this)closeRj()">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <div class="modal-head"><span><svg class="ic" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg> Rechazar pieza</span><button class="mh-close" onclick="closeRj()"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg></button></div>
+    <p class="cf-body" id="rjWhat"></p>
+    <label>¿Por qué la rechazas? <span style="color:var(--mut)">— la IA lo destila en reglas y ajusta las próximas piezas</span></label>
+    <div id="rjChips" style="display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px"></div>
+    <textarea id="rjNote" rows="3" placeholder="Ej: el precio está mal, el tono es muy formal, el hook es flojo, el visual no convence…"></textarea>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeRj()">Cancelar</button>
+      <button class="btn-primary dangerbtn" onclick="doReject()"><svg class="ic sm" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-brain"/></svg> Rechazar y aprender</button>
     </div>
   </div>
 </div>
@@ -471,9 +530,10 @@ function render(){
         <div class="meta"><span>${FIC[p.format]||ic("file")} ${p.format}</span><i>·</i><span>${p.platform}</span><i>·</i><span>${p.pillar}</span></div>
         <p class="cap">${esc(p.cap).replace(/\n/g,"<br>")}</p>
         <div class="tags">${p.tags.split(" ").map(t=>`<span class="tag">${t}</span>`).join(" ")}</div>
+        ${p.status==="rejected"&&p.feedback?`<p class="cap" style="color:#e0a5a5;font-size:12px;margin:0"><b>${ic("brain","ic sm")} Motivo:</b> ${esc(p.feedback)} <span style="color:var(--mut)">— la IA lo tendrá en cuenta</span></p>`:""}
         <div class="actions">
           <button class="ok" ${done?"disabled":""} onclick="askAct('${p.id}','approved')">${ic("check")} Aprobar</button>
-          <button class="no" ${done?"disabled":""} onclick="askAct('${p.id}','rejected')">${ic("x")} Rechazar</button>
+          <button class="no" ${done?"disabled":""} onclick="askReject('${p.id}')">${ic("x")} Rechazar</button>
         </div>
         <div class="actions"><button class="pub" onclick="askPub('${p.id}')">${ic("send")} Publicar</button></div>
         <div class="actions">
@@ -531,6 +591,25 @@ function askDel(id){
   const p=pieces.find(x=>x.id===id);
   askConfirm({title:"Eliminar pieza",body:"<b>"+pieceLabel(p)+"</b><br>Se eliminará la pieza y <b>todos sus archivos</b> (imágenes, video, voz). No se puede deshacer.",ok:"Eliminar definitivamente",danger:true},
     ()=>{pieces.splice(pieces.indexOf(p),1);render();toast("Pieza eliminada (simulación)")});
+}
+
+/* ---- Rechazo con motivo → aprendizaje (como en el panel real) ---- */
+const RJ_CHIPS=["Precio/dato equivocado","El tono no es el nuestro","Hook flojo","El visual no convence","Hashtags irrelevantes","Muy genérico / off-brand"];
+let rjId=null;
+function askReject(id){
+  rjId=id;const p=pieces.find(x=>x.id===id);
+  document.getElementById("rjWhat").innerHTML="<b>"+pieceLabel(p)+"</b>";
+  document.getElementById("rjNote").value="";
+  document.getElementById("rjChips").innerHTML=RJ_CHIPS.map(c=>`<button type="button" class="tab" style="padding:5px 11px;font-size:12px" onclick="rjChip('${c.replace(/'/g,"\\'")}')">${c}</button>`).join("");
+  document.getElementById("rjModal").classList.add("show");
+}
+function rjChip(txt){const t=document.getElementById("rjNote");t.value=(t.value.trim()?t.value.trim()+"; ":"")+txt;t.focus()}
+function closeRj(){document.getElementById("rjModal").classList.remove("show");rjId=null}
+function doReject(){
+  const p=pieces.find(x=>x.id===rjId);if(!p)return;
+  const why=document.getElementById("rjNote").value.trim();
+  p.status="rejected";p.feedback=why;closeRj();render();
+  toast(why?"Rechazada — la IA guardó el motivo y destilará reglas para las próximas piezas":"Rechazada — sin motivo la IA no puede aprender; agrégalo la próxima vez");
 }
 
 /* ---- Vista Ajustes ---- */
@@ -683,7 +762,20 @@ function fakeGen(){
   let i=0;tx.textContent=steps[0];
   const iv=setInterval(()=>{i++;if(i<steps.length){tx.textContent=steps[i]}else{clearInterval(iv);j.classList.remove("show");toast(`Simulación completa para "${topic}" — en el bot real la pieza aparecería en la cola como Pendiente, generada con tu cuenta`)}},1400);
 }
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeGen();closeCf()}});
+/* Almacenamiento R2 ↔ local (switch simulado) */
+function storeUI(){
+  const s3=document.getElementById("storeSel").value==="s3";
+  document.getElementById("s3rows").style.display=s3?"":"none";
+  document.getElementById("s3base").disabled=!s3;
+}
+function storeSave(){
+  const s3=document.getElementById("storeSel").value==="s3";
+  document.getElementById("storeMsg").textContent=s3
+    ?"R2/S3 activado — las próximas piezas suben su media al bucket y el panel sirve las URLs públicas."
+    :"Almacenamiento local — la media vive en assets/output/ del servidor.";
+}
+
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeGen();closeCf();closeRj()}});
 
 render();applyProviderUI();loadCtxList();renderBrand();renderUsers();
 </script>
