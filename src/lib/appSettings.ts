@@ -49,6 +49,15 @@ export const APP_SETTINGS: AppSettingDef[] = [
     group: "Aprendizaje",
   },
   {
+    key: "TEXT_QA",
+    label: "QA de texto (revisar la voz de marca del copy)",
+    type: "bool",
+    options: [],
+    default: "true",
+    help: "Antes de encolar, la IA revisa el caption contra la voz de marca y las reglas aprendidas y lo pule si hace falta (tono, promesas infladas, tecnicismos, hook flojo). Es barato (una llamada de copy) y no toca el visual. Desactívalo si prefieres el copy tal cual sale.",
+    group: "Aprendizaje",
+  },
+  {
     key: "INSIGHTS_MIN_AGE_HOURS",
     label: "Horas antes de medir el rendimiento de un post",
     type: "number",

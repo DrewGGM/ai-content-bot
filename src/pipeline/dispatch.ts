@@ -55,7 +55,22 @@ export interface CreateOpts {
 /** Genera la pieza midiendo el gasto en APIs y adjuntándolo (QueueItem.cost). */
 export async function createContent(opts: CreateOpts): Promise<QueueItem> {
   const { withUsage, hasCost } = await import("../lib/usage.js");
-  const { result: item, usage } = await withUsage(() => createContentInner(opts));
+  const { result: item, usage } = await withUsage(async () => {
+    const it = await createContentInner(opts);
+    // QA de texto: pule el caption si no respeta la voz de marca (barato, no toca el visual).
+    try {
+      const { reviewCopy } = await import("./textQA.js");
+      const review = await reviewCopy(it.caption, it.hashtags, it.format);
+      if (!review.ok) {
+        const { updateCopy } = await import("../queue/queue.js");
+        await updateCopy(it.id, review.caption, review.hashtags);
+        it.caption = review.caption;
+        it.hashtags = review.hashtags;
+        console.log(`  ✎ QA de texto pulió el copy${review.issues.length ? " (" + review.issues.join("; ") + ")" : ""}`);
+      }
+    } catch { /* el QA de texto es opcional; si falla no bloquea */ }
+    return it;
+  });
   if (hasCost(usage)) {
     try {
       const { updateCost } = await import("../queue/queue.js");

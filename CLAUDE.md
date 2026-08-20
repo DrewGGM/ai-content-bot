@@ -55,6 +55,10 @@ npm run schedule            # scheduler diario (usa el planner)
 - El **QA visual** (`src/providers/vision.ts`) revisa imágenes/frames y regenera si hay problemas;
   se salta limpiamente si el proveedor no soporta visión. Configurable con `QA_ATTEMPTS` y
   `VIDEO_QA_ATTEMPTS`.
+- El **QA de texto** (`src/pipeline/textQA.ts`, `reviewCopy`) revisa el caption contra la voz de
+  marca + reglas aprendidas y lo PULE en sitio antes de encolar (`createContent` lo llama tras
+  generar y aplica con `updateCopy`; el caption es independiente del visual, no lo desperdicia).
+  Ajuste `TEXT_QA` (bool, default on). Nunca rompe: si falla, deja el copy original.
 - Motor de video b-roll: `VIDEO_ENGINE=kling` (default) o `veo`.
 - **Identidad de marca** (nombre, colores, logo) en `config/brand.json`; el código la lee con
   `src/lib/brandConfig.ts`. No hardcodear nombres/colores de empresa en el código.
