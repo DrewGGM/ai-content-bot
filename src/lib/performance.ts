@@ -25,7 +25,7 @@ function minAgeHours(): number {
  * Score de engagement (relativo, no un %): pondera las señales que más valen para una marca.
  * Guardados y compartidos pesan más que un like porque indican intención real.
  */
-function scoreOf(m: Record<string, number>): number {
+export function scoreOf(m: Record<string, number>): number {
   const saved = m.saved ?? m.saves ?? 0;
   const shares = m.shares ?? 0;
   const comments = m.comments ?? 0;

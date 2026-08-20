@@ -14,6 +14,8 @@
     "plan": "tsx src/index.ts plan",
     "set": "tsx src/index.ts set",
     "campaign": "tsx src/index.ts campaign",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "generate": "tsx src/index.ts generate",
     "reel": "tsx src/index.ts reel",
     "motion": "tsx src/index.ts motion",
@@ -49,6 +51,7 @@
     "@types/react": "^19.0.0",
     "@types/web-push": "^3.6.4",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.11"
   }
 }
