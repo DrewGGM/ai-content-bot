@@ -19,7 +19,7 @@ export function publishCapabilities(): Record<Network, boolean> {
     instagram: igToken && !!process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID,
     facebook: (!!process.env.FACEBOOK_PAGE_TOKEN || igToken) && !!process.env.FACEBOOK_PAGE_ID,
     linkedin: !!process.env.LINKEDIN_ACCESS_TOKEN, // motor pendiente
-    tiktok: !!(process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET), // motor pendiente
+    tiktok: !!process.env.TIKTOK_ACCESS_TOKEN, // Content Posting API (Direct Post)
     x: !!(process.env.X_API_KEY && process.env.X_ACCESS_TOKEN), // motor pendiente
   };
 }
@@ -45,6 +45,7 @@ export async function publishItem(item: QueueItem, networks: Network[]): Promise
       let id: string;
       if (net === "instagram") { const { publishInstagram } = await import("./meta.js"); id = await publishInstagram(item, urls); }
       else if (net === "facebook") { const { publishFacebook } = await import("./meta.js"); id = await publishFacebook(item, urls); }
+      else if (net === "tiktok") { const { publishTikTok } = await import("./tiktok.js"); id = await publishTikTok(item, urls); }
       else throw new Error(`${NETWORK_LABEL[net]}: motor de publicación aún no implementado`);
       results.push({ network: net, ok: true, id });
     } catch (e: any) {

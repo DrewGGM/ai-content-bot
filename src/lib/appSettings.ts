@@ -67,6 +67,15 @@ export const APP_SETTINGS: AppSettingDef[] = [
     group: "Aprendizaje",
   },
   {
+    key: "TIKTOK_PRIVACY",
+    label: "Privacidad al publicar en TikTok",
+    type: "enum",
+    options: ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "SELF_ONLY"],
+    default: "PUBLIC_TO_EVERYONE",
+    help: "Visibilidad del post en TikTok. OJO: si tu app aún NO está auditada por TikTok (modo sandbox), la API SOLO permite SELF_ONLY (privado); usa PUBLIC_TO_EVERYONE cuando tu app esté aprobada.",
+    group: "Publicación",
+  },
+  {
     key: "ASSET_STORE",
     label: "Dónde se guardan los archivos generados",
     type: "enum",

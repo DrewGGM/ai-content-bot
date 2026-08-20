@@ -29,6 +29,7 @@ export const COMPANY_KEYS: CompanyKeyDef[] = [
   { key: "LINKEDIN_ACCESS_TOKEN", label: "Access token", group: "LinkedIn" },
   { key: "TIKTOK_CLIENT_KEY", label: "Client key", group: "TikTok" },
   { key: "TIKTOK_CLIENT_SECRET", label: "Client secret", group: "TikTok" },
+  { key: "TIKTOK_ACCESS_TOKEN", label: "Access token (Content Posting API)", group: "TikTok" },
   { key: "X_API_KEY", label: "API key", group: "X (Twitter)" },
   { key: "X_ACCESS_TOKEN", label: "Access token", group: "X (Twitter)" },
   { key: "FAL_KEY", label: "fal.ai key (imagen/video)", group: "Proveedores de medios" },
