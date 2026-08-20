@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { env } from "../lib/env.js";
 import { loadBrandConfig } from "../lib/brandConfig.js";
-import { listQueue, updateStatus, updateCopy, deleteItem, STATUSES, type QueueItem } from "../queue/queue.js";
+import { listQueue, updateStatus, updateCopy, updatePosts, deleteItem, STATUSES, type QueueItem } from "../queue/queue.js";
 import { refreshLearnings, loadLearnings, saveLearnings } from "../lib/learnings.js";
 import { createContent, type Format } from "../pipeline/dispatch.js";
 import { editCopy } from "../pipeline/editCopy.js";
@@ -329,7 +329,13 @@ function startPublishJob(user: User, item: QueueItem, networks: Network[]): Job 
       const fail = results.filter((r) => !r.ok);
       audit(user.name, fail.length ? "publicación con fallos" : "publicado",
         `${item.id} · ` + results.map((r) => `${r.network}:${r.ok ? "ok" : "error"}`).join(" "));
-      if (results.some((r) => r.ok)) await updateStatus(item.id, "published");
+      if (results.some((r) => r.ok)) {
+        await updateStatus(item.id, "published");
+        // Guarda las referencias de los posts para medir su rendimiento luego (lib/performance.ts).
+        const now = new Date().toISOString();
+        const posts = results.filter((r) => r.ok && r.id).map((r) => ({ network: r.network, id: r.id!, at: now }));
+        if (posts.length) await updatePosts(item.id, posts);
+      }
       if (fail.length) { job.status = "error"; job.error = fail.map((f) => `${NETWORK_LABEL[f.network]}: ${f.error}`).join(" · "); }
       else { job.status = "done"; job.itemId = item.id; }
     })
@@ -539,6 +545,7 @@ async function page(user: User): Promise<string> {
           <p class="cap">${esc(it.caption).replace(/\n/g, "<br>")}</p>
           ${tags ? `<div class="tags">${tags}</div>` : ""}
           ${it.feedback ? `<p class="why"><b>${it.status === "rejected" ? "Motivo del rechazo" : "Comentario"}${it.reviewedBy ? ` · ${esc(it.reviewedBy)}` : ""}:</b> ${esc(it.feedback)}</p>` : ""}
+          ${it.insights ? `<p class="perf">${icon("spark", "ic sm")} <b>Rendimiento:</b> score ${it.insights.score} · ${["reach", "likes", "comments", "saved", "shares"].filter((k) => (it.insights!.metrics as any)[k] != null).map((k) => `${k} ${(it.insights!.metrics as any)[k]}`).join(" · ") || "sin datos"}</p>` : (it.status === "published" && it.posts?.length ? `<p class="perf">${icon("spark", "ic sm")} <span style="color:var(--mut)">rendimiento: pendiente de medir</span></p>` : "")}
           <div class="act-stack">
           <div class="actions">
             <button class="copy-btn" data-copy="${esc(fullCopy)}" onclick="copyCap(this)">${icon("copy")} Copiar descripción</button>
@@ -694,6 +701,9 @@ async function page(user: User): Promise<string> {
     .why{margin:8px 0 0;padding:8px 11px;border-radius:10px;font-size:12px;line-height:1.5;color:var(--mut);
       background:#ffffff08;border-left:2px solid #d0453a}
     .why b{color:var(--txt)}
+    .perf{margin:8px 0 0;padding:8px 11px;border-radius:10px;font-size:12px;line-height:1.5;color:var(--mut);
+      background:#00d4aa10;border-left:2px solid var(--mint)}
+    .perf b{color:var(--txt)}
     .pub-warn{display:none;margin-top:12px;padding:10px 13px;border-radius:11px;font-size:12.5px;line-height:1.5;
       background:color-mix(in srgb,#e0a52b 14%,transparent);border:1px solid #e0a52b55;color:#f0c974}
     .pub-warn.show{display:block}
@@ -1563,6 +1573,17 @@ const server = createServer(async (req, res) => {
       await refreshLearnings();
       audit(user.name, "regeneró reglas aprendidas", "");
       sendJson(res, 200, { rules: loadLearnings() });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  // Bucle de rendimiento: mide (o re-mide) las piezas publicadas y devuelve cuántas actualizó.
+  if (url.pathname === "/api/insights/refresh" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const { refreshInsights } = await import("../lib/performance.js");
+      const n = await refreshInsights();
+      audit(user.name, "actualizó métricas de rendimiento", `${n} pieza(s)`);
+      sendJson(res, 200, { updated: n });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
   }

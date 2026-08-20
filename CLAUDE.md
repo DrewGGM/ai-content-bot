@@ -96,6 +96,14 @@ npm run schedule            # scheduler diario (usa el planner)
   motivos crudos recientes, y se inyecta en `generateCopy`, `editCopy` y `planContent`.
   `refreshLearnings()` destila los motivos en reglas permanentes con el LLM (se dispara sola tras
   cada rechazo, en segundo plano, serializada). Editable en el panel (`/api/learnings`).
+- **Bucle de rendimiento** (`src/lib/performance.ts`): el bot también aprende de lo que rindió DE
+  VERDAD, no solo del rechazo humano. Al publicar se guardan `QueueItem.posts` (id por red); D1
+  añade columnas `posts`/`insights` (auto-migradas por `ensureSchema`). `refreshInsights()` jala las
+  métricas orgánicas de Meta (IG media insights + FB post; tolerante: cae a like/comments si no hay
+  permiso `instagram_manage_insights`), calcula un `score` (guardados/compartidos pesan más) y lo
+  guarda. Corre en el cron diario y por botón (`/api/insights/refresh`). `performanceGuidance()` =
+  top/peores por engagement, inyectado en `planContent` y `generateCopy` junto a `learningGuidance`.
+  Espera `INSIGHTS_MIN_AGE_HOURS` (ajuste, default 48) antes de medir. Solo Meta por ahora.
 - **Permiso de autoedición** (`AI_EDIT_CONTEXT`, checkbox, **off** por defecto): si se activa, la
   IA puede corregir DATOS equivocados en `knowledge/`/`config/` que el feedback demuestre —
   mediante reemplazos puntuales que deben casar **exactamente una vez**, con respaldo `.bak` y

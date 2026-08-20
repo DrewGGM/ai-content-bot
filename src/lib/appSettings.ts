@@ -49,6 +49,15 @@ export const APP_SETTINGS: AppSettingDef[] = [
     group: "Aprendizaje",
   },
   {
+    key: "INSIGHTS_MIN_AGE_HOURS",
+    label: "Horas antes de medir el rendimiento de un post",
+    type: "number",
+    options: [],
+    default: "48",
+    help: "Tras publicar, el bot espera estas horas antes de jalar las métricas orgánicas (alcance, guardados, compartidos) de Instagram/Facebook. Deja que el post madure. Esas métricas alimentan al planner: replica lo que funcionó y evita lo que no.",
+    group: "Aprendizaje",
+  },
+  {
     key: "ASSET_STORE",
     label: "Dónde se guardan los archivos generados",
     type: "enum",

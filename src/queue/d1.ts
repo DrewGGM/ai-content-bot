@@ -3,7 +3,7 @@
  * Requiere CF_ACCOUNT_ID, CF_D1_DATABASE_ID, CF_API_TOKEN.
  * Se usa cuando QUEUE_STORE=d1. Mismo contrato que el backend local.
  */
-import type { QueueItem, Review, Status } from "./queue.js";
+import type { PostInsights, PostRef, QueueItem, Review, Status } from "./queue.js";
 
 function cfg() {
   const account = process.env.CF_ACCOUNT_ID;
@@ -63,7 +63,7 @@ export async function d1InitSchema(): Promise<void> {
   )`);
   // Migración incremental: bases creadas antes del feedback de rechazo no tienen estas columnas.
   // D1 no soporta ADD COLUMN IF NOT EXISTS, así que se ignora el error de "duplicate column".
-  for (const col of ["feedback TEXT", "reviewed_by TEXT", "reviewed_at TEXT"]) {
+  for (const col of ["feedback TEXT", "reviewed_by TEXT", "reviewed_at TEXT", "posts TEXT", "insights TEXT"]) {
     try { await query(`ALTER TABLE queue ADD COLUMN ${col}`); } catch { /* ya existe */ }
   }
 }
@@ -84,6 +84,8 @@ function rowToItem(r: any): QueueItem {
     feedback: r.feedback ?? undefined,
     reviewedBy: r.reviewed_by ?? undefined,
     reviewedAt: r.reviewed_at ?? undefined,
+    posts: r.posts ? JSON.parse(r.posts) : undefined,
+    insights: r.insights ? JSON.parse(r.insights) : undefined,
   };
 }
 
@@ -134,6 +136,20 @@ export async function d1Delete(id: string): Promise<boolean> {
 export async function d1UpdateCopy(id: string, caption: string, hashtags: string[]): Promise<QueueItem | null> {
   await ensureSchema();
   await query(`UPDATE queue SET caption=?, hashtags=? WHERE id=?`, [caption, JSON.stringify(hashtags ?? []), id]);
+  const rows = await query(`SELECT * FROM queue WHERE id=? LIMIT 1`, [id]);
+  return rows[0] ? rowToItem(rows[0]) : null;
+}
+
+export async function d1UpdatePosts(id: string, posts: PostRef[]): Promise<QueueItem | null> {
+  await ensureSchema();
+  await query(`UPDATE queue SET posts=? WHERE id=?`, [JSON.stringify(posts ?? []), id]);
+  const rows = await query(`SELECT * FROM queue WHERE id=? LIMIT 1`, [id]);
+  return rows[0] ? rowToItem(rows[0]) : null;
+}
+
+export async function d1UpdateInsights(id: string, insights: PostInsights): Promise<QueueItem | null> {
+  await ensureSchema();
+  await query(`UPDATE queue SET insights=? WHERE id=?`, [JSON.stringify(insights), id]);
   const rows = await query(`SELECT * FROM queue WHERE id=? LIMIT 1`, [id]);
   return rows[0] ? rowToItem(rows[0]) : null;
 }

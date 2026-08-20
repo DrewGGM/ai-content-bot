@@ -48,6 +48,17 @@ async function main() {
     }
   } catch { /* sin schedule.json */ }
   console.log(`[scheduler ${stamp}] capacidades:\n${capabilitiesReport()}\n`);
+
+  // Bucle de rendimiento: antes de planear, mide lo ya publicado para que la decisión de hoy
+  // aproveche qué funcionó de verdad (lib/performance.ts).
+  try {
+    const { refreshInsights } = await import("../lib/performance.js");
+    const n = await refreshInsights();
+    if (n) console.log(`[scheduler] métricas de rendimiento actualizadas en ${n} pieza(s).`);
+  } catch (e: any) {
+    console.warn(`⚠ no se pudieron refrescar métricas: ${e?.message ?? e}`);
+  }
+
   console.log(`[scheduler] Claude decidiendo la pieza de hoy...`);
 
   await runWithProfile(cronProfile(), async () => {

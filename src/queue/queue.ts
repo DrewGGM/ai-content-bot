@@ -23,6 +23,20 @@ export interface Review {
   by?: string;
 }
 
+/** Referencia a un post ya publicado (para luego medir su rendimiento). */
+export interface PostRef {
+  network: string;
+  id: string;
+  at: string;
+}
+
+/** Foto de las métricas orgánicas de una pieza publicada + un score de engagement. */
+export interface PostInsights {
+  at: string;
+  metrics: Record<string, number>;
+  score: number;
+}
+
 export interface QueueItem {
   id: string;
   createdAt: string;
@@ -40,6 +54,10 @@ export interface QueueItem {
   /** Quién revisó y cuándo (para mostrar en el panel y ordenar el aprendizaje). */
   reviewedBy?: string;
   reviewedAt?: string;
+  /** Posts publicados en cada red (se llena al publicar) — base del bucle de rendimiento. */
+  posts?: PostRef[];
+  /** Métricas orgánicas + score, refrescadas en segundo plano tras publicar. Ver lib/performance.ts. */
+  insights?: PostInsights;
 }
 
 // ---------- backend local (queue.json) ----------
@@ -128,6 +146,38 @@ export async function deleteItem(id: string): Promise<boolean> {
     if (q.items.length === before) return false;
     writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
     return true;
+  });
+}
+
+/** Guarda las referencias de los posts publicados (para medir su rendimiento después). */
+export async function updatePosts(id: string, posts: PostRef[]): Promise<QueueItem | null> {
+  if (backend() === "d1") {
+    const { d1UpdatePosts } = await import("./d1.js");
+    return d1UpdatePosts(id, posts);
+  }
+  return withLocalLock(() => {
+    const q = localRead();
+    const item = q.items.find((i) => i.id === id);
+    if (!item) return null;
+    item.posts = posts;
+    writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
+    return item;
+  });
+}
+
+/** Guarda las métricas orgánicas + score de una pieza publicada. */
+export async function updateInsights(id: string, insights: PostInsights): Promise<QueueItem | null> {
+  if (backend() === "d1") {
+    const { d1UpdateInsights } = await import("./d1.js");
+    return d1UpdateInsights(id, insights);
+  }
+  return withLocalLock(() => {
+    const q = localRead();
+    const item = q.items.find((i) => i.id === id);
+    if (!item) return null;
+    item.insights = insights;
+    writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
+    return item;
   });
 }
 

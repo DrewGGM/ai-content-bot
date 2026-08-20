@@ -372,7 +372,11 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     <div class="filebar mt">
       <button class="btn-primary sm" onclick="saveLearn(this)">${icon("check")} Guardar reglas</button>
       <button class="btn-ghost sm" onclick="refreshLearn(this)" title="Relee todos los motivos de rechazo y reescribe las reglas">${icon("spark")} Regenerar con la IA</button>
+      <button class="btn-ghost sm" onclick="refreshInsights(this)" title="Jala las métricas orgánicas (alcance, guardados, compartidos) de las piezas publicadas para que el planner replique lo que funcionó">${icon("refresh")} Actualizar rendimiento</button>
     </div>
+    <p class="sub" style="margin-top:8px">El bot también aprende del <b>rendimiento real</b>: mide las piezas ya publicadas
+    en Instagram/Facebook y prioriza replicar los formatos y ángulos con más engagement. Se actualiza solo a diario;
+    el botón lo fuerza ahora.</p>
     <div class="msg" id="lrnMsg"></div>
   </section>
 
@@ -1028,6 +1032,13 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
         btn.disabled=false;
         document.getElementById('lrnText').value=d.rules||'';
         msg('lrnMsg',d.rules?'Reglas actualizadas.':'Todavía no hay suficientes rechazos con motivo (hacen falta al menos 2).',true);
+      }).catch(function(e){btn.disabled=false;msg('lrnMsg',e.message,false)});
+    }
+    function refreshInsights(btn){
+      btn.disabled=true;msg('lrnMsg','Consultando el rendimiento de las piezas publicadas en Meta…',true);
+      j('/api/insights/refresh',{}).then(function(d){
+        btn.disabled=false;
+        msg('lrnMsg',d.updated?('Rendimiento actualizado en '+d.updated+' pieza(s). Ya alimenta al planner.'):'Nada que medir aún: hacen falta piezas publicadas hace unas horas (configurable en Ajustes).',true);
       }).catch(function(e){btn.disabled=false;msg('lrnMsg',e.message,false)});
     }
     loadLearn();

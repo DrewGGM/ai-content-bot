@@ -8,6 +8,7 @@ import { loadBrandContext } from "../knowledge/loader.js";
 import { loadBrandConfig } from "../lib/brandConfig.js";
 import { loadSkillGuidance } from "../lib/skills.js";
 import { learningGuidance } from "../lib/learnings.js";
+import { performanceGuidance } from "../lib/performance.js";
 
 // Lectura perezosa: el panel puede editar config/brand.json en caliente.
 const brand = () => loadBrandConfig();
@@ -50,6 +51,8 @@ async function ask(prompt: string, instruction?: string): Promise<any> {
   const guidance = loadSkillGuidance();
   // Lo que el humano ya corrigió al rechazar piezas anteriores (reglas + motivos recientes).
   const learned = await learningGuidance();
+  // Qué rindió mejor/peor de verdad en redes (métricas orgánicas) — refuerza lo que funcionó.
+  const performance = await performanceGuidance();
   const cm = guidance
     ? `\n\n===== GUÍA DE COMMUNITY MANAGER (mejores prácticas — aplícalas al copy, ganchos, formato y hashtags) =====\n${guidance}`
     : "";
@@ -57,7 +60,7 @@ async function ask(prompt: string, instruction?: string): Promise<any> {
   const edit = instruction?.trim()
     ? `\n\n===== INSTRUCCIÓN DEL USUARIO (PRIORITARIA — aplícala al pie de la letra sobre TODO, incluidos titular, imagen/escena, voz y CTA) =====\n${instruction.trim()}`
     : "";
-  const full = `${prompt}${edit}\n\n${BRAND_RULES}${cm}${learned ? `\n\n${learned}` : ""}\n\n===== CONTEXTO DE MARCA (config/brand.json + knowledge/ + config/) =====\nMarca: ${brand().name}${brand().tagline ? " — " + brand().tagline : ""}\n${raw}`;
+  const full = `${prompt}${edit}\n\n${BRAND_RULES}${cm}${performance ? `\n\n${performance}` : ""}${learned ? `\n\n${learned}` : ""}\n\n===== CONTEXTO DE MARCA (config/brand.json + knowledge/ + config/) =====\nMarca: ${brand().name}${brand().tagline ? " — " + brand().tagline : ""}\n${raw}`;
   return askLLMJson(full);
 }
 
