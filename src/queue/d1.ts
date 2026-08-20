@@ -63,7 +63,7 @@ export async function d1InitSchema(): Promise<void> {
   )`);
   // Migración incremental: bases creadas antes del feedback de rechazo no tienen estas columnas.
   // D1 no soporta ADD COLUMN IF NOT EXISTS, así que se ignora el error de "duplicate column".
-  for (const col of ["feedback TEXT", "reviewed_by TEXT", "reviewed_at TEXT", "posts TEXT", "insights TEXT", "cost TEXT"]) {
+  for (const col of ["feedback TEXT", "reviewed_by TEXT", "reviewed_at TEXT", "posts TEXT", "insights TEXT", "cost TEXT", "variants TEXT"]) {
     try { await query(`ALTER TABLE queue ADD COLUMN ${col}`); } catch { /* ya existe */ }
   }
 }
@@ -87,6 +87,7 @@ function rowToItem(r: any): QueueItem {
     posts: r.posts ? JSON.parse(r.posts) : undefined,
     insights: r.insights ? JSON.parse(r.insights) : undefined,
     cost: r.cost ? JSON.parse(r.cost) : undefined,
+    variants: r.variants ? JSON.parse(r.variants) : undefined,
   };
 }
 
@@ -158,6 +159,13 @@ export async function d1UpdateInsights(id: string, insights: PostInsights): Prom
 export async function d1UpdateCost(id: string, cost: NonNullable<QueueItem["cost"]>): Promise<QueueItem | null> {
   await ensureSchema();
   await query(`UPDATE queue SET cost=? WHERE id=?`, [JSON.stringify(cost), id]);
+  const rows = await query(`SELECT * FROM queue WHERE id=? LIMIT 1`, [id]);
+  return rows[0] ? rowToItem(rows[0]) : null;
+}
+
+export async function d1UpdateVariants(id: string, variants: string[]): Promise<QueueItem | null> {
+  await ensureSchema();
+  await query(`UPDATE queue SET variants=? WHERE id=?`, [JSON.stringify(variants ?? []), id]);
   const rows = await query(`SELECT * FROM queue WHERE id=? LIMIT 1`, [id]);
   return rows[0] ? rowToItem(rows[0]) : null;
 }

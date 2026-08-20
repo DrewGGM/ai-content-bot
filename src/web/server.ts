@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { env } from "../lib/env.js";
 import { loadBrandConfig } from "../lib/brandConfig.js";
-import { listQueue, updateStatus, updateCopy, updatePosts, deleteItem, STATUSES, type QueueItem } from "../queue/queue.js";
+import { listQueue, updateStatus, updateCopy, updatePosts, updateVariants, deleteItem, STATUSES, type QueueItem } from "../queue/queue.js";
 import { refreshLearnings, loadLearnings, saveLearnings } from "../lib/learnings.js";
 import { createContent, type Format } from "../pipeline/dispatch.js";
 import { editCopy } from "../pipeline/editCopy.js";
@@ -584,6 +584,7 @@ async function page(user: User): Promise<string> {
           ${tags ? `<div class="tags">${tags}</div>` : ""}
           ${it.feedback ? `<p class="why"><b>${it.status === "rejected" ? "Motivo del rechazo" : "Comentario"}${it.reviewedBy ? ` · ${esc(it.reviewedBy)}` : ""}:</b> ${esc(it.feedback)}</p>` : ""}
           ${it.insights ? `<p class="perf">${icon("spark", "ic sm")} <b>Rendimiento:</b> score ${it.insights.score} · ${["reach", "likes", "comments", "saved", "shares"].filter((k) => (it.insights!.metrics as any)[k] != null).map((k) => `${k} ${(it.insights!.metrics as any)[k]}`).join(" · ") || "sin datos"}</p>` : (it.status === "published" && it.posts?.length ? `<p class="perf">${icon("spark", "ic sm")} <span style="color:var(--mut)">rendimiento: pendiente de medir</span></p>` : "")}
+          ${it.variants?.length && it.status !== "published" ? `<details class="vars"><summary>${icon("spark", "ic sm")} ${it.variants.length} variante(s) de hook (A/B)</summary>${it.variants.map((v, i) => `<div class="var"><p>${esc(v).replace(/\n/g, "<br>")}</p><button class="btn-mini" onclick="useVariant('${esc(it.id)}',${i})">${icon("check", "ic sm")} Usar esta</button></div>`).join("")}</details>` : ""}
           <div class="act-stack">
           <div class="actions">
             <button class="copy-btn" data-copy="${esc(fullCopy)}" onclick="copyCap(this)">${icon("copy")} Copiar descripción</button>
@@ -742,6 +743,13 @@ async function page(user: User): Promise<string> {
     .perf{margin:8px 0 0;padding:8px 11px;border-radius:10px;font-size:12px;line-height:1.5;color:var(--mut);
       background:#00d4aa10;border-left:2px solid var(--mint)}
     .perf b{color:var(--txt)}
+    .vars{margin:8px 0 0;font-size:12.5px}
+    .vars summary{cursor:pointer;color:var(--violet2);font-weight:600;padding:6px 0}
+    .var{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:6px 0;background:#ffffff06}
+    .var p{margin:0 0 8px;line-height:1.5;color:#dcdcec}
+    .btn-mini{border:1px solid var(--line);background:transparent;color:var(--txt);border-radius:8px;
+      padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px}
+    .btn-mini:hover{border-color:var(--violet2)}
     .pub-warn{display:none;margin-top:12px;padding:10px 13px;border-radius:11px;font-size:12.5px;line-height:1.5;
       background:color-mix(in srgb,#e0a52b 14%,transparent);border:1px solid #e0a52b55;color:#f0c974}
     .pub-warn.show{display:block}
@@ -1010,6 +1018,11 @@ async function page(user: User): Promise<string> {
       document.getElementById('editVideoOpts').style.display=show?'flex':'none';
       document.getElementById('editAudio').parentElement.style.display=(editFmt==='motion')?'block':'none';
       document.getElementById('editMusicRow').style.display=(show&&editFmt==='motion')?'block':'none';
+    }
+    function useVariant(id,index){
+      fetch('/api/variant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,index:index})})
+        .then(function(r){if(r.status===401){location.href='/';return}return r.json().then(function(d){if(!r.ok)throw new Error(d&&d.error||'error');location.reload()})})
+        .catch(function(e){alert(e.message)});
     }
     function copyCap(btn){
       var t=btn.dataset.copy||'';
@@ -1693,6 +1706,24 @@ const server = createServer(async (req, res) => {
       const slots = await planWeek(count, user.id);
       audit(user.name, "planificó la semana", `${slots.length} piezas`);
       sendJson(res, 200, { slots });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  // Variantes de hook (A/B): intercambia el caption por la variante elegida (reversible).
+  if (url.pathname === "/api/variant" && req.method === "POST") {
+    try {
+      const b = await jsonBody(req, 4 * 1024);
+      const items = await listQueue();
+      const item = items.find((i) => i.id === String(b.id ?? ""));
+      const idx = Number(b.index);
+      if (!item || !item.variants || !item.variants[idx]) { sendJson(res, 404, { error: "Variante no encontrada" }); return; }
+      const chosen = item.variants[idx];
+      const swapped = item.variants.slice();
+      swapped[idx] = item.caption; // el caption actual pasa a ser variante (para volver atrás)
+      await updateCopy(item.id, chosen, item.hashtags);
+      await updateVariants(item.id, swapped);
+      audit(user.name, "usó variante de hook", item.id);
+      sendJson(res, 200, { ok: true });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
   }

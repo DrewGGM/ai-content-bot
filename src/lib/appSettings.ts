@@ -58,6 +58,15 @@ export const APP_SETTINGS: AppSettingDef[] = [
     group: "Aprendizaje",
   },
   {
+    key: "AB_HOOKS",
+    label: "Generar variantes de hook (A/B)",
+    type: "bool",
+    options: [],
+    default: "true",
+    help: "Con cada pieza, la IA propone 2-3 captions alternativos con distinto gancho. En el panel eliges el mejor con un clic (reversible). Es barato (una llamada de copy) y no toca el visual.",
+    group: "Aprendizaje",
+  },
+  {
     key: "INSIGHTS_MIN_AGE_HOURS",
     label: "Horas antes de medir el rendimiento de un post",
     type: "number",

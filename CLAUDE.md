@@ -59,6 +59,10 @@ npm run schedule            # scheduler diario (usa el planner)
   marca + reglas aprendidas y lo PULE en sitio antes de encolar (`createContent` lo llama tras
   generar y aplica con `updateCopy`; el caption es independiente del visual, no lo desperdicia).
   Ajuste `TEXT_QA` (bool, default on). Nunca rompe: si falla, deja el copy original.
+- **Variantes de hook (A/B)** (`src/pipeline/variants.ts`): `generateHookVariants` propone 2-3
+  captions alternativos (distinto gancho); `createContent` los guarda en `QueueItem.variants` (col D1
+  auto-migrada). El panel los muestra en un `<details>` con "Usar esta" → `/api/variant` intercambia
+  el caption por la variante (reversible: el caption viejo pasa a variante). Ajuste `AB_HOOKS`.
 - Motor de video b-roll: `VIDEO_ENGINE=kling` (default) o `veo`.
 - **Identidad de marca** (nombre, colores, logo) en `config/brand.json`; el código la lee con
   `src/lib/brandConfig.ts`. No hardcodear nombres/colores de empresa en el código.

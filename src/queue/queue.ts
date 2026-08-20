@@ -60,6 +60,8 @@ export interface QueueItem {
   insights?: PostInsights;
   /** Costo estimado de generar la pieza (APIs de imagen/video/voz). Ver lib/usage.ts. */
   cost?: { usd: number; byProvider: Record<string, { calls: number; usd: number }>; estimated: true };
+  /** Captions/hooks alternativos para A/B — el humano elige uno en el panel. Ver pipeline/variants.ts. */
+  variants?: string[];
 }
 
 // ---------- backend local (queue.json) ----------
@@ -178,6 +180,22 @@ export async function updateInsights(id: string, insights: PostInsights): Promis
     const item = q.items.find((i) => i.id === id);
     if (!item) return null;
     item.insights = insights;
+    writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
+    return item;
+  });
+}
+
+/** Guarda los captions/hooks alternativos (A/B) de una pieza. */
+export async function updateVariants(id: string, variants: string[]): Promise<QueueItem | null> {
+  if (backend() === "d1") {
+    const { d1UpdateVariants } = await import("./d1.js");
+    return d1UpdateVariants(id, variants);
+  }
+  return withLocalLock(() => {
+    const q = localRead();
+    const item = q.items.find((i) => i.id === id);
+    if (!item) return null;
+    item.variants = variants;
     writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
     return item;
   });

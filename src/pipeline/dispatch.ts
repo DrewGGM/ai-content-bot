@@ -69,6 +69,16 @@ export async function createContent(opts: CreateOpts): Promise<QueueItem> {
         console.log(`  ✎ QA de texto pulió el copy${review.issues.length ? " (" + review.issues.join("; ") + ")" : ""}`);
       }
     } catch { /* el QA de texto es opcional; si falla no bloquea */ }
+    // Variantes de hook (A/B): captions alternativos para elegir en el panel.
+    try {
+      const { generateHookVariants } = await import("./variants.js");
+      const variants = await generateHookVariants(it.caption, opts.topic, it.format);
+      if (variants.length) {
+        const { updateVariants } = await import("../queue/queue.js");
+        await updateVariants(it.id, variants);
+        it.variants = variants;
+      }
+    } catch { /* variantes opcionales */ }
     return it;
   });
   if (hasCost(usage)) {
