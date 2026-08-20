@@ -218,6 +218,16 @@ self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET'||u.origin!==location.origin)return;
   if(u.pathname==='/sw.js'||u.pathname==='/manifest.webmanifest'||u.pathname.startsWith('/media')||u.pathname.startsWith('/r2/')||u.pathname.startsWith('/download'))return;
   e.respondWith((async()=>{try{const r=await fetch(e.request);return r}catch(err){const c=await caches.match(e.request);return c||Response.error()}})());
+});
+self.addEventListener('push',e=>{
+  let d={title:'Content Bot',body:'Tienes una pieza nueva por revisar',url:'/'};
+  try{if(e.data)d=Object.assign(d,e.data.json())}catch(_){}
+  e.waitUntil(self.registration.showNotification(d.title,{body:d.body,icon:'/icon-192.png',badge:'/icon-192.png',data:{url:d.url}}));
+});
+self.addEventListener('notificationclick',e=>{
+  e.notification.close();
+  const url=(e.notification.data&&e.notification.data.url)||'/';
+  e.waitUntil((async()=>{const all=await clients.matchAll({type:'window',includeUncontrolled:true});for(const c of all){if('focus'in c){c.navigate(url);return c.focus()}}if(clients.openWindow)return clients.openWindow(url)})());
 });`;
 const PWA_HEAD = `<link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="${brand.colors.primary}">
@@ -422,6 +432,7 @@ function startScheduler(): void {
             try { item = await createContent({ format, topic, platform: slot.platform }); }
             catch { item = await createContent({ format: "design", topic, platform: slot.platform }); }
             updateSlot(slot.id, { itemId: item.id });
+            try { const { sendPush } = await import("../lib/push.js"); await sendPush("Pieza nueva por revisar", `${item.format}: ${topic ?? item.topic ?? ""}`.slice(0, 120), "/"); } catch { /* push opcional */ }
           });
           audit("calendario", "pieza programada generada", `${slot.date} ${slot.time}${slot.topic ? " · " + slot.topic : ""}`);
         } catch (e: any) { console.error("[calendario]", e?.message ?? e); }
@@ -442,8 +453,10 @@ function startScheduler(): void {
     try {
       await runWithProfile(profile, async () => {
         const plan = await planNextContent();
-        try { await createContent({ format: plan.format, topic: plan.topic, platform: plan.platform }); }
-        catch { await createContent({ format: "design", topic: plan.topic, platform: plan.platform }); }
+        let item: QueueItem;
+        try { item = await createContent({ format: plan.format, topic: plan.topic, platform: plan.platform }); }
+        catch { item = await createContent({ format: "design", topic: plan.topic, platform: plan.platform }); }
+        try { const { sendPush } = await import("../lib/push.js"); await sendPush("Pieza nueva por revisar", `${item.format}: ${plan.topic}`.slice(0, 120), "/"); } catch { /* push opcional */ }
       });
       audit("cron", "pieza automática generada", owner ? `con el agente de ${owner.name}` : "con el agente del servidor");
       console.log(`[scheduler] pieza automática generada (${now.date}${owner ? `, agente de ${owner.name}` : ""})`);
@@ -766,6 +779,7 @@ async function page(user: User): Promise<string> {
       <button class="hbtn" onclick="doPlan()" title="Claude decide y genera una pieza">${icon("wand")}<span>Plan</span></button>
       <button class="hbtn" onclick="doSet()" title="Una pieza de cada formato disponible">${icon("layers")}<span>Set</span></button>
       <button class="hbtn" onclick="openSched()" title="Programación automática">${icon("clock")}<span>Auto</span></button>
+      <button class="hbtn" id="notifBtn" onclick="enablePush(this)" title="Recibir un aviso en el móvil cuando haya una pieza nueva por revisar" style="display:none">${icon("spark")}<span>Avisos</span></button>
       <button class="gen-btn" onclick="openGen()">${icon("spark")}<span>Generar</span></button>
       ${settingsBtn}
       ${logoutBtn}
@@ -1108,7 +1122,34 @@ async function page(user: User): Promise<string> {
       }).catch(function(){});
     }
     pollJobs();
-    if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}
+    // ---- Notificaciones push ----
+    function b64ToU8(b){var p='='.repeat((4-b.length%4)%4);var s=(b+p).replace(/-/g,'+').replace(/_/g,'/');var raw=atob(s);var out=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out}
+    var pushKey='';
+    function initPush(reg){
+      if(!('PushManager' in window))return;
+      fetch('/api/push/key').then(function(r){return r.json()}).then(function(d){
+        if(!d.key)return; pushKey=d.key;
+        var btn=document.getElementById('notifBtn');
+        // Si ya está suscrito, no molestamos; si no, mostramos el botón (salvo permiso denegado).
+        reg.pushManager.getSubscription().then(function(sub){
+          if(sub){if(btn)btn.style.display='none';return}
+          if(Notification.permission!=='denied'&&btn)btn.style.display='';
+        });
+      }).catch(function(){});
+    }
+    function enablePush(btn){
+      btn.disabled=true;
+      navigator.serviceWorker.ready.then(function(reg){
+        return Notification.requestPermission().then(function(perm){
+          if(perm!=='granted'){btn.disabled=false;return}
+          return reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(pushKey)}).then(function(sub){
+            return fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:sub})})
+              .then(function(){btn.style.display='none';fetch('/api/push/test',{method:'POST'})});
+          });
+        });
+      }).catch(function(){btn.disabled=false});
+    }
+    if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').then(initPush).catch(function(){})}
   </script></body></html>`;
 }
 
@@ -1652,6 +1693,29 @@ const server = createServer(async (req, res) => {
       const slots = await planWeek(count, user.id);
       audit(user.name, "planificó la semana", `${slots.length} piezas`);
       sendJson(res, 200, { slots });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  // Notificaciones push (Web Push / VAPID).
+  if (url.pathname === "/api/push/key" && req.method === "GET") {
+    const { vapidPublicKey } = await import("../lib/push.js");
+    sendJson(res, 200, { key: vapidPublicKey() });
+    return;
+  }
+  if (url.pathname === "/api/push/subscribe" && req.method === "POST") {
+    try {
+      const b = await jsonBody(req, 16 * 1024);
+      const { addSubscription } = await import("../lib/push.js");
+      addSubscription(b.subscription ?? b);
+      sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/push/test" && req.method === "POST") {
+    try {
+      const { sendPush } = await import("../lib/push.js");
+      const n = await sendPush("Content Bot", "Notificación de prueba ✔ — así te avisaremos de piezas nuevas.", "/");
+      sendJson(res, 200, { sent: n });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
   }
