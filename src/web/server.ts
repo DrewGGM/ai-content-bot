@@ -588,6 +588,7 @@ async function page(user: User): Promise<string> {
           <div class="act-stack">
           <div class="actions">
             <button class="copy-btn" data-copy="${esc(fullCopy)}" onclick="copyCap(this)">${icon("copy")} Copiar descripción</button>
+            ${it.status === "published" && it.posts?.length ? `<button class="copy-btn" onclick="openComments('${esc(it.id)}')">${icon("users")} Responder comentarios</button>` : ""}
           </div>
           <div class="actions">
             <button class="ok" ${done ? "disabled" : ""} onclick="askAct(this,'${esc(it.id)}','approved')">${icon("check")} Aprobar</button>
@@ -836,6 +837,16 @@ async function page(user: User): Promise<string> {
       </div>
     </div>
   </div>
+  <div id="commentsModal" class="modal" onclick="if(event.target===this)closeComments()">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-label="Responder comentarios">
+      <div class="modal-head">
+        <span class="mh-title">${icon("users")} Responder comentarios</span>
+        <button class="mh-close" onclick="closeComments()" aria-label="Cerrar">${icon("x")}</button>
+      </div>
+      <p class="sub" style="margin:0 0 10px">La IA redacta respuestas en la voz de marca. Revísalas, copia la que quieras y publícala tú en la red (el bot no responde solo).</p>
+      <div id="commentsBody" style="max-height:60vh;overflow:auto"></div>
+    </div>
+  </div>
   <div id="editModal" class="modal" onclick="if(event.target===this)closeEdit()">
     <div class="modal-box" role="dialog" aria-modal="true" aria-label="Editar con IA">
       <div class="modal-head">
@@ -1003,7 +1014,7 @@ async function page(user: User): Promise<string> {
       document.getElementById('genFormat').disabled=on;
       document.getElementById('genSubmit').innerHTML=on?'${icon("spark")} Generar campaña':'${icon("spark")} Generar';
     }
-    document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeGen();closeEdit();closeSched();closePub();closeCf()}});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeGen();closeEdit();closeSched();closePub();closeCf();closeComments()}});
     function submitGen(){
       var topic=document.getElementById('genTopic').value.trim();
       var format=document.getElementById('genFormat').value;
@@ -1030,6 +1041,24 @@ async function page(user: User): Promise<string> {
       document.getElementById('editAudio').parentElement.style.display=(editFmt==='motion')?'block':'none';
       document.getElementById('editMusicRow').style.display=(show&&editFmt==='motion')?'block':'none';
     }
+    function closeComments(){document.getElementById('commentsModal').classList.remove('show')}
+    function openComments(id){
+      var box=document.getElementById('commentsBody');
+      box.innerHTML='<p class="sub">Leyendo comentarios y redactando respuestas…</p>';
+      document.getElementById('commentsModal').classList.add('show');
+      fetch('/api/comments?id='+encodeURIComponent(id)).then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
+        .then(function(x){
+          if(!x.ok){box.innerHTML='<p class="modal-err">'+((x.d&&x.d.error)||'Error')+'</p>';return}
+          var drafts=x.d.drafts||[];
+          if(!drafts.length){box.innerHTML='<p class="sub">No hay comentarios legibles todavía (o falta el permiso de lectura de comentarios en el token de Meta).</p>';return}
+          box.innerHTML=drafts.map(function(c){
+            return '<div class="var"><div class="sub" style="margin:0 0 6px"><b>@'+esc(c.author)+'</b> ('+esc(c.network)+'): '+esc(c.text)+'</div>'
+              +'<p style="margin:0 0 8px">'+(c.reply?esc(c.reply):'<span class="sub">— sin borrador</span>')+'</p>'
+              +(c.reply?'<button class="btn-mini" data-reply="'+encodeURIComponent(c.reply)+'">'+'${icon("copy","ic sm")} Copiar respuesta</button>':'')+'</div>';
+          }).join('');
+          box.querySelectorAll('[data-reply]').forEach(function(b){b.onclick=function(){var t=decodeURIComponent(b.getAttribute('data-reply'));(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='✓ Copiada'}).catch(function(){fallbackCopy(t);b.textContent='✓ Copiada'})}});
+        }).catch(function(){box.innerHTML='<p class="modal-err">Error de red</p>'});
+    }
     function useVariant(id,index){
       fetch('/api/variant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,index:index})})
         .then(function(r){if(r.status===401){location.href='/';return}return r.json().then(function(d){if(!r.ok)throw new Error(d&&d.error||'error');location.reload()})})
@@ -1046,6 +1075,7 @@ async function page(user: User): Promise<string> {
       var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';
       document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(ta);
     }
+    function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
     function openEdit(btn,id){
       editId=id;editFmt=(btn.closest('.card')||{dataset:{}}).dataset.format||'';
       document.getElementById('editErr').textContent='';document.getElementById('editPrompt').value='';
@@ -1735,6 +1765,19 @@ const server = createServer(async (req, res) => {
       await updateVariants(item.id, swapped);
       audit(user.name, "usó variante de hook", item.id);
       sendJson(res, 200, { ok: true });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  // Community manager: borradores de respuesta a los comentarios de una pieza publicada.
+  if (url.pathname === "/api/comments" && req.method === "GET") {
+    try {
+      const id = url.searchParams.get("id") ?? "";
+      const items = await listQueue();
+      const item = items.find((i) => i.id === id);
+      if (!item) { sendJson(res, 404, { error: "Pieza no encontrada" }); return; }
+      const { draftReplies } = await import("../lib/comments.js");
+      const drafts = await draftReplies(item);
+      sendJson(res, 200, { drafts });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
   }

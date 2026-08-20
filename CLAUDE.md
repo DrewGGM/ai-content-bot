@@ -144,6 +144,10 @@ npm run schedule            # scheduler diario (usa el planner)
 - **Subtítulos**: `src/lib/srt.ts` genera ASS **karaoke** (un evento por palabra; la que suena se
   resalta en el color de acento) para los subtítulos y para el overlay del reel b-roll. El
   titular del overlay se retira al ~42% del reel para no competir con los subtítulos.
+- **Respuestas a comentarios** (`src/lib/comments.ts`): lee los comentarios de los posts publicados
+  (IG/FB, usando `QueueItem.posts`) y la IA REDACTA respuestas en la voz de marca. Solo borrador
+  (el humano copia y publica — nunca auto-responde). Endpoint `/api/comments?id=` + botón/modal
+  "Responder comentarios" en las cards publicadas. Tolerante: [] si falta permiso de comentarios.
 - **Push al móvil** (`src/lib/push.ts`, dep `web-push`): Web Push/VAPID. Claves de env o
   auto-generadas en `data/push.json`; suscripciones en `data/push-subs.json`. El SW (`SW_JS`) maneja
   `push`/`notificationclick`; el panel expone `/api/push/{key,subscribe,test}` y un botón "Avisos".
