@@ -139,6 +139,14 @@ npm run schedule            # scheduler diario (usa el planner)
 - **Subtítulos**: `src/lib/srt.ts` genera ASS **karaoke** (un evento por palabra; la que suena se
   resalta en el color de acento) para los subtítulos y para el overlay del reel b-roll. El
   titular del overlay se retira al ~42% del reel para no competir con los subtítulos.
+- **Calendario de contenido** (`src/lib/calendar.ts`): slots programados (fecha+hora Colombia,
+  formato/tema/plataforma opcionales) en `data/calendar.json`. `planWeek()` llena N días con el LLM
+  repartiendo por `BEST_TIMES` (mejores horarios por red). El scheduler in-process de `server.ts`
+  procesa `dueSlots()` cada minuto (genera; si el slot no trae tema, usa el planner). Endpoints
+  `/api/calendar*` + card en Ajustes. Convive con el "Auto" de una-pieza-al-día (`schedule.json`).
+- **Publicar en TikTok** (`src/publish/tiktok.ts`): Content Posting API Direct Post (video + fotos
+  por PULL_FROM_URL, polling de estado). Requiere `TIKTOK_ACCESS_TOKEN`; `TIKTOK_PRIVACY` (ajuste).
+  El resto de redes en `publish/index.ts` sigue pendiente (LinkedIn/X).
 - **Persistencia**: cola/historial `QUEUE_STORE=local|d1` (`src/queue/queue.ts` async + `d1.ts`);
   assets `ASSET_STORE=local|s3` (`src/lib/assets.ts`). `npm run init-db` crea el esquema D1.
   La API de la cola es **async** — usar `await addToQueue/listQueue/updateStatus`.

@@ -381,6 +381,28 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
   </section>
 
   <section class="card">
+    <h2>${icon("clock")} Calendario de contenido <span class="role">admin</span></h2>
+    <p class="sub">Programa piezas por adelantado. A la hora indicada (hora Colombia) el bot las genera
+    solas y las deja en la cola para aprobar. Deja el tema/formato vacíos para que el planner decida.
+    <b>Planificar la semana</b> llena 7 días variando formato y pilar, cada pieza en el <b>mejor horario</b> de su red.</p>
+    <div class="filebar">
+      <button class="btn-primary sm" onclick="planWeek(this)">${icon("spark")} Planificar la semana con IA</button>
+    </div>
+    <div class="row mt">
+      <div style="max-width:160px"><label>Fecha</label><input type="date" id="calDate"></div>
+      <div style="max-width:120px"><label>Hora</label><input type="time" id="calTime" value="19:00"></div>
+      <div style="max-width:160px"><label>Plataforma</label><select id="calPlat"><option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="facebook">Facebook</option><option value="linkedin">LinkedIn</option></select></div>
+      <div style="max-width:170px"><label>Formato (opcional)</label><input id="calFmt" placeholder="auto (lo decide la IA)"></div>
+    </div>
+    <div class="row mt">
+      <div><label>Tema (opcional)</label><input id="calTopic" placeholder="vacío = el planner elige"></div>
+      <div style="display:flex;align-items:flex-end;max-width:150px"><button class="btn-ghost sm" onclick="addSlot(this)">${icon("check")} Agregar</button></div>
+    </div>
+    <div id="calList" class="mt" style="display:flex;flex-direction:column;gap:6px"></div>
+    <div class="msg" id="calMsg"></div>
+  </section>
+
+  <section class="card">
     <h2>${icon("motion")} Workflows de contenido <span class="role">admin</span></h2>
     <p class="sub">Pipelines <b>personalizables</b> que encadenan IAs paso a paso (estilo ElevenLabs Flows):
     imagen IA → animarla (image-to-video) → voz → subtítulos → música → ensamblado con tu marca; o un
@@ -487,6 +509,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
       if(r.status===401){location.href='/';throw new Error('Sesión expirada — vuelve a iniciar sesión')}
       return r.json().then(function(d){if(!r.ok)throw new Error(d&&d.error||('HTTP '+r.status));return d})})}
     function msg(id,text,ok){var el=document.getElementById(id);el.textContent=text;el.className='msg '+(ok?'ok':'err');if(ok)setTimeout(function(){el.textContent=''},4000)}
+    function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 
     // ---- Modal de confirmación (con campo de texto opcional) ----
     var cfCb=null;
@@ -1041,7 +1064,44 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
         msg('lrnMsg',d.updated?('Rendimiento actualizado en '+d.updated+' pieza(s). Ya alimenta al planner.'):'Nada que medir aún: hacen falta piezas publicadas hace unas horas (configurable en Ajustes).',true);
       }).catch(function(e){btn.disabled=false;msg('lrnMsg',e.message,false)});
     }
-    loadLearn();
+    // ---- Calendario de contenido ----
+    var STLBL={planned:'programada',done:'generada',skipped:'omitida'};
+    function loadCalendar(){
+      if(!IS_ADMIN)return;
+      j('/api/calendar').then(function(d){
+        var box=document.getElementById('calList');if(!box)return;
+        var slots=(d.slots||[]).filter(function(s){return s.status!=='done'||s.itemId});
+        if(!slots.length){box.innerHTML='<span class="sub">Sin piezas programadas. Usa "Planificar la semana" o agrega una arriba.</span>';return}
+        box.innerHTML=slots.map(function(s){
+          return '<div style="display:flex;align-items:center;gap:10px;padding:8px 11px;border:1px solid var(--line);border-radius:10px;font-size:13px">'
+            +'<b style="font-family:Fira Code,monospace">'+s.date+' '+s.time+'</b>'
+            +'<span class="sub" style="margin:0">'+(s.platform||'')+(s.format?' · '+s.format:' · auto')+'</span>'
+            +'<span style="flex:1;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.topic?esc(s.topic):'(tema: lo decide la IA)')+'</span>'
+            +'<span class="role">'+(STLBL[s.status]||s.status)+'</span>'
+            +'<button class="btn-ghost sm" data-del="'+s.id+'">✕</button></div>';
+        }).join('');
+        box.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){delSlot(b.getAttribute('data-del'))}});
+      }).catch(function(){});
+    }
+    function addSlot(btn){
+      var date=document.getElementById('calDate').value,time=document.getElementById('calTime').value;
+      if(!date||!time){msg('calMsg','Elige fecha y hora',false);return}
+      btn.disabled=true;
+      j('/api/calendar',{date:date,time:time,platform:document.getElementById('calPlat').value,
+        format:document.getElementById('calFmt').value.trim(),topic:document.getElementById('calTopic').value.trim()})
+        .then(function(){btn.disabled=false;document.getElementById('calTopic').value='';msg('calMsg','Pieza programada.',true);loadCalendar()})
+        .catch(function(e){btn.disabled=false;msg('calMsg',e.message,false)});
+    }
+    function delSlot(id){
+      j('/api/calendar/delete',{id:id}).then(loadCalendar).catch(function(){});
+    }
+    function planWeek(btn){
+      btn.disabled=true;msg('calMsg','La IA está planificando la semana…',true);
+      j('/api/calendar/plan-week',{count:7}).then(function(d){
+        btn.disabled=false;msg('calMsg','Semana planificada: '+((d.slots||[]).length)+' piezas en sus mejores horarios.',true);loadCalendar();
+      }).catch(function(e){btn.disabled=false;msg('calMsg',e.message,false)});
+    }
+    loadLearn();loadCalendar();
 
     // ---- Ajustes no-secretos (proveedor de imagen) ----
     function loadAppSettings(){

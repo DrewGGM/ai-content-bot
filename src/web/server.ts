@@ -403,6 +403,31 @@ function startScheduler(): void {
   if (schedStarted) return;
   schedStarted = true;
   setInterval(async () => {
+    // Calendario de contenido: genera las piezas cuya hora ya llegó (lib/calendar.ts).
+    try {
+      const { dueSlots, updateSlot } = await import("../lib/calendar.js");
+      for (const slot of dueSlots()) {
+        updateSlot(slot.id, { status: "done" }); // marca ANTES de generar (evita doble disparo)
+        const owner = slot.userId ? getUserById(slot.userId) : null;
+        try {
+          await runWithProfile(owner ? activeProfileFor(owner) : null, async () => {
+            let format = slot.format as Format | undefined;
+            let topic = slot.topic;
+            if (!format || !topic) {
+              const plan = await planNextContent();
+              format = format ?? (plan.format as Format);
+              topic = topic ?? plan.topic;
+            }
+            let item: QueueItem;
+            try { item = await createContent({ format, topic, platform: slot.platform }); }
+            catch { item = await createContent({ format: "design", topic, platform: slot.platform }); }
+            updateSlot(slot.id, { itemId: item.id });
+          });
+          audit("calendario", "pieza programada generada", `${slot.date} ${slot.time}${slot.topic ? " · " + slot.topic : ""}`);
+        } catch (e: any) { console.error("[calendario]", e?.message ?? e); }
+      }
+    } catch (e: any) { console.error("[calendario]", e?.message ?? e); }
+
     const s = readSched();
     if (!s.enabled) return;
     const now = colombiaNow();
@@ -1584,6 +1609,49 @@ const server = createServer(async (req, res) => {
       const n = await refreshInsights();
       audit(user.name, "actualizó métricas de rendimiento", `${n} pieza(s)`);
       sendJson(res, 200, { updated: n });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  // Calendario de contenido: programar piezas por adelantado en horarios óptimos.
+  if (url.pathname === "/api/calendar" && req.method === "GET") {
+    const { listSlots, BEST_TIMES } = await import("../lib/calendar.js");
+    sendJson(res, 200, { slots: listSlots(), bestTimes: BEST_TIMES });
+    return;
+  }
+  if (url.pathname === "/api/calendar" && req.method === "POST") {
+    try {
+      const b = await jsonBody(req, 16 * 1024);
+      if (!b.date || !b.time) { sendJson(res, 400, { error: "Faltan fecha y hora" }); return; }
+      const { addSlot } = await import("../lib/calendar.js");
+      const slot = addSlot({
+        date: String(b.date), time: String(b.time),
+        format: b.format ? String(b.format) : undefined,
+        topic: b.topic ? String(b.topic) : undefined,
+        platform: b.platform ? String(b.platform) : undefined,
+        userId: user.id,
+      });
+      audit(user.name, "programó pieza", `${slot.date} ${slot.time}`);
+      sendJson(res, 200, { slot });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/calendar/delete" && req.method === "POST") {
+    try {
+      const b = await jsonBody(req, 4 * 1024);
+      const { removeSlot } = await import("../lib/calendar.js");
+      sendJson(res, 200, { ok: removeSlot(String(b.id ?? "")) });
+    } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
+    return;
+  }
+  if (url.pathname === "/api/calendar/plan-week" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
+    try {
+      const b = await jsonBody(req, 4 * 1024).catch(() => ({}));
+      const count = Math.min(14, Math.max(1, Number(b.count) || 7));
+      const { planWeek } = await import("../lib/calendar.js");
+      const slots = await planWeek(count, user.id);
+      audit(user.name, "planificó la semana", `${slots.length} piezas`);
+      sendJson(res, 200, { slots });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
   }
