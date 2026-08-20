@@ -27,6 +27,7 @@ npm run brandcarousel -- "tema" # carrusel de marca premium (slides consistentes
 npm run design -- "tema"    # post de diseño por CÓDIGO (SVG+sharp, sin API de imagen)
 npm run plan                # Claude elige formato+tema según historial
 npm run set                 # una pieza de cada formato
+npm run campaign -- "tema"  # MISMO tema en varios formatos (reel+carrusel+post+diseño)
 npm run voices              # lista voces ElevenLabs
 npm run panel               # panel de aprobación (http://localhost:4321)
 npm run schedule            # scheduler diario (usa el planner)

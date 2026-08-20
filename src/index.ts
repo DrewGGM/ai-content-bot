@@ -79,6 +79,23 @@ async function main() {
       console.log(`\nListo. Revisa el set en el panel: npm run panel`);
       break;
     }
+    case "campaign": {
+      // Un mismo tema en varios formatos (repurpose): 1 idea → reel, carrusel, post, diseño.
+      if (!arg) { console.log(`Falta el tema. Ej: npm run campaign -- "vender sin internet"`); break; }
+      const wanted = ["reel", "carousel", "post", "design"];
+      const avail = availableFormats() as string[];
+      const formats = wanted.filter((f) => avail.includes(f));
+      console.log(`[content-bot] Campaña sobre "${arg}" → ${formats.join(", ")}\n`);
+      for (const f of formats) {
+        try {
+          console.log(`\n=== ${f.toUpperCase()} ===`);
+          const item = await createContent({ format: f as Format, topic: arg });
+          console.log(`   ✓ ${item.format} en cola`);
+        } catch (e: any) { console.log(`   ✗ ${f} falló: ${e.message}`); }
+      }
+      console.log(`\nListo. Revisa la campaña en el panel: npm run panel`);
+      break;
+    }
     case "plan": {
       console.log("[content-bot] Claude está decidiendo qué publicar...\n");
       const plan = await planNextContent();

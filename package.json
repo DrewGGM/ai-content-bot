@@ -13,6 +13,7 @@
     "init-db": "tsx src/index.ts init-db",
     "plan": "tsx src/index.ts plan",
     "set": "tsx src/index.ts set",
+    "campaign": "tsx src/index.ts campaign",
     "generate": "tsx src/index.ts generate",
     "reel": "tsx src/index.ts reel",
     "motion": "tsx src/index.ts motion",

@@ -825,6 +825,10 @@ async function page(user: User): Promise<string> {
         <label for="genMusicUrl">URL de música (opcional)</label>
         <input id="genMusicUrl" type="url" placeholder="Pega el link directo de una pista (mp3/ogg/wav) — si lo dejas vacío, la IA elige/descarga una libre">
       </div>
+      <label class="camp-check" style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:13px;color:var(--mut);cursor:pointer;line-height:1.4">
+        <input type="checkbox" id="genCampaign" onchange="onGenCampaign()" style="margin-top:2px">
+        <span><b style="color:var(--txt)">Campaña</b> — genera este MISMO tema en varios formatos a la vez (una idea → reel, carrusel, post, diseño). Ignora el formato de arriba.</span>
+      </label>
       <div class="modal-err" id="genErr"></div>
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeGen()">Cancelar</button>
@@ -994,6 +998,11 @@ async function page(user: User): Promise<string> {
     }
     function openGen(){document.getElementById('genErr').textContent='';onGenFormat();document.getElementById('genModal').classList.add('show');setTimeout(function(){document.getElementById('genTopic').focus()},50)}
     function closeGen(){document.getElementById('genModal').classList.remove('show')}
+    function onGenCampaign(){
+      var on=document.getElementById('genCampaign').checked;
+      document.getElementById('genFormat').disabled=on;
+      document.getElementById('genSubmit').innerHTML=on?'${icon("spark")} Generar campaña':'${icon("spark")} Generar';
+    }
     document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeGen();closeEdit();closeSched();closePub();closeCf()}});
     function submitGen(){
       var topic=document.getElementById('genTopic').value.trim();
@@ -1002,13 +1011,15 @@ async function page(user: User): Promise<string> {
       var aspect=document.getElementById('genAspect').value;
       var audio=document.getElementById('genAudio').value;
       var musicUrl=document.getElementById('genMusicUrl').value.trim();
+      var campaign=document.getElementById('genCampaign').checked;
       var err=document.getElementById('genErr'),btn=document.getElementById('genSubmit');
       if(!topic){err.textContent='Escribe un tema.';return}
       if(musicUrl&&!/^https?:\\/\\//.test(musicUrl)){err.textContent='La URL de música debe empezar por http(s)://';return}
       btn.disabled=true;
-      fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({format:format,topic:topic,platform:platform,aspect:aspect,audio:audio,musicUrl:musicUrl})})
+      var endpoint=campaign?'/campaign':'/generate';
+      fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({format:format,topic:topic,platform:platform,aspect:aspect,audio:audio,musicUrl:musicUrl})})
         .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d}})})
-        .then(function(x){btn.disabled=false;if(!x.ok){err.textContent=(x.d&&x.d.error)||'Error al generar';return}closeGen();document.getElementById('genTopic').value='';pollJobs()})
+        .then(function(x){btn.disabled=false;if(!x.ok){err.textContent=(x.d&&x.d.error)||'Error al generar';return}closeGen();document.getElementById('genTopic').value='';document.getElementById('genCampaign').checked=false;onGenCampaign();pollJobs()})
         .catch(function(){btn.disabled=false;err.textContent='Error de red'});
     }
     var editId=null,editFmt='';
@@ -1964,6 +1975,28 @@ const server = createServer(async (req, res) => {
         const mUrl = typeof musicUrl === "string" && /^https?:\/\//.test(musicUrl.trim()) ? musicUrl.trim().slice(0, 500) : undefined;
         const job = startJob(user, format as Format, t, typeof platform === "string" && platform ? platform : undefined, { aspect: aspOk, audio: audOk, musicUrl: mUrl });
         res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ jobId: job.id }));
+      } catch { res.writeHead(400).end(); }
+    });
+    return;
+  }
+  // ---- Campaña: un mismo tema en varios formatos (repurpose en un clic) ----
+  if (req.method === "POST" && url.pathname === "/campaign") {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      try {
+        const { topic, platform } = JSON.parse(body);
+        const t = String(topic ?? "").trim();
+        if (!t) { res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Falta el tema" })); return; }
+        // Set curado (variedad de formatos) intersecado con lo que el bot puede producir ahora.
+        const wanted = ["reel", "carousel", "post", "design"];
+        const avail = availableFormats() as string[];
+        const formats = wanted.filter((f) => avail.includes(f));
+        if (!formats.length) { res.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "No hay formatos disponibles ahora" })); return; }
+        const plat = typeof platform === "string" && platform ? platform : undefined;
+        const ids = formats.map((f) => startJob(user, f as Format, t, plat).id);
+        audit(user.name, "campaña", `${t} → ${formats.join(", ")}`);
+        res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ jobIds: ids, formats }));
       } catch { res.writeHead(400).end(); }
     });
     return;
