@@ -41,7 +41,7 @@ function voiceReady(): boolean {
   }
 }
 
-export async function createContent(opts: {
+export interface CreateOpts {
   format: Format;
   topic: string;
   platform?: string;
@@ -50,7 +50,23 @@ export async function createContent(opts: {
   aspect?: Aspect; // solo motion (Remotion): reel 9:16 | square 1:1 | feed 4:5
   audio?: AudioMode; // solo motion (Remotion): voice | voice_music | music | silent
   musicUrl?: string; // solo motion: URL de una pista que pegó el usuario (se descarga y se usa)
-}): Promise<QueueItem> {
+}
+
+/** Genera la pieza midiendo el gasto en APIs y adjuntándolo (QueueItem.cost). */
+export async function createContent(opts: CreateOpts): Promise<QueueItem> {
+  const { withUsage, hasCost } = await import("../lib/usage.js");
+  const { result: item, usage } = await withUsage(() => createContentInner(opts));
+  if (hasCost(usage)) {
+    try {
+      const { updateCost } = await import("../queue/queue.js");
+      await updateCost(item.id, usage);
+      item.cost = usage;
+    } catch { /* el costo es informativo: si falla guardarlo, no rompe la generación */ }
+  }
+  return item;
+}
+
+async function createContentInner(opts: CreateOpts): Promise<QueueItem> {
   const platform = opts.platform ?? "instagram";
   const createdAt = opts.reuse?.createdAt ?? new Date().toISOString();
   const inst = opts.instruction;

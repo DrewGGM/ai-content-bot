@@ -58,6 +58,8 @@ export interface QueueItem {
   posts?: PostRef[];
   /** Métricas orgánicas + score, refrescadas en segundo plano tras publicar. Ver lib/performance.ts. */
   insights?: PostInsights;
+  /** Costo estimado de generar la pieza (APIs de imagen/video/voz). Ver lib/usage.ts. */
+  cost?: { usd: number; byProvider: Record<string, { calls: number; usd: number }>; estimated: true };
 }
 
 // ---------- backend local (queue.json) ----------
@@ -176,6 +178,22 @@ export async function updateInsights(id: string, insights: PostInsights): Promis
     const item = q.items.find((i) => i.id === id);
     if (!item) return null;
     item.insights = insights;
+    writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
+    return item;
+  });
+}
+
+/** Guarda el costo estimado de generación de una pieza (lib/usage.ts). */
+export async function updateCost(id: string, cost: NonNullable<QueueItem["cost"]>): Promise<QueueItem | null> {
+  if (backend() === "d1") {
+    const { d1UpdateCost } = await import("./d1.js");
+    return d1UpdateCost(id, cost);
+  }
+  return withLocalLock(() => {
+    const q = localRead();
+    const item = q.items.find((i) => i.id === id);
+    if (!item) return null;
+    item.cost = cost;
     writeFileSync(QUEUE_PATH, JSON.stringify(q, null, 2));
     return item;
   });

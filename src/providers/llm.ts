@@ -403,6 +403,8 @@ async function askOpenAiApi(prompt: string, opts: AskOptions): Promise<string> {
  * no soporta visión, lanza error — usa visionAvailable() para el gating.
  */
 export async function askLLM(prompt: string, opts: AskOptions = {}): Promise<string> {
+  const { track } = await import("../lib/usage.js");
+  track("llm"); // cuenta la llamada de copy/QA (gratis en CLI con suscripción; ajusta PRICES para API)
   const p = copyProvider();
   if (opts.image && !copyProviderInfo().vision) {
     throw new Error(`El proveedor de copy "${p}" no soporta visión (QA visual)`);

@@ -104,6 +104,11 @@ npm run schedule            # scheduler diario (usa el planner)
   guarda. Corre en el cron diario y por botón (`/api/insights/refresh`). `performanceGuidance()` =
   top/peores por engagement, inyectado en `planContent` y `generateCopy` junto a `learningGuidance`.
   Espera `INSIGHTS_MIN_AGE_HOURS` (ajuste, default 48) antes de medir. Solo Meta por ahora.
+- **Costo por pieza** (`src/lib/usage.ts`): `track(kind, units)` acumula gasto estimado en un store
+  AsyncLocalStorage; `createContent` envuelve la generación con `withUsage()` y adjunta el costo a
+  `QueueItem.cost` (col D1 auto-migrada). Instrumentados: `generateImage` (imagen), `askLLM` (copy/QA,
+  gratis en CLI), TTS de ElevenLabs (por carácter), `generateVideoFromImage`/`generateTalkingAvatar`.
+  Precios ESTIMADOS en `PRICES` (ajustables). Se muestra `≈ $X` en cada card con desglose en tooltip.
 - **Permiso de autoedición** (`AI_EDIT_CONTEXT`, checkbox, **off** por defecto): si se activa, la
   IA puede corregir DATOS equivocados en `knowledge/`/`config/` que el feedback demuestre —
   mediante reemplazos puntuales que deben casar **exactamente una vez**, con respaldo `.bak` y

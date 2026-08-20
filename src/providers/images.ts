@@ -23,6 +23,8 @@ export interface ImageOpts {
 }
 
 export async function generateImage(opts: ImageOpts): Promise<string> {
+  const { track } = await import("../lib/usage.js");
+  track("image"); // costo estimado por imagen (cuenta cada intento, incl. regeneraciones de QA)
   const provider = (opts.provider ?? (process.env.IMAGE_PROVIDER as ImageProvider) ?? "fal").toLowerCase() as ImageProvider;
   const prompt = opts.rawPrompt ? opts.prompt : withArtDirection(opts.prompt);
   const base = { ...opts, prompt };

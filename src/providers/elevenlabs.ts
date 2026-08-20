@@ -35,6 +35,8 @@ export async function textToSpeechWithTimestamps(opts: {
   stability?: number;
   similarityBoost?: number;
 }): Promise<Alignment> {
+  const { track } = await import("../lib/usage.js");
+  track("tts", opts.text.length); // costo estimado por carácter sintetizado
   const model = opts.model ?? "eleven_multilingual_v2";
   const res = await fetch(`${BASE}/text-to-speech/${opts.voiceId}/with-timestamps`, {
     method: "POST",
@@ -66,6 +68,8 @@ export async function textToSpeech(opts: {
   stability?: number;
   similarityBoost?: number;
 }): Promise<string> {
+  const { track } = await import("../lib/usage.js");
+  track("tts", opts.text.length); // costo estimado por carácter sintetizado
   const model = opts.model ?? "eleven_multilingual_v2";
   const res = await fetch(`${BASE}/text-to-speech/${opts.voiceId}`, {
     method: "POST",

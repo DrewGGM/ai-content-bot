@@ -541,7 +541,7 @@ async function page(user: User): Promise<string> {
           <span class="badge" style="background:${BADGE[it.status] ?? "#555"}">${esc(STATUS_LABEL[it.status] ?? it.status)}</span>
         </div>
         <div class="body">
-          <div class="meta">${icon(fmtIcon, "ic sm")}<span>${esc(it.format)}</span><i>·</i><span>${esc(it.platform)}</span>${it.pillar ? `<i>·</i><span>${esc(it.pillar)}</span>` : ""}</div>
+          <div class="meta">${icon(fmtIcon, "ic sm")}<span>${esc(it.format)}</span><i>·</i><span>${esc(it.platform)}</span>${it.pillar ? `<i>·</i><span>${esc(it.pillar)}</span>` : ""}${it.cost && it.cost.usd > 0 ? `<i>·</i><span title="Costo estimado de generación (APIs de imagen/video/voz). ${esc(Object.entries(it.cost.byProvider).map(([k, v]) => `${k}: ${v.calls}× $${v.usd.toFixed(2)}`).join(" · "))}">≈ $${it.cost.usd.toFixed(2)}</span>` : ""}</div>
           <p class="cap">${esc(it.caption).replace(/\n/g, "<br>")}</p>
           ${tags ? `<div class="tags">${tags}</div>` : ""}
           ${it.feedback ? `<p class="why"><b>${it.status === "rejected" ? "Motivo del rechazo" : "Comentario"}${it.reviewedBy ? ` · ${esc(it.reviewedBy)}` : ""}:</b> ${esc(it.feedback)}</p>` : ""}

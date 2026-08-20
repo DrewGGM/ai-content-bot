@@ -167,6 +167,8 @@ export async function generateTalkingAvatar(opts: {
   dest: string;
   model?: string;
 }): Promise<string> {
+  const { track } = await import("../lib/usage.js");
+  track("avatar"); // costo estimado por clip de avatar
   const model = opts.model ?? "fal-ai/bytedance/omnihuman";
   const result: any = await runViaQueue(model, {
     image_url: imageToDataUri(opts.imagePath),
@@ -189,6 +191,8 @@ export async function generateVideoFromImage(opts: {
   duration?: 5 | 10;
   model?: string;
 }): Promise<string> {
+  const { track } = await import("../lib/usage.js");
+  track("video"); // costo estimado por clip image-to-video
   const model = opts.model ?? VIDEO_MODELS.kling25TurboPro;
   const result: any = await runViaQueue(model, {
     prompt: opts.prompt,
