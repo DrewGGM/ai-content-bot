@@ -2286,8 +2286,13 @@ const server = createServer(async (req, res) => {
 applyCompanySecrets();
 applyAppSettings(); // IMAGE_PROVIDER y demás ajustes no-secretos del panel
 
-server.listen(env.panelPort, () => {
+// Escucha SOLO en 127.0.0.1 por defecto (ver env.panelHost): el Tunnel llega por localhost y
+// nadie puede alcanzar el panel directo por la IP pública del VPS saltándose Cloudflare.
+server.listen(env.panelPort, env.panelHost, () => {
   const auth = hasUsers() ? "(login por usuario activado)" : "(primer arranque: crea el admin en el navegador)";
-  console.log(`\nPanel de aprobación → http://localhost:${env.panelPort}  ${auth}\n`);
+  const exposure = env.panelHost === "127.0.0.1" || env.panelHost === "localhost"
+    ? "solo localhost (seguro tras el Tunnel)"
+    : `⚠ ${env.panelHost} — expuesto a la red; asegúrate de tener firewall`;
+  console.log(`\nPanel de aprobación → http://localhost:${env.panelPort}  ${auth}\n  bind: ${exposure}\n`);
   startScheduler(); // programación automática in-process (configurable desde el panel)
 });

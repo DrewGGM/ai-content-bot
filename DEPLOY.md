@@ -119,8 +119,62 @@ ingress:
 ```bash
 sudo cloudflared service install   # corre el tunnel como servicio
 ```
-> **Seguridad (importante):** el panel no tiene login. Protégelo con **Cloudflare Zero Trust →
-> Access** creando una policy (solo tu email) para `panel.tudominio.com`. Así solo tú entras.
+> **Seguridad (importante):** el panel YA tiene login por usuario (scrypt + sesiones), pero añade
+> una 2ª capa con **Cloudflare Zero Trust → Access**: crea una policy (solo tu email) para
+> `panel.tudominio.com`. Así el panel queda detrás del SSO de Cloudflare además de su propio login.
+
+## 6.1 Blindaje de red — que SOLO se entre por Cloudflare (Hetzner)
+
+El Cloudflare Tunnel es **saliente**: `cloudflared` se conecta él mismo a la red de Cloudflare, así
+que el VPS **no necesita ningún puerto de entrada abierto** para servir el panel. El riesgo es dejar
+el puerto del panel (4321) accesible por la **IP pública** del VPS: alguien podría pegarle directo
+saltándose Cloudflare (y su Access), y falsificar la cabecera `cf-connecting-ip` (evadir el
+rate-limit de login). Tres capas, de más fuerte a más:
+
+> **Primer admin en un deploy nuevo:** como el panel ahora solo escucha en localhost y el alta del
+> primer admin sin código solo se permite desde la propia máquina, en un servidor nuevo tienes 2
+> opciones: (a) pon `PANEL_PASSWORD=<código>` en `.env` y créalo remoto por `panel.tudominio.com`
+> usando ese código; o (b) créalo por un túnel SSH a localhost:
+> `ssh -L 4321:127.0.0.1:4321 USER@VPS` y abre `http://localhost:4321` en tu navegador.
+
+**Capa 1 — el panel escucha SOLO en localhost (por defecto desde esta versión).**
+El panel bindea a `127.0.0.1` (`PANEL_HOST`, default), así que ni siquiera responde en la IP pública;
+`cloudflared` (mismo host) lo alcanza por localhost. Verifica en el VPS:
+```bash
+sudo ss -tlnp | grep 4321
+#   ESPERADO:  127.0.0.1:4321   (bien: solo localhost)
+#   MALO:      0.0.0.0:4321  o  *:4321   (expuesto — revisa que no tengas PANEL_HOST=0.0.0.0 en .env)
+```
+Asegúrate de que el `~/.cloudflared/config.yml` apunte a `http://127.0.0.1:4321` (o `localhost`).
+
+**Capa 2 — Cloudflare Cloud Firewall (Hetzner Cloud, recomendado).**
+En la **Hetzner Cloud Console → Firewalls → Create Firewall**, y aplícalo al servidor. Reglas de
+entrada (**inbound**) — deja SOLO lo mínimo; lo no listado se **bloquea**:
+- `SSH` — TCP **22** (source: tu IP fija, o `0.0.0.0/0, ::/0` si tu IP cambia).
+- (opcional) `ICMP` para poder hacer ping.
+- **NO abras 80, 443 ni 4321** — el Tunnel es saliente, no los necesita.
+
+La salida (**outbound**) déjala abierta (default) para que `cloudflared` pueda salir a Cloudflare.
+> Nota: esto es para **Hetzner Cloud** (servidores CX/CAX). Si tienes un **dedicado (Robot)** no hay
+> Cloud Firewall — salta a la Capa 3 (ufw), que es equivalente.
+
+**Capa 3 — firewall del sistema (ufw) como cinturón y tirantes.**
+En el VPS:
+```bash
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow OpenSSH            # o: sudo ufw allow 22/tcp
+sudo ufw enable
+sudo ufw status verbose           # confirma: 22 abierto, todo lo demás denegado
+```
+Con esto, aunque el panel escuchara en `0.0.0.0`, el puerto 4321 queda cerrado desde fuera.
+
+**Verificación final (desde tu máquina, NO desde el VPS):**
+```bash
+curl -m 5 http://IP_PUBLICA_DEL_VPS:4321      # debe DAR TIMEOUT o "connection refused"
+# y el panel SOLO debe abrir por https://panel.tudominio.com (tras Cloudflare Access)
+```
+Si el `curl` responde HTML, algo quedó expuesto: revisa `PANEL_HOST`, el firewall de Hetzner y ufw.
 
 ## 7. Generación diaria (cron)
 ```bash
