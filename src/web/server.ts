@@ -1890,6 +1890,10 @@ const server = createServer(async (req, res) => {
   }
 
   // ---- Ads / Campañas de Meta (solo admin) ----
+  // Kill-switch: si ENABLE_ADS está apagado en Ajustes, el módulo entero queda bloqueado.
+  if (url.pathname.startsWith("/api/ads/") && (process.env.ENABLE_ADS ?? "true").toLowerCase() === "false") {
+    sendJson(res, 403, { error: "El módulo de ads está desactivado en Ajustes" }); return;
+  }
   if (url.pathname === "/api/ads/pieces" && req.method === "GET") {
     if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
     const q = await listQueue();

@@ -44,6 +44,7 @@ const ENV_FIELDS: Array<[string, string, string]> = [
 export function settingsPage(user: { id: string; name: string; role: string }, ptyOk: boolean): string {
   const brand = loadBrandConfig();
   const isAdmin = user.role === "admin";
+  const adsOn = (process.env.ENABLE_ADS ?? "true").toLowerCase() !== "false"; // kill-switch del módulo de ads
   const providerOptions = PROVIDERS.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join("");
 
   const envFieldRows = ENV_FIELDS.map(
@@ -435,7 +436,7 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
     <div class="msg" id="snMsg"></div>
   </section>
 
-  <section class="card">
+  <section class="card"${adsOn ? "" : ' style="display:none"'}>
     <h2>${icon("send")} Campañas de ads (Meta) <span class="role">admin</span></h2>
     <p class="sub">La IA <b>propone</b> una campaña (objetivo, público, presupuesto y copies) para las piezas que elijas,
     la <b>crea</b> en Facebook/Instagram y sugiere <b>optimizaciones</b> según métricas. Nada gasta sin tu OK: se crean
@@ -1178,7 +1179,9 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
 
     // ---- Ads / Campañas de Meta (admin) ----
     var adsPlanData=null;
+    var ADS_ON=${adsOn ? "true" : "false"};
     function loadAds(){
+      if(!ADS_ON)return; // módulo de ads desactivado en Ajustes
       if(!IS_ADMIN)return;
       j('/api/ads/status').then(function(s){
         document.getElementById('adsSetup').style.display=s.ready?'none':'block';

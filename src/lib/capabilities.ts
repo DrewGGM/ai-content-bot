@@ -33,6 +33,11 @@ function has(v?: string): boolean {
   return !!(v && v.trim());
 }
 
+/** ¿Está activado un toggle de proveedor? (bool en Ajustes; default true = activado). */
+function enabled(key: string): boolean {
+  return (process.env[key] ?? "true").toLowerCase() !== "false";
+}
+
 /** voiceId por defecto desde knowledge/voice.json (sin depender del loader de marca). */
 function hasVoiceId(): boolean {
   try {
@@ -45,6 +50,11 @@ function hasVoiceId(): boolean {
 
 export function detectCapabilities(): Capabilities {
   const provider = (process.env.IMAGE_PROVIDER ?? "fal").toLowerCase();
+  // Toggles de proveedor (Ajustes): apagan un servicio aunque su key esté configurada.
+  const falOn = enabled("ENABLE_FAL");
+  const videoOn = enabled("ENABLE_VIDEO") && falOn; // el video es fal → si fal está off, video off
+  const voiceOn = enabled("ENABLE_VOICE");
+  const heygenOn = enabled("ENABLE_HEYGEN");
   const imageKey =
     provider === "openai" ? process.env.OPENAI_API_KEY :
     provider === "gemini" ? (process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY) :
@@ -53,12 +63,17 @@ export function detectCapabilities(): Capabilities {
 
   const cp = copyProviderInfo();
   const copy = cp.ready;
-  const voice = has(process.env.ELEVENLABS_API_KEY) && hasVoiceId();
-  const image = has(imageKey);
-  const video = has(process.env.FAL_KEY); // image-to-video (Kling/Veo) es solo fal
-  const ugc = has(process.env.HEYGEN_API_KEY) && has(process.env.HEYGEN_AVATAR_ID) && has(process.env.HEYGEN_VOICE_ID);
+  const voice = has(process.env.ELEVENLABS_API_KEY) && hasVoiceId() && voiceOn;
+  // Si el proveedor de imagen es fal y fal está apagado, no hay imagen (aunque haya FAL_KEY).
+  const image = has(imageKey) && (provider !== "fal" || falOn);
+  const video = has(process.env.FAL_KEY) && videoOn; // image-to-video (Kling/Veo) es solo fal
+  const ugc = has(process.env.HEYGEN_API_KEY) && has(process.env.HEYGEN_AVATAR_ID) && has(process.env.HEYGEN_VOICE_ID) && heygenOn;
 
   const notes: string[] = [];
+  if (provider === "fal" && !falOn) notes.push("fal está DESACTIVADO en Ajustes (imágenes/video/avatar por fal apagados)");
+  if (!videoOn && falOn) notes.push("video b-roll DESACTIVADO en Ajustes");
+  if (!voiceOn) notes.push("voz (ElevenLabs) DESACTIVADA en Ajustes");
+  if (!heygenOn) notes.push("avatar UGC (HeyGen) DESACTIVADO en Ajustes");
   if (!copy) notes.push(`copy: el proveedor "${cp.provider}" no está configurado (${cp.detail})`);
   if (!cp.vision) notes.push(`QA visual: el proveedor "${cp.provider}" no soporta visión — las imágenes se aceptan sin revisión`);
   // SIEMPRE disponibles (código puro, sin API de pago): design, deck y motion (Remotion).

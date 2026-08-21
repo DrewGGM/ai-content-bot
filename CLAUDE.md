@@ -74,6 +74,9 @@ npm run schedule            # scheduler diario (usa el planner)
   `src/lib/skills.ts` (`loadSkillGuidance` + `listInstalledSkills`). Toggle `USE_CM_SKILLS`.
 - **Capacidades**: `src/lib/capabilities.ts` detecta proveedores + skills → formatos disponibles.
   El planner solo elige formatos viables; el scheduler cae a `design` si algo falla. `npm run capabilities`.
+  **Kill-switches de proveedor** (Ajustes, bool default on): `ENABLE_FAL`/`ENABLE_VIDEO`/`ENABLE_VOICE`/
+  `ENABLE_HEYGEN` apagan un servicio aunque su key esté presente (capabilities los respeta además de la
+  key). `ENABLE_ADS` oculta+bloquea el módulo de ads (guard en `/api/ads/*` + card oculta en settingsPage).
 - **Panel multi-usuario + multi-agente**: login por usuario (`src/lib/users.ts`); cada usuario
   tiene su perfil de agente con credenciales cifradas (`src/lib/agentProfile.ts` + `secretBox.ts`)
   y sus jobs corren con ese perfil vía AsyncLocalStorage (`src/lib/activeProfile.ts` —
