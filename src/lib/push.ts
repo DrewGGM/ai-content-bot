@@ -28,7 +28,8 @@ function getKeys(): Keys | null {
     const gen = webpush.generateVAPIDKeys();
     keys = { publicKey: gen.publicKey, privateKey: gen.privateKey };
     mkdirSync(dirname(KEYS_PATH), { recursive: true });
-    writeFileSync(KEYS_PATH, JSON.stringify(keys, null, 2));
+    // La clave privada VAPID es sensible → 0600, igual que el resto de secretos en data/.
+    writeFileSync(KEYS_PATH, JSON.stringify(keys, null, 2), { mode: 0o600 });
     return keys;
   } catch { return null; }
 }

@@ -8,6 +8,8 @@
 import { readFileSync, writeFileSync, readdirSync, statSync, unlinkSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { askLLMJson } from "../providers/llm.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -181,15 +183,65 @@ async function searchFreeMusic(brief: string): Promise<string | null> {
  * link de una canción libre) y la guarda en la biblioteca. Devuelve la ruta absoluta.
  * La responsabilidad de la licencia es del usuario (queda anotado en credits.json).
  */
-export async function downloadMusicFromUrl(url: string): Promise<string> {
-  const u = new URL(url); // valida
+/** ¿Es una IP privada/loopback/link-local/reservada? (anti-SSRF, incl. metadata 169.254.169.254). */
+export function isPrivateIp(ip: string): boolean {
+  const v = isIP(ip);
+  if (v === 4) {
+    const p = ip.split(".").map(Number);
+    if (p[0] === 10 || p[0] === 127 || p[0] === 0 || p[0] >= 224) return true;
+    if (p[0] === 169 && p[1] === 254) return true;                 // link-local (metadata cloud)
+    if (p[0] === 172 && p[1] >= 16 && p[1] <= 31) return true;
+    if (p[0] === 192 && p[1] === 168) return true;
+    if (p[0] === 100 && p[1] >= 64 && p[1] <= 127) return true;    // CGNAT
+    return false;
+  }
+  if (v === 6) {
+    const s = ip.toLowerCase();
+    if (s === "::1" || s === "::" || s.startsWith("fe80") || s.startsWith("fc") || s.startsWith("fd")) return true;
+    if (s.startsWith("::ffff:")) return isPrivateIp(s.slice(7));   // IPv4 mapeada
+    return false;
+  }
+  return false;
+}
+
+/** Rechaza URLs http(s) que apunten (directo o por DNS) a redes internas. Lanza si no es segura. */
+async function assertPublicUrl(raw: string): Promise<void> {
+  const u = new URL(raw);
   if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error("La URL de música debe ser http(s)");
+  const host = u.hostname.replace(/^\[|\]$/g, "");
+  if (isIP(host)) {
+    if (isPrivateIp(host)) throw new Error("URL no permitida: apunta a una dirección interna");
+    return;
+  }
+  let addrs: { address: string }[];
+  try { addrs = await lookup(host, { all: true }); } catch { throw new Error("no se pudo resolver el host de la música"); }
+  if (!addrs.length || addrs.some((a) => isPrivateIp(a.address))) {
+    throw new Error("URL no permitida: el host resuelve a una dirección interna");
+  }
+}
+
+export async function downloadMusicFromUrl(url: string): Promise<string> {
+  const u = new URL(url); // valida sintaxis
+  await assertPublicUrl(url); // anti-SSRF: bloquea internas/metadata
   console.log(`  → descargando música desde URL del usuario: ${u.hostname}...`);
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 60_000);
   let buf: Buffer; let ctype = "";
   try {
-    const res = await fetch(url, { headers: { "User-Agent": "content-bot/1.0" }, signal: ctl.signal });
+    // Redirecciones manuales: cada salto se re-valida (un host externo podría redirigir a interno).
+    let current = url; let res: Response;
+    for (let hop = 0; ; hop++) {
+      if (hop > 5) throw new Error("demasiadas redirecciones en la URL de música");
+      res = await fetch(current, { headers: { "User-Agent": "content-bot/1.0" }, signal: ctl.signal, redirect: "manual" });
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("location");
+        if (!loc) throw new Error(`redirección sin destino (${res.status})`);
+        current = new URL(loc, current).toString();
+        await assertPublicUrl(current);
+        continue;
+      }
+      break;
+    }
     if (!res.ok) throw new Error(`descarga HTTP ${res.status}`);
     ctype = String(res.headers.get("content-type") ?? "");
     buf = Buffer.from(await res.arrayBuffer());

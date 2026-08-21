@@ -15,7 +15,7 @@ import { createServer, type IncomingMessage } from "node:http";
 import { readFileSync, existsSync, writeFileSync, mkdirSync, createReadStream, statSync } from "node:fs";
 import { extname, normalize, join, dirname, basename, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { env } from "../lib/env.js";
 import { loadBrandConfig } from "../lib/brandConfig.js";
 import { listQueue, updateStatus, updateCopy, updatePosts, updateVariants, deleteItem, STATUSES, type QueueItem } from "../queue/queue.js";
@@ -146,6 +146,24 @@ function createSession(userId: string): string {
   sessions.set(sid, { userId, expires: Date.now() + SESSION_TTL_MS });
   saveSessions();
   return sid;
+}
+
+/**
+ * Cabecera Set-Cookie de sesión. Añade `Secure` cuando la petición llegó por HTTPS
+ * (x-forwarded-proto, que pone el Tunnel de Cloudflare) o si COOKIE_SECURE=true. Así el token
+ * no viaja en claro en producción, sin romper el acceso local por http://localhost.
+ */
+function sessionCookie(headers: NodeJS.Dict<string | string[]>, sid: string): string {
+  const proto = String(headers["x-forwarded-proto"] ?? "").split(",")[0].trim().toLowerCase();
+  const secure = proto === "https" || (process.env.COOKIE_SECURE ?? "").toLowerCase() === "true";
+  return `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800${secure ? "; Secure" : ""}`;
+}
+
+/** Comparación de strings en tiempo constante (evita fugas por timing en códigos/tokens). */
+function timingSafeEqualStr(a: string, b: string): boolean {
+  const ba = Buffer.from(a), bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
 }
 
 /** Lee y parsea el body JSON de un request (límite 1 MB salvo que se indique otro). */
@@ -1235,15 +1253,28 @@ const server = createServer(async (req, res) => {
       if (hasUsers()) { res.writeHead(302, { Location: "/" }).end(); return; }
       const form = new URLSearchParams(body);
       const code = form.get("code") ?? "";
-      if (SETUP_CODE && code !== SETUP_CODE) {
-        res.writeHead(401, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(authPage("setup", "Código de instalación incorrecto."));
+      // ¿La petición es realmente local? (loopback y SIN cabeceras de proxy). Un Tunnel/proxy
+      // siempre añade x-forwarded-*; su ausencia + peer loopback = alguien en la propia máquina.
+      const peer = String(req.socket.remoteAddress ?? "");
+      const proxied = !!(req.headers["x-forwarded-for"] || req.headers["x-forwarded-proto"] || req.headers["cf-connecting-ip"]);
+      const isLocal = !proxied && (peer === "127.0.0.1" || peer === "::1" || peer === "::ffff:127.0.0.1");
+      // Sin código configurado, el alta del primer admin SOLO se permite desde la máquina local.
+      // Remoto (o con código configurado) SIEMPRE debe presentar el código correcto — así una
+      // instancia expuesta sin PANEL_PASSWORD no deja que un extraño se registre como admin.
+      if (SETUP_CODE) {
+        if (!timingSafeEqualStr(code, SETUP_CODE)) {
+          res.writeHead(401, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(authPage("setup", "Código de instalación incorrecto."));
+          return;
+        }
+      } else if (!isLocal) {
+        res.writeHead(403, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(authPage("setup", "El registro remoto requiere configurar PANEL_PASSWORD en el servidor. Sin él, el primer admin solo puede crearse desde la propia máquina."));
         return;
       }
       try {
         const user = createUser(form.get("name") ?? "", form.get("password") ?? "", "admin");
         const sid = createSession(user.id);
         res.writeHead(302, {
-          "Set-Cookie": `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`,
+          "Set-Cookie": sessionCookie(req.headers, sid),
           Location: "/settings",
         }).end();
       } catch (e: any) {
@@ -1270,7 +1301,7 @@ const server = createServer(async (req, res) => {
         audit(user.name, "inició sesión", `ip ${ip}`);
         const sid = createSession(user.id);
         res.writeHead(302, {
-          "Set-Cookie": `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`,
+          "Set-Cookie": sessionCookie(req.headers, sid),
           Location: "/",
         }).end();
       } else {
@@ -1708,29 +1739,37 @@ const server = createServer(async (req, res) => {
     return;
   }
   // Calendario de contenido: programar piezas por adelantado en horarios óptimos.
+  // Admin-only (la card vive en Ajustes, vista de admin) — evita que un miembro plante datos que
+  // se renderizan en el navegador de un admin y evita IDOR sobre slots ajenos.
   if (url.pathname === "/api/calendar" && req.method === "GET") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
     const { listSlots, BEST_TIMES } = await import("../lib/calendar.js");
     sendJson(res, 200, { slots: listSlots(), bestTimes: BEST_TIMES });
     return;
   }
   if (url.pathname === "/api/calendar" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
     try {
       const b = await jsonBody(req, 16 * 1024);
-      if (!b.date || !b.time) { sendJson(res, 400, { error: "Faltan fecha y hora" }); return; }
+      const date = String(b.date ?? ""), time = String(b.time ?? "");
+      // Validación estricta: date/time con formato fijo; platform/format contra un charset seguro.
+      // Así ni un dato malicioso ni una alucinación del LLM (planWeek) puede inyectar HTML.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]?\d|2[0-3]):[0-5]\d$/.test(time)) {
+        sendJson(res, 400, { error: "Fecha (YYYY-MM-DD) u hora (HH:MM) inválida" }); return;
+      }
+      const platform = b.platform ? String(b.platform) : undefined;
+      const format = b.format ? String(b.format) : undefined;
+      if (platform && !/^[a-z]{1,20}$/.test(platform)) { sendJson(res, 400, { error: "Plataforma inválida" }); return; }
+      if (format && !/^[a-z0-9:_-]{1,40}$/.test(format)) { sendJson(res, 400, { error: "Formato inválido" }); return; }
       const { addSlot } = await import("../lib/calendar.js");
-      const slot = addSlot({
-        date: String(b.date), time: String(b.time),
-        format: b.format ? String(b.format) : undefined,
-        topic: b.topic ? String(b.topic) : undefined,
-        platform: b.platform ? String(b.platform) : undefined,
-        userId: user.id,
-      });
+      const slot = addSlot({ date, time, format, topic: b.topic ? String(b.topic).slice(0, 500) : undefined, platform, userId: user.id });
       audit(user.name, "programó pieza", `${slot.date} ${slot.time}`);
       sendJson(res, 200, { slot });
     } catch (e: any) { sendJson(res, 400, { error: String(e?.message ?? e) }); }
     return;
   }
   if (url.pathname === "/api/calendar/delete" && req.method === "POST") {
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
     try {
       const b = await jsonBody(req, 4 * 1024);
       const { removeSlot } = await import("../lib/calendar.js");
@@ -2057,6 +2096,8 @@ const server = createServer(async (req, res) => {
     return;
   }
   if (req.method === "POST" && url.pathname === "/schedule") {
+    // El scheduler es una config GLOBAL (una pieza/día para todo el sistema): solo admin lo cambia.
+    if (!isAdmin) { sendJson(res, 403, { error: "Solo admin" }); return; }
     let body = "";
     req.on("data", (c) => (body += c));
     req.on("end", () => {

@@ -1074,11 +1074,11 @@ export function settingsPage(user: { id: string; name: string; role: string }, p
         if(!slots.length){box.innerHTML='<span class="sub">Sin piezas programadas. Usa "Planificar la semana" o agrega una arriba.</span>';return}
         box.innerHTML=slots.map(function(s){
           return '<div style="display:flex;align-items:center;gap:10px;padding:8px 11px;border:1px solid var(--line);border-radius:10px;font-size:13px">'
-            +'<b style="font-family:Fira Code,monospace">'+s.date+' '+s.time+'</b>'
-            +'<span class="sub" style="margin:0">'+(s.platform||'')+(s.format?' · '+s.format:' · auto')+'</span>'
+            +'<b style="font-family:Fira Code,monospace">'+esc(s.date)+' '+esc(s.time)+'</b>'
+            +'<span class="sub" style="margin:0">'+esc(s.platform||'')+(s.format?' · '+esc(s.format):' · auto')+'</span>'
             +'<span style="flex:1;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.topic?esc(s.topic):'(tema: lo decide la IA)')+'</span>'
-            +'<span class="role">'+(STLBL[s.status]||s.status)+'</span>'
-            +'<button class="btn-ghost sm" data-del="'+s.id+'">✕</button></div>';
+            +'<span class="role">'+esc(STLBL[s.status]||s.status)+'</span>'
+            +'<button class="btn-ghost sm" data-del="'+esc(s.id)+'">✕</button></div>';
         }).join('');
         box.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){delSlot(b.getAttribute('data-del'))}});
       }).catch(function(){});
